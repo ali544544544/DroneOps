@@ -825,7 +825,7 @@ const UI = {
     const dusk    = new Date(sunData.results.civil_twilight_end);
     const now     = new Date();
 
-    const W = 460, H = 230;
+    const W = 460, H = 250;
     const padX = 45; // Increased padding for more space at edges
     const arcBaseY = 162;
     const arcRadius = (W - padX * 2) / 2;
@@ -870,26 +870,40 @@ const UI = {
     const fmt = (d) => new Date(d).toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
     const uid = `sa${Math.random().toString(36).slice(2, 7)}`;
 
-    // Collision detection and staggering for labels
+    // Robust collision detection and staggering for labels
     const rawLabels = [
-      { x: ptDawn.x, text: fmt(dawn),    fill: 'rgba(150,170,255,0.85)', dot: 'rgba(130,160,255,1)',   anchor: 'middle' },
-      { x: ptSR.x,   text: fmt(sunrise), fill: 'rgba(100,230,180,0.95)', dot: 'rgba(80,220,160,1)',    anchor: 'middle' },
-      { x: ptSS.x,   text: fmt(sunset),  fill: 'rgba(255,145,80,0.95)',  dot: 'rgba(255,120,60,1)',    anchor: 'middle' },
-      { x: ptDusk.x, text: fmt(dusk),    fill: 'rgba(150,170,255,0.85)', dot: 'rgba(130,160,255,1)',   anchor: 'middle' },
+      { text: fmt(dawn),    x: ptDawn.x, fill: 'rgba(150,170,255,0.9)', dot: 'rgba(130,160,255,1)' },
+      { text: fmt(sunrise), x: ptSR.x,   fill: 'rgba(100,230,180,1)',    dot: 'rgba(80,220,160,1)'  },
+      { text: fmt(sunset),  x: ptSS.x,   fill: 'rgba(255,145,80,1)',     dot: 'rgba(255,120,60,1)'  },
+      { text: fmt(dusk),    x: ptDusk.x, fill: 'rgba(150,170,255,0.9)', dot: 'rgba(130,160,255,1)' },
     ];
 
-    // Simple staggering: if two labels are closer than 40px, push the second one down
-    const processedLabels = rawLabels.map((l, i) => {
-      let yOffset = 18;
-      if (i > 0 && Math.abs(l.x - rawLabels[i-1].x) < 45) {
-        yOffset = (rawLabels[i-1].yOffset === 18) ? 32 : 18;
+    const processedLabels = [];
+    const minXDist = 52; // Minimum horizontal distance between labels
+    const ySteps = [18, 36, 54]; // Possible Y offsets
+
+    rawLabels.forEach((l, i) => {
+      let level = 0;
+      let collision = true;
+      
+      while (collision && level < ySteps.length) {
+        collision = processedLabels.some(prev => 
+          prev.level === level && Math.abs(prev.x - l.x) < minXDist
+        );
+        if (collision) level++;
       }
-      // Edge anchoring
-      let anchor = l.anchor;
+
+      // Edge anchoring logic
+      let anchor = 'middle';
       if (i === 0) anchor = 'start';
       if (i === rawLabels.length - 1) anchor = 'end';
-      
-      return { ...l, y: arcBaseY + yOffset, yOffset, anchor };
+
+      processedLabels.push({ 
+        ...l, 
+        y: arcBaseY + ySteps[level], 
+        level, 
+        anchor 
+      });
     });
 
     const ghMidX = ((ptDawn.x + ptMEnd.x) / 2).toFixed(1);
@@ -959,7 +973,7 @@ const UI = {
   <text x="${(W / 2).toFixed(1)}" y="${(arcBaseY - 20).toFixed(1)}" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.35)" font-family="inherit">Sonne unter dem Horizont</text>`;
 
     svg += '\n  ' + processedLabels.map(l =>
-      `<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="${l.anchor}" font-size="10" fill="${l.fill}" font-family="inherit" font-weight="700">${l.text}</text>`
+      `<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="${l.anchor}" font-size="9.5" fill="${l.fill}" font-family="inherit" font-weight="700">${l.text}</text>`
     ).join('\n  ');
 
     if (progMEnd > 0.02 && progMEnd < 0.98)
