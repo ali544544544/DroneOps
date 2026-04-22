@@ -1,4 +1,4 @@
-﻿const DATA_FILES = {
+const DATA_FILES = {
   profiles: './data/profiles.json',
   translations: './data/translations.json',
   weathercodes: './data/weathercodes.json',
@@ -825,9 +825,8 @@ const UI = {
     const dusk    = new Date(sunData.results.civil_twilight_end);
     const now     = new Date();
 
-    // Canvas: H=220 gives enough room for labels below arcBaseY=162
-    const W = 420, H = 220;
-    const padX = 28;
+    const W = 460, H = 230;
+    const padX = 45; // Increased padding for more space at edges
     const arcBaseY = 162;
     const arcRadius = (W - padX * 2) / 2;
     const arcCx     = W / 2;
@@ -871,17 +870,31 @@ const UI = {
     const fmt = (d) => new Date(d).toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
     const uid = `sa${Math.random().toString(36).slice(2, 7)}`;
 
-    const LY = arcBaseY + 16; // label Y always inside H=220
-    const labels = [
-      { x: ptDawn.x, text: fmt(dawn),    fill: 'rgba(150,170,255,0.8)',  dot: 'rgba(130,160,255,0.9)', anchor: 'start'  },
-      { x: ptSR.x,   text: fmt(sunrise), fill: 'rgba(100,230,180,0.9)',  dot: 'rgba(80,220,160,1)',    anchor: 'middle' },
-      { x: ptSS.x,   text: fmt(sunset),  fill: 'rgba(255,145,80,0.9)',   dot: 'rgba(255,120,60,1)',    anchor: 'middle' },
-      { x: ptDusk.x, text: fmt(dusk),    fill: 'rgba(150,170,255,0.8)',  dot: 'rgba(130,160,255,0.9)', anchor: 'end'    },
+    // Collision detection and staggering for labels
+    const rawLabels = [
+      { x: ptDawn.x, text: fmt(dawn),    fill: 'rgba(150,170,255,0.85)', dot: 'rgba(130,160,255,1)',   anchor: 'middle' },
+      { x: ptSR.x,   text: fmt(sunrise), fill: 'rgba(100,230,180,0.95)', dot: 'rgba(80,220,160,1)',    anchor: 'middle' },
+      { x: ptSS.x,   text: fmt(sunset),  fill: 'rgba(255,145,80,0.95)',  dot: 'rgba(255,120,60,1)',    anchor: 'middle' },
+      { x: ptDusk.x, text: fmt(dusk),    fill: 'rgba(150,170,255,0.85)', dot: 'rgba(130,160,255,1)',   anchor: 'middle' },
     ];
+
+    // Simple staggering: if two labels are closer than 40px, push the second one down
+    const processedLabels = rawLabels.map((l, i) => {
+      let yOffset = 18;
+      if (i > 0 && Math.abs(l.x - rawLabels[i-1].x) < 45) {
+        yOffset = (rawLabels[i-1].yOffset === 18) ? 32 : 18;
+      }
+      // Edge anchoring
+      let anchor = l.anchor;
+      if (i === 0) anchor = 'start';
+      if (i === rawLabels.length - 1) anchor = 'end';
+      
+      return { ...l, y: arcBaseY + yOffset, yOffset, anchor };
+    });
 
     const ghMidX = ((ptDawn.x + ptMEnd.x) / 2).toFixed(1);
     const ghEMidX = ((ptEStart.x + ptDusk.x) / 2).toFixed(1);
-    const ghY = (arcBaseY - 16).toFixed(1);
+    const ghY = (arcBaseY - 18).toFixed(1);
 
     const sunX = ptNow.x.toFixed(1), sunY = ptNow.y.toFixed(1);
     const sunR = sunRisen ? 10 : 7;
@@ -900,7 +913,7 @@ const UI = {
     let svg = `<svg class="sun-arc" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" aria-label="Sonnenstandskurve">
   <defs>
     <radialGradient id="${uid}sky" cx="50%" cy="100%" r="75%">
-      <stop offset="0%"   stop-color="rgba(245,188,43,0.08)"/>
+      <stop offset="0%"   stop-color="rgba(245,188,43,0.1)"/>
       <stop offset="100%" stop-color="transparent"/>
     </radialGradient>
     <filter id="${uid}gh" x="-25%" y="-25%" width="150%" height="150%">
@@ -915,44 +928,44 @@ const UI = {
   <rect x="0" y="0" width="${W}" height="${H}" fill="url(#${uid}sky)"/>`;
 
     if (progMEnd > 0.01)
-      svg += `\n  <rect x="${ptDawn.x.toFixed(1)}" y="10" width="${mghW}" height="${arcH}" fill="rgba(245,188,43,0.045)" rx="6"/>`;
+      svg += `\n  <rect x="${ptDawn.x.toFixed(1)}" y="10" width="${mghW}" height="${arcH}" fill="rgba(245,188,43,0.05)" rx="6"/>`;
     if (progEStart < 0.99)
-      svg += `\n  <rect x="${ptEStart.x.toFixed(1)}" y="10" width="${eghW}" height="${arcH}" fill="rgba(255,100,40,0.045)" rx="6"/>`;
+      svg += `\n  <rect x="${ptEStart.x.toFixed(1)}" y="10" width="${eghW}" height="${arcH}" fill="rgba(255,100,40,0.05)" rx="6"/>`;
 
     svg += `
-  <line x1="${(padX - 6)}" y1="${arcBaseY}" x2="${(W - padX + 6)}" y2="${arcBaseY}" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
-  <path d="M ${padX} ${arcBaseY} A ${arcRadius} ${arcRadius} 0 0 1 ${W - padX} ${arcBaseY}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="3" stroke-linecap="round"/>`;
+  <line x1="${(padX - 10)}" y1="${arcBaseY}" x2="${(W - padX + 10)}" y2="${arcBaseY}" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+  <path d="M ${padX} ${arcBaseY} A ${arcRadius} ${arcRadius} 0 0 1 ${W - padX} ${arcBaseY}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3" stroke-linecap="round"/>`;
 
     if (dayLitSeg)
-      svg += `\n  <path d="${dayLitSeg}" fill="none" stroke="rgba(255,230,140,0.16)" stroke-width="3" stroke-linecap="round"/>`;
+      svg += `\n  <path d="${dayLitSeg}" fill="none" stroke="rgba(255,230,140,0.18)" stroke-width="3" stroke-linecap="round"/>`;
     if (morningSeg)
-      svg += `\n  <path d="${morningSeg}" fill="none" stroke="rgba(255,190,50,0.82)" stroke-width="6" stroke-linecap="round" filter="url(#${uid}gh)"/>`;
+      svg += `\n  <path d="${morningSeg}" fill="none" stroke="rgba(255,190,50,0.85)" stroke-width="6" stroke-linecap="round" filter="url(#${uid}gh)"/>`;
     if (eveningSeg)
-      svg += `\n  <path d="${eveningSeg}" fill="none" stroke="rgba(255,110,40,0.82)" stroke-width="6" stroke-linecap="round" filter="url(#${uid}gh)"/>`;
+      svg += `\n  <path d="${eveningSeg}" fill="none" stroke="rgba(255,110,40,0.85)" stroke-width="6" stroke-linecap="round" filter="url(#${uid}gh)"/>`;
     if (travelSeg && progNow > 0.01)
-      svg += `\n  <path d="${travelSeg}" fill="none" stroke="rgba(255,220,100,0.38)" stroke-width="2.5" stroke-linecap="round"/>`;
+      svg += `\n  <path d="${travelSeg}" fill="none" stroke="rgba(255,220,100,0.4)" stroke-width="2.5" stroke-linecap="round"/>`;
 
     if (sunVisible)
-      svg += `\n  <line x1="${sunX}" y1="${sunY}" x2="${sunX}" y2="${arcBaseY}" stroke="rgba(255,214,80,0.22)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+      svg += `\n  <line x1="${sunX}" y1="${sunY}" x2="${sunX}" y2="${arcBaseY}" stroke="rgba(255,214,80,0.25)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
 
-    svg += '\n  ' + labels.map(l => `<circle cx="${l.x.toFixed(1)}" cy="${arcBaseY}" r="4.5" fill="${l.dot}"/>`).join('\n  ');
+    svg += '\n  ' + processedLabels.map(l => `<circle cx="${l.x.toFixed(1)}" cy="${arcBaseY}" r="4.5" fill="${l.dot}"/>`).join('\n  ');
 
     if (sunVisible)
-      svg += `\n  <circle cx="${sunX}" cy="${sunY}" r="20" fill="rgba(255,200,50,0.1)" filter="url(#${uid}sun)"/>
+      svg += `\n  <circle cx="${sunX}" cy="${sunY}" r="22" fill="rgba(255,200,50,0.1)" filter="url(#${uid}sun)"/>
   <circle cx="${sunX}" cy="${sunY}" r="${sunR}" fill="${sunFill}" filter="url(#${uid}sun)"/>
   <circle cx="${sunX}" cy="${sunY}" r="5" fill="white" opacity="${sunOp}"/>`;
     else
-      svg += `\n  <circle cx="${nightX}" cy="${arcBaseY}" r="9" fill="rgba(80,100,160,0.55)"/>
-  <text x="${(W / 2).toFixed(1)}" y="${(arcBaseY - 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.32)" font-family="inherit">Sonne unter dem Horizont</text>`;
+      svg += `\n  <circle cx="${nightX}" cy="${arcBaseY}" r="10" fill="rgba(80,100,160,0.6)"/>
+  <text x="${(W / 2).toFixed(1)}" y="${(arcBaseY - 20).toFixed(1)}" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.35)" font-family="inherit">Sonne unter dem Horizont</text>`;
 
-    svg += '\n  ' + labels.map(l =>
-      `<text x="${l.x.toFixed(1)}" y="${LY}" text-anchor="${l.anchor}" font-size="9.5" fill="${l.fill}" font-family="inherit" font-weight="600">${l.text}</text>`
+    svg += '\n  ' + processedLabels.map(l =>
+      `<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="${l.anchor}" font-size="10" fill="${l.fill}" font-family="inherit" font-weight="700">${l.text}</text>`
     ).join('\n  ');
 
     if (progMEnd > 0.02 && progMEnd < 0.98)
-      svg += `\n  <text x="${ghMidX}" y="${ghY}" text-anchor="middle" font-size="9" fill="rgba(255,190,50,0.85)" font-family="inherit" font-weight="700">\uD83C\uDF05 GH</text>`;
+      svg += `\n  <text x="${ghMidX}" y="${ghY}" text-anchor="middle" font-size="9" fill="rgba(255,190,50,0.9)" font-family="inherit" font-weight="800">\uD83C\uDF05 GH</text>`;
     if (progEStart > 0.02 && progEStart < 0.98)
-      svg += `\n  <text x="${ghEMidX}" y="${ghY}" text-anchor="middle" font-size="9" fill="rgba(255,110,40,0.85)" font-family="inherit" font-weight="700">\uD83C\uDF07 GH</text>`;
+      svg += `\n  <text x="${ghEMidX}" y="${ghY}" text-anchor="middle" font-size="9" fill="rgba(255,110,40,0.9)" font-family="inherit" font-weight="800">\uD83C\uDF07 GH</text>`;
 
     svg += '\n</svg>';
     return svg;
