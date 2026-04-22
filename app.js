@@ -1531,6 +1531,7 @@ const App = {
     }
 
     try {
+      const drone = ProfileManager.getActive();
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather.data);
