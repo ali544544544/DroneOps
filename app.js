@@ -816,41 +816,53 @@ const UI = {
     const dawn = new Date(sunData.results.civil_twilight_begin);
     const dusk = new Date(sunData.results.civil_twilight_end);
     const now = new Date();
+    
+    // Dimensionen korrigiert: Mehr Höhe für den Bogen
     const width = 340;
-    const height = 160;
+    const height = 180; 
     const cx = width / 2;
-    const cy = height - 20;
-    const radius = (width - 40) / 2;
+    const cy = 150; // Basislinie
+    const radius = 130; // Radius verkleinert, damit er zu 100% in die Box passt
 
     const total = dusk - dawn;
     const progress = Util.clamp((now - dawn) / total, 0, 1);
-    const x = 20 + (width - 40) * progress;
+    
+    // Start- und Endpunkte auf der X-Achse
+    const startX = cx - radius;
+    const endX = cx + radius;
+    
+    // Aktuelle Position der Sonne
+    const x = startX + (radius * 2) * progress;
     const dx = x - cx;
     const y = cy - Math.sqrt(Math.max(radius * radius - dx * dx, 0));
 
-    const dawnX = 20;
-    const sunriseProgress = Util.clamp((sunrise - dawn) / total, 0, 1);
-    const sunriseX = 20 + (width - 40) * sunriseProgress;
-    const sunsetProgress = Util.clamp((sunset - dawn) / total, 0, 1);
-    const sunsetX = 20 + (width - 40) * sunsetProgress;
-    const duskX = width - 20;
+    // Hilfsfunktion zur X-Position-Berechnung von Zeiten
+    const getX = (date) => startX + (radius * 2) * Util.clamp((date - dawn) / total, 0, 1);
+
+    const dawnX = getX(dawn);
+    const sunriseX = getX(sunrise);
+    const sunsetX = getX(sunset);
+    const duskX = getX(dusk);
 
     const morningStartX = dawnX;
-    const morningEndProgress = Util.clamp((gh.morningEnd - dawn) / total, 0, 1);
-    const morningEndX = 20 + (width - 40) * morningEndProgress;
-    const eveningStartProgress = Util.clamp((gh.eveningStart - dawn) / total, 0, 1);
-    const eveningStartX = 20 + (width - 40) * eveningStartProgress;
+    const morningEndX = getX(gh.morningEnd);
+    const eveningStartX = getX(gh.eveningStart);
     const eveningEndX = duskX;
 
     return `
       <svg class="sun-arc" viewBox="0 0 ${width} ${height}" aria-label="Sun path">
-        <path d="M 20 ${cy} A ${radius} ${radius} 0 0 1 ${width - 20} ${cy}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3" />
-        <rect x="${morningStartX}" y="${cy - 14}" width="${Math.max(0, morningEndX - morningStartX)}" height="14" rx="7" fill="rgba(255,214,125,0.35)"></rect>
-        <rect x="${eveningStartX}" y="${cy - 14}" width="${Math.max(0, eveningEndX - eveningStartX)}" height="14" rx="7" fill="rgba(255,214,125,0.35)"></rect>
-        <circle cx="${x}" cy="${y}" r="8" fill="rgba(255,214,125,0.98)"></circle>
+        <line x1="${startX - 10}" y1="${cy}" x2="${endX + 10}" y2="${cy}" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"/>
+        
+        <path d="M ${startX} ${cy} A ${radius} ${radius} 0 0 1 ${endX} ${cy}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-dasharray="6 6" />
+        
+        <rect x="${morningStartX}" y="${cy - 5}" width="${Math.max(0, morningEndX - morningStartX)}" height="10" rx="5" fill="rgba(245, 188, 43, 0.4)"></rect>
+        <rect x="${eveningStartX}" y="${cy - 5}" width="${Math.max(0, eveningEndX - eveningStartX)}" height="10" rx="5" fill="rgba(245, 188, 43, 0.4)"></rect>
+        
+        <circle cx="${x}" cy="${y}" r="8" fill="var(--yellow, #f5bc2b)" filter="drop-shadow(0 0 6px rgba(245,188,43,0.8))"></circle>
+        
         <circle cx="${dawnX}" cy="${cy}" r="4" fill="rgba(89,168,255,0.95)"></circle>
-        <circle cx="${sunriseX}" cy="${cy}" r="4" fill="rgba(120,220,180,0.95)"></circle>
-        <circle cx="${sunsetX}" cy="${cy}" r="4" fill="rgba(255,140,100,0.95)"></circle>
+        <circle cx="${sunriseX}" cy="${cy}" r="4" fill="rgba(55,231,129,0.95)"></circle>
+        <circle cx="${sunsetX}" cy="${cy}" r="4" fill="rgba(245,188,43,0.95)"></circle>
         <circle cx="${duskX}" cy="${cy}" r="4" fill="rgba(180,120,255,0.95)"></circle>
       </svg>
     `;
