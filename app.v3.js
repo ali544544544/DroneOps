@@ -1264,11 +1264,12 @@ const UI = {
       </div>
     `;
     
-    // Center current hour
+    // Center current hour safely without vertical page jump
     setTimeout(() => {
+      const scrollContainer = target.querySelector('.hourly-scroll');
       const nowCard = target.querySelector('.hour-card.now');
-      if (nowCard) {
-        nowCard.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+      if (scrollContainer && nowCard) {
+        scrollContainer.scrollLeft = nowCard.offsetLeft - (scrollContainer.clientWidth / 2) + (nowCard.clientWidth / 2);
       }
     }, 100);
   },
