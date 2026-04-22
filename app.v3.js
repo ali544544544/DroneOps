@@ -51,6 +51,12 @@ const CloudManager = {
     if (error) throw error;
     UI.toast('Reset-Link wurde an E-Mail gesendet.');
   },
+  async updatePassword(newPassword) {
+    if (!supabaseClient) return;
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    UI.toast('Passwort erfolgreich geändert.');
+  },
   async logout() {
     if (supabaseClient) await supabaseClient.auth.signOut();
     this.user = null;
@@ -1722,6 +1728,24 @@ const App = {
       const pass = document.getElementById('authPassword').value;
       try { await CloudManager.login(email, pass); } catch (e) { alert(e.message); }
     });
+
+    const changePassBtn = document.getElementById('changePasswordBtn');
+    if (changePassBtn) {
+      changePassBtn.addEventListener('click', async () => {
+        const newPass = document.getElementById('changePasswordInput').value;
+        if (!newPass || newPass.length < 6) return alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
+        const original = changePassBtn.textContent;
+        changePassBtn.textContent = '...';
+        try {
+          await CloudManager.updatePassword(newPass);
+          document.getElementById('changePasswordInput').value = '';
+        } catch (e) {
+          alert('Fehler: ' + e.message);
+        } finally {
+          changePassBtn.textContent = original;
+        }
+      });
+    }
 
     document.getElementById('signupBtn').addEventListener('click', async () => {
       const email = document.getElementById('authEmail').value;

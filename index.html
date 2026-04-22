@@ -63,6 +63,15 @@
 
       <div id="userView" class="hidden">
         <p id="userEmail" class="muted" style="margin-bottom:12px; font-size:0.9rem; word-break: break-all;"></p>
+        
+        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.1);">
+          <p style="font-size:0.8rem; margin-bottom:8px;" class="muted">Passwort ändern:</p>
+          <div class="field" style="margin-bottom:8px;">
+            <input id="changePasswordInput" type="password" placeholder="Neues Passwort..." autocomplete="new-password" />
+          </div>
+          <button id="changePasswordBtn" class="btn btn-secondary btn-small" style="width:100%">Speichern</button>
+        </div>
+
         <button id="syncNowBtn" class="btn btn-small" style="width:100%; margin-bottom:8px;">☁️ Daten jetzt sichern</button>
         <button id="logoutBtn" class="btn btn-secondary btn-small" style="width:100%">Logout</button>
       </div>
