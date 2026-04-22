@@ -832,7 +832,7 @@ const UI = {
   renderProfileSelect() {
     const active = ProfileManager.getActive();
     this.els.profileSelect.innerHTML = ProfileManager.getAll().map(p => `
-      <option value="${p.id}" ${p.id === active.id ? 'selected' : ''}>${p.label[I18n.lang] || p.label.de}</option>
+      <option value="${p.id}" ${p.id === active.id ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>
     `).join('');
   },
   renderDashboardLocationSelect() {
@@ -1190,6 +1190,24 @@ const App = {
 
       UI.els.droneForm.classList.add('hidden');
       await this.renderAll();
+    });
+
+    UI.els.droneSize.addEventListener('change', (e) => {
+      const size = parseFloat(e.target.value);
+      const presets = {
+        1.6: { wind: 12, gusts: 16 },
+        2: { wind: 15, gusts: 20 },
+        2.5: { wind: 18, gusts: 24 },
+        3: { wind: 22, gusts: 30 },
+        3.5: { wind: 28, gusts: 36 },
+        5: { wind: 35, gusts: 48 },
+        7: { wind: 45, gusts: 60 },
+        10: { wind: 55, gusts: 75 }
+      };
+      if (presets[size]) {
+        UI.els.droneMaxWind.value = presets[size].wind;
+        UI.els.droneMaxGusts.value = presets[size].gusts;
+      }
     });
 
     UI.els.profileSelect.addEventListener('change', async (e) => {
@@ -1787,7 +1805,7 @@ const App = {
             <div class="form-row">
               <input type="date" id="logDate" required value="${new Date().toISOString().slice(0, 10)}" />
               <select id="logDrone">
-                ${ProfileManager.getAll().map(p => `<option value="${p.id}">${p.label[I18n.lang] || p.label.de}</option>`).join('')}
+                ${ProfileManager.getAll().map(p => `<option value="${p.id}">${Util.escapeHtml(p.label)}</option>`).join('')}
               </select>
             </div>
             <input type="text" id="logNote" maxlength="200" placeholder="${I18n.t('detail.logPlaceholder')}" />

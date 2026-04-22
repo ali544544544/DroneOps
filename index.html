@@ -134,7 +134,16 @@
             </label>
             <label class="field">
               <span data-i18n="drones.size">Größe (Zoll)</span>
-              <input id="droneSize" type="number" min="0.1" step="0.1" required />
+              <select id="droneSize">
+                <option value="1.6">1.6" (Whoop)</option>
+                <option value="2">2"</option>
+                <option value="2.5">2.5"</option>
+                <option value="3">3"</option>
+                <option value="3.5">3.5"</option>
+                <option value="5">5" (Standard)</option>
+                <option value="7">7" (Longrange)</option>
+                <option value="10">10" (Cinelifter)</option>
+              </select>
             </label>
             <label class="field">
               <span data-i18n="drones.maxWind">Max Wind (km/h)</span>
