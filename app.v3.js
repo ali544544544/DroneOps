@@ -1846,18 +1846,33 @@ const App = {
 
     try {
       const drone = ProfileManager.getActive();
-      const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
+      let targetDate = new Date();
+      let [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location, targetDate)]);
       
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather.data);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
-      const gh = GoldenHour.calculate({
+      
+      let gh = GoldenHour.calculate({
         sunrise: sun.data.results.sunrise,
         sunset: sun.data.results.sunset,
         civilDawn: sun.data.results.civil_twilight_begin,
         civilDusk: sun.data.results.civil_twilight_end
       });
 
+      if (new Date() > gh.eveningEnd) {
+        targetDate.setDate(targetDate.getDate() + 1);
+        sun = await SunService.get(location, targetDate);
+        gh = GoldenHour.calculate({
+          sunrise: sun.data.results.sunrise,
+          sunset: sun.data.results.sunset,
+          civilDawn: sun.data.results.civil_twilight_begin,
+          civilDusk: sun.data.results.civil_twilight_end
+        });
+        gh.isTomorrow = true;
+      } else {
+        gh.isTomorrow = false;
+      }
       const dashWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
@@ -1970,7 +1985,7 @@ const App = {
         : (new Date() < gh.eveningStart ? Util.countdown(new Date(), gh.eveningStart) : '—');
 
       UI.els.dashboardGoldenPanel.innerHTML = `
-        <h3>${I18n.t('dashboard.golden')}</h3>
+        <h3>${I18n.t('dashboard.golden')}${gh.isTomorrow ? ' <span class="muted" style="font-size:0.8rem">(Morgen)</span>' : ''}</h3>
         ${gh.isActiveNow ? `<div class="golden-active-badge">${I18n.t('sun.active')}</div>` : ''}
         <div class="golden-window">
           <div class="golden-row">
