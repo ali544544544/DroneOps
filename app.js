@@ -1318,6 +1318,7 @@ const App = {
         3.5: { wind: 28, gusts: 36 },
         5: { wind: 35, gusts: 48 },
         7: { wind: 45, gusts: 60 },
+        8: { wind: 50, gusts: 68 },
         10: { wind: 55, gusts: 75 }
       };
       if (presets[size]) {
