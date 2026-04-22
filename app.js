@@ -163,7 +163,8 @@ const FALLBACK_TRANSLATIONS = {
     'check.sonstiges': '➕ Sonstiges',
     'rain.none': 'Keine Toleranz',
     'rain.low': 'Gering',
-    'rain.medium': 'Mittel'
+    'rain.medium': 'Mittel',
+    'rain.waterproof': 'Wasserfest'
   },
   "en": {
     "header.profile": "Profile",
@@ -297,7 +298,8 @@ const FALLBACK_TRANSLATIONS = {
     'check.sonstiges': '➕ Misc',
     'rain.none': 'No tolerance',
     'rain.low': 'Low',
-    'rain.medium': 'Medium'
+    'rain.medium': 'Medium',
+    'rain.waterproof': 'Waterproof'
   }
 };
 
@@ -707,6 +709,8 @@ const ScoreEngine = {
     } else if (profile.rainTolerance === 'medium') {
       if (rain > 5) { score -= 25; factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); }
       else if (rain > 2) { score -= 15; factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' }); }
+    } else if (profile.rainTolerance === 'waterproof') {
+      factors.push({ key: 'rain', label: I18n.t('factor.rainOk'), severity: 'ok' });
     }
 
     if (visibility >= 5000) factors.push({ key: 'visibility', label: I18n.t('factor.visibilityOk'), severity: 'ok' });
