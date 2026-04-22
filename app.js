@@ -393,7 +393,9 @@ const Util = {
     return new Date(dateStr).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
   },
   formatTime(dateStr, locale = 'de-DE') {
-    return new Date(dateStr).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   },
   formatDateTime(dateStr, locale = 'de-DE') {
     return new Date(dateStr).toLocaleString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -641,12 +643,14 @@ const WeatherService = {
 
     try {
       const res = await fetch(url.toString());
-      if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
+      if (!res.ok) throw new Error(`Open-Meteo API Error: ${res.status}`);
       const data = await res.json();
+      if (!data.hourly || !data.current_weather) throw new Error('Open-Meteo: Invalid data format');
       cache[location.id] = { data, timestamp: Date.now() };
       this.setCache(cache);
       return { data, timestamp: cache[location.id].timestamp, source: 'network' };
     } catch (error) {
+      console.error('WeatherService Fetch Error:', error);
       if (cached) {
         UI.toast(I18n.t('toast.offlineCache'));
         return { ...cached, source: 'stale-cache', stale: true };
@@ -676,12 +680,14 @@ const SunService = {
 
     try {
       const res = await fetch(url.toString());
-      if (!res.ok) throw new Error(`Sun API ${res.status}`);
+      if (!res.ok) throw new Error(`Sun API Error: ${res.status}`);
       const data = await res.json();
+      if (data.status !== 'OK') throw new Error(`Sun API returned status: ${data.status}`);
       cache[cacheKey] = { data, timestamp: Date.now() };
       this.setCache(cache);
       return { data, timestamp: cache[cacheKey].timestamp, source: 'network' };
     } catch (error) {
+      console.error('SunService Fetch Error:', error);
       if (cached) return { ...cached, source: 'stale-cache', stale: true };
       throw error;
     }
@@ -1616,7 +1622,8 @@ const App = {
             <div>🌇 ${Util.formatTime(gh.eveningStart, I18n.locale)}–${Util.formatTime(gh.eveningEnd, I18n.locale)}</div>
           </article>
         `;
-      } catch {
+      } catch (err) {
+        console.error(`Dashboard Card Error for ${location.name}:`, err);
         return `
           <article class="dashboard-mini-card" data-dashboard-location="${location.id}">
             <strong>📍 ${Util.escapeHtml(location.name)}</strong>
@@ -1687,7 +1694,8 @@ const App = {
             <span class="metric-chip">🌇 ${Util.formatTime(gh.eveningStart, I18n.locale)}–${Util.formatTime(gh.eveningEnd, I18n.locale)}</span>
           </div>
         `;
-      } catch {
+      } catch (err) {
+        console.error(`List Card Error for ${location.name}:`, err);
         document.getElementById(`location-weather-${location.id}`).innerHTML = `<p>${I18n.t('error.dataUnavailable')}</p>`;
         document.getElementById(`location-golden-${location.id}`).innerHTML = `<p>${I18n.t('error.dataUnavailable')}</p>`;
       }
