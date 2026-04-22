@@ -1123,6 +1123,30 @@ const App = {
       return fallback;
     }
   },
+  getSolarPosition(date, lat, lon) {
+    const deg2rad = Math.PI / 180;
+    const rad2deg = 180 / Math.PI;
+    const jd = (date.getTime() / 86400000) + 2440587.5;
+    const n = jd - 2451545.0;
+    const L = (280.460 + 0.9856474 * n) % 360;
+    const g = (357.528 + 0.9856003 * n) % 360;
+    const lambda = (L + 1.915 * Math.sin(g * deg2rad) + 0.020 * Math.sin(2 * g * deg2rad)) * deg2rad;
+    const epsilon = (23.439 - 0.0000004 * n) * deg2rad;
+    const ra = Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda));
+    const declination = Math.asin(Math.sin(epsilon) * Math.sin(lambda));
+    const ut = (date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600);
+    const gmst = (6.697374558 + 0.06570982441908 * n + ut) * 15;
+    let lha = (gmst + lon - (ra * rad2deg));
+    lha = (lha + 180) % 360 - 180;
+    const phi = lat * deg2rad;
+    const h = lha * deg2rad;
+    const sinAlt = Math.sin(phi) * Math.sin(declination) + Math.cos(phi) * Math.cos(declination) * Math.cos(h);
+    const altitude = Math.asin(sinAlt);
+    const cosAz = (Math.sin(declination) - Math.sin(phi) * sinAlt) / (Math.cos(phi) * Math.cos(altitude));
+    let azimuth = Math.acos(Math.min(Math.max(cosAz, -1), 1)) * rad2deg;
+    if (Math.sin(h) > 0) azimuth = 360 - azimuth;
+    return { azimuth, elevation: altitude * rad2deg };
+  },
 
   async init() {
     try {
@@ -1723,9 +1747,37 @@ const App = {
       `;
 
       const bbox = `${location.lon - 0.05},${location.lat - 0.04},${location.lon + 0.05},${location.lat + 0.04}`;
+      
+      const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
+      const posSR  = this.getSolarPosition(sunrise, location.lat, location.lon);
+      const posSS  = this.getSolarPosition(sunset, location.lat, location.lon);
+      const posGHS = this.getSolarPosition(gh.morningStart, location.lat, location.lon);
+      const posGHE = this.getSolarPosition(gh.eveningEnd, location.lat, location.lon);
+
+      const compassLine = (az, color, label, width = 3, dash = '') => {
+        const angle = (az - 90) * (Math.PI / 180);
+        const r = 120; // Length of line
+        const x2 = 150 + r * Math.cos(angle);
+        const y2 = 150 + r * Math.sin(angle);
+        return `<line x1="150" y1="150" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" stroke-dasharray="${dash}" stroke-linecap="round"><title>${label}: ${az.toFixed(1)}°</title></line>`;
+      };
+
       UI.els.detailMapPanel.innerHTML = `
-        <h3>${I18n.t('detail.map')}</h3>
-        <iframe class="map-embed" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${location.lat},${location.lon}" loading="lazy"></iframe>
+        <div class="map-container-relative">
+          <h3>${I18n.t('detail.map')}</h3>
+          <iframe class="map-embed" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${location.lat},${location.lon}" loading="lazy"></iframe>
+          <svg class="sun-compass-overlay" viewBox="0 0 300 300">
+            <circle cx="150" cy="150" r="4" fill="white" />
+            ${compassLine(posSR.azimuth, '#f5bc2b', 'Aufgang', 4)}
+            ${compassLine(posSS.azimuth, '#ff7a3d', 'Untergang', 4)}
+            ${compassLine(posGHS.azimuth, '#ffcc33', 'Golden Hour Start', 2, '4 4')}
+            ${compassLine(posGHE.azimuth, '#ffcc33', 'Golden Hour Ende', 2, '4 4')}
+            ${posNow.elevation > 0 ? compassLine(posNow.azimuth, 'white', 'Aktuell', 2, '2 2') : ''}
+          </svg>
+          <div class="compass-labels">
+            <span class="compass-n">N</span>
+          </div>
+        </div>
         <div class="info-list" class="mt-12">
           <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
           <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
