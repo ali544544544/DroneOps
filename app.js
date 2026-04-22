@@ -1686,8 +1686,12 @@ const App = {
       this.renderDashboardChecklist();
       await this.renderDashboardLocationCards();
     } catch (error) {
-      console.error(error);
-      UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
+      console.error('Dashboard Render Error:', error);
+      UI.els.dashboardCurrentPanel.innerHTML = `
+        <h3>${I18n.t('dashboard.current')}</h3>
+        <p>${I18n.t('error.dataUnavailable')}</p>
+        <p class="muted" style="font-size:0.7rem; margin-top:8px">${Util.escapeHtml(error.message || String(error))}</p>
+      `;
       UI.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       this.renderDashboardDrone();
