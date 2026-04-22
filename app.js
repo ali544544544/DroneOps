@@ -1543,6 +1543,7 @@ const App = {
       const dashWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
+      const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
       UI.els.dashboardCurrentPanel.innerHTML = `
         <div class="score-hero">
           <div>
