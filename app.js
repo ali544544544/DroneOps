@@ -1552,13 +1552,6 @@ const App = {
       const drone = ProfileManager.getActive();
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
       
-      let travelTime = null;
-      if (location.id !== 'gps') {
-        try {
-          const currentPos = await Util.getCurrentPosition();
-          travelTime = await Util.getTravelTime(currentPos.coords.latitude, currentPos.coords.longitude, location.lat, location.lon);
-        } catch (e) {}
-      }
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather.data);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
@@ -1578,7 +1571,7 @@ const App = {
           <div>
             <h3>${I18n.t('dashboard.current')}</h3>
             <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(drone.label)}</strong></p>
-            <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}${travelTime ? ` · 🚗 ${travelTime} Min.` : ''}</p>
+            <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
           </div>
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
         </div>
@@ -1627,6 +1620,19 @@ const App = {
       UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posSS.azimuth, '#ff7a3d', I18n.t('sun.sunset'));
       if (posNow.elevation > 0) {
         UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posNow.azimuth, 'white', I18n.t('dashboard.current'), '2, 5');
+      }
+
+      // Async travel time
+      if (location.id !== 'gps') {
+        Util.getCurrentPosition()
+          .then(pos => Util.getTravelTime(pos.coords.latitude, pos.coords.longitude, location.lat, location.lon))
+          .then(time => {
+            if (time) {
+              const el = document.getElementById('dashboardTravelTime');
+              if (el) el.textContent = ` · 🚗 ${time} Min.`;
+            }
+          })
+          .catch(() => {});
       }
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
