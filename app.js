@@ -1,4 +1,4 @@
-const DATA_FILES = {
+﻿const DATA_FILES = {
   profiles: './data/profiles.json',
   translations: './data/translations.json',
   weathercodes: './data/weathercodes.json',
@@ -63,6 +63,10 @@ const FALLBACK_TRANSLATIONS = {
     'detail.saveEntry': 'Eintrag speichern',
     'detail.noLogs': 'Noch kein Flug aufgezeichnet',
     'detail.saved': 'Gespeichert ✓',
+    'detail.updated': 'Aktualisiert',
+    'drones.scoreFly': '✅ Score ≥ 70: Fliegen',
+    'drones.scoreCaution': '⚠️ Score 40–69: Vorsicht',
+    'drones.scoreNogo': '🚫 Score < 40: No-Go',
     'drones.title': 'Drohnen',
     'drones.subtitle': 'Das aktive Profil beeinflusst alle Flugbewertungen in der gesamten App',
     'drones.active': 'AKTIV ✓',
@@ -193,6 +197,10 @@ const FALLBACK_TRANSLATIONS = {
     'detail.saveEntry': 'Save entry',
     'detail.noLogs': 'No flight logged yet',
     'detail.saved': 'Saved ✓',
+    'detail.updated': 'Updated',
+    'drones.scoreFly': '✅ Score ≥ 70: Fly',
+    'drones.scoreCaution': '⚠️ Score 40–69: Caution',
+    'drones.scoreNogo': '🚫 Score < 40: No-Go',
     'drones.title': 'Drones',
     'drones.subtitle': 'The active profile affects all flight ratings across the app',
     'drones.active': 'ACTIVE ✓',
@@ -812,48 +820,142 @@ const UI = {
   },
   renderSunArc(sunData, gh) {
     const sunrise = new Date(sunData.results.sunrise);
-    const sunset = new Date(sunData.results.sunset);
-    const dawn = new Date(sunData.results.civil_twilight_begin);
-    const dusk = new Date(sunData.results.civil_twilight_end);
-    const now = new Date();
-    const width = 340;
-    const height = 160;
-    const cx = width / 2;
-    const cy = height - 20;
-    const radius = (width - 40) / 2;
+    const sunset  = new Date(sunData.results.sunset);
+    const dawn    = new Date(sunData.results.civil_twilight_begin);
+    const dusk    = new Date(sunData.results.civil_twilight_end);
+    const now     = new Date();
 
-    const total = dusk - dawn;
-    const progress = Util.clamp((now - dawn) / total, 0, 1);
-    const x = 20 + (width - 40) * progress;
-    const dx = x - cx;
-    const y = cy - Math.sqrt(Math.max(radius * radius - dx * dx, 0));
+    // Canvas: H=220 gives enough room for labels below arcBaseY=162
+    const W = 420, H = 220;
+    const padX = 28;
+    const arcBaseY = 162;
+    const arcRadius = (W - padX * 2) / 2;
+    const arcCx     = W / 2;
+    const total     = dusk - dawn;
 
-    const dawnX = 20;
-    const sunriseProgress = Util.clamp((sunrise - dawn) / total, 0, 1);
-    const sunriseX = 20 + (width - 40) * sunriseProgress;
-    const sunsetProgress = Util.clamp((sunset - dawn) / total, 0, 1);
-    const sunsetX = 20 + (width - 40) * sunsetProgress;
-    const duskX = width - 20;
+    const arcPoint = (prog) => {
+      const p  = Util.clamp(prog, 0, 1);
+      const ax = padX + (W - padX * 2) * p;
+      const dx = ax - arcCx;
+      const ry = Math.sqrt(Math.max(arcRadius * arcRadius - dx * dx, 0));
+      return { x: ax, y: arcBaseY - ry };
+    };
 
-    const morningStartX = dawnX;
-    const morningEndProgress = Util.clamp((gh.morningEnd - dawn) / total, 0, 1);
-    const morningEndX = 20 + (width - 40) * morningEndProgress;
-    const eveningStartProgress = Util.clamp((gh.eveningStart - dawn) / total, 0, 1);
-    const eveningStartX = 20 + (width - 40) * eveningStartProgress;
-    const eveningEndX = duskX;
+    const prg = (d) => (new Date(d) - dawn) / total;
+    const progNow    = prg(now);
+    const progSR     = prg(sunrise);
+    const progSS     = prg(sunset);
+    const progMEnd   = prg(gh.morningEnd);
+    const progEStart = prg(gh.eveningStart);
 
-    return `
-      <svg class="sun-arc" viewBox="0 0 ${width} ${height}" aria-label="Sun path">
-        <path d="M 20 ${cy} A ${radius} ${radius} 0 0 1 ${width - 20} ${cy}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3" />
-        <rect x="${morningStartX}" y="${cy - 14}" width="${Math.max(0, morningEndX - morningStartX)}" height="14" rx="7" fill="rgba(255,214,125,0.35)"></rect>
-        <rect x="${eveningStartX}" y="${cy - 14}" width="${Math.max(0, eveningEndX - eveningStartX)}" height="14" rx="7" fill="rgba(255,214,125,0.35)"></rect>
-        <circle cx="${x}" cy="${y}" r="8" fill="rgba(255,214,125,0.98)"></circle>
-        <circle cx="${dawnX}" cy="${cy}" r="4" fill="rgba(89,168,255,0.95)"></circle>
-        <circle cx="${sunriseX}" cy="${cy}" r="4" fill="rgba(120,220,180,0.95)"></circle>
-        <circle cx="${sunsetX}" cy="${cy}" r="4" fill="rgba(255,140,100,0.95)"></circle>
-        <circle cx="${duskX}" cy="${cy}" r="4" fill="rgba(180,120,255,0.95)"></circle>
-      </svg>
-    `;
+    const ptDawn   = arcPoint(0);
+    const ptSR     = arcPoint(progSR);
+    const ptSS     = arcPoint(progSS);
+    const ptDusk   = arcPoint(1);
+    const ptNow    = arcPoint(Util.clamp(progNow, 0, 1));
+    const ptMEnd   = arcPoint(Util.clamp(progMEnd, 0, 1));
+    const ptEStart = arcPoint(Util.clamp(progEStart, 0, 1));
+
+    const sunVisible = progNow > 0 && progNow < 1;
+    const sunRisen   = progNow >= progSR && progNow <= progSS;
+
+    const arcSeg = (p1, p2) => {
+      const cp1 = Math.max(0, Math.min(1, p1));
+      const cp2 = Math.max(0, Math.min(1, p2));
+      if (cp1 >= cp2) return '';
+      const a = arcPoint(cp1);
+      const b = arcPoint(cp2);
+      return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} A ${arcRadius} ${arcRadius} 0 0 1 ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    };
+
+    const fmt = (d) => new Date(d).toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
+    const uid = `sa${Math.random().toString(36).slice(2, 7)}`;
+
+    const LY = arcBaseY + 16; // label Y always inside H=220
+    const labels = [
+      { x: ptDawn.x, text: fmt(dawn),    fill: 'rgba(150,170,255,0.8)',  dot: 'rgba(130,160,255,0.9)', anchor: 'start'  },
+      { x: ptSR.x,   text: fmt(sunrise), fill: 'rgba(100,230,180,0.9)',  dot: 'rgba(80,220,160,1)',    anchor: 'middle' },
+      { x: ptSS.x,   text: fmt(sunset),  fill: 'rgba(255,145,80,0.9)',   dot: 'rgba(255,120,60,1)',    anchor: 'middle' },
+      { x: ptDusk.x, text: fmt(dusk),    fill: 'rgba(150,170,255,0.8)',  dot: 'rgba(130,160,255,0.9)', anchor: 'end'    },
+    ];
+
+    const ghMidX = ((ptDawn.x + ptMEnd.x) / 2).toFixed(1);
+    const ghEMidX = ((ptEStart.x + ptDusk.x) / 2).toFixed(1);
+    const ghY = (arcBaseY - 16).toFixed(1);
+
+    const sunX = ptNow.x.toFixed(1), sunY = ptNow.y.toFixed(1);
+    const sunR = sunRisen ? 10 : 7;
+    const sunFill = sunRisen ? 'rgba(255,214,80,1)' : 'rgba(180,190,230,0.7)';
+    const sunOp   = sunRisen ? '1' : '0.5';
+    const nightX  = (progNow < 0 ? ptDawn.x : ptDusk.x).toFixed(1);
+
+    const travelSeg  = arcSeg(0, Math.min(progNow, 1));
+    const morningSeg = arcSeg(0, progMEnd);
+    const eveningSeg = arcSeg(progEStart, 1);
+    const dayLitSeg  = arcSeg(progSR, progSS);
+    const mghW = Math.max(0, ptMEnd.x - ptDawn.x).toFixed(1);
+    const eghW = Math.max(0, ptDusk.x - ptEStart.x).toFixed(1);
+    const arcH = (arcBaseY - 10).toFixed(1);
+
+    let svg = `<svg class="sun-arc" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" aria-label="Sonnenstandskurve">
+  <defs>
+    <radialGradient id="${uid}sky" cx="50%" cy="100%" r="75%">
+      <stop offset="0%"   stop-color="rgba(245,188,43,0.08)"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <filter id="${uid}gh" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="${uid}sun" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="0" y="0" width="${W}" height="${H}" fill="url(#${uid}sky)"/>`;
+
+    if (progMEnd > 0.01)
+      svg += `\n  <rect x="${ptDawn.x.toFixed(1)}" y="10" width="${mghW}" height="${arcH}" fill="rgba(245,188,43,0.045)" rx="6"/>`;
+    if (progEStart < 0.99)
+      svg += `\n  <rect x="${ptEStart.x.toFixed(1)}" y="10" width="${eghW}" height="${arcH}" fill="rgba(255,100,40,0.045)" rx="6"/>`;
+
+    svg += `
+  <line x1="${(padX - 6)}" y1="${arcBaseY}" x2="${(W - padX + 6)}" y2="${arcBaseY}" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+  <path d="M ${padX} ${arcBaseY} A ${arcRadius} ${arcRadius} 0 0 1 ${W - padX} ${arcBaseY}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="3" stroke-linecap="round"/>`;
+
+    if (dayLitSeg)
+      svg += `\n  <path d="${dayLitSeg}" fill="none" stroke="rgba(255,230,140,0.16)" stroke-width="3" stroke-linecap="round"/>`;
+    if (morningSeg)
+      svg += `\n  <path d="${morningSeg}" fill="none" stroke="rgba(255,190,50,0.82)" stroke-width="6" stroke-linecap="round" filter="url(#${uid}gh)"/>`;
+    if (eveningSeg)
+      svg += `\n  <path d="${eveningSeg}" fill="none" stroke="rgba(255,110,40,0.82)" stroke-width="6" stroke-linecap="round" filter="url(#${uid}gh)"/>`;
+    if (travelSeg && progNow > 0.01)
+      svg += `\n  <path d="${travelSeg}" fill="none" stroke="rgba(255,220,100,0.38)" stroke-width="2.5" stroke-linecap="round"/>`;
+
+    if (sunVisible)
+      svg += `\n  <line x1="${sunX}" y1="${sunY}" x2="${sunX}" y2="${arcBaseY}" stroke="rgba(255,214,80,0.22)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+
+    svg += '\n  ' + labels.map(l => `<circle cx="${l.x.toFixed(1)}" cy="${arcBaseY}" r="4.5" fill="${l.dot}"/>`).join('\n  ');
+
+    if (sunVisible)
+      svg += `\n  <circle cx="${sunX}" cy="${sunY}" r="20" fill="rgba(255,200,50,0.1)" filter="url(#${uid}sun)"/>
+  <circle cx="${sunX}" cy="${sunY}" r="${sunR}" fill="${sunFill}" filter="url(#${uid}sun)"/>
+  <circle cx="${sunX}" cy="${sunY}" r="5" fill="white" opacity="${sunOp}"/>`;
+    else
+      svg += `\n  <circle cx="${nightX}" cy="${arcBaseY}" r="9" fill="rgba(80,100,160,0.55)"/>
+  <text x="${(W / 2).toFixed(1)}" y="${(arcBaseY - 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.32)" font-family="inherit">Sonne unter dem Horizont</text>`;
+
+    svg += '\n  ' + labels.map(l =>
+      `<text x="${l.x.toFixed(1)}" y="${LY}" text-anchor="${l.anchor}" font-size="9.5" fill="${l.fill}" font-family="inherit" font-weight="600">${l.text}</text>`
+    ).join('\n  ');
+
+    if (progMEnd > 0.02 && progMEnd < 0.98)
+      svg += `\n  <text x="${ghMidX}" y="${ghY}" text-anchor="middle" font-size="9" fill="rgba(255,190,50,0.85)" font-family="inherit" font-weight="700">\uD83C\uDF05 GH</text>`;
+    if (progEStart > 0.02 && progEStart < 0.98)
+      svg += `\n  <text x="${ghEMidX}" y="${ghY}" text-anchor="middle" font-size="9" fill="rgba(255,110,40,0.85)" font-family="inherit" font-weight="700">\uD83C\uDF07 GH</text>`;
+
+    svg += '\n</svg>';
+    return svg;
   },
   renderHourly(target, weatherData, gh) {
     const profile = ProfileManager.getActive();
@@ -1233,7 +1335,7 @@ const App = {
           </div>
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;margin:12px 0">
+        <div class="weather-row">
           <span style="font-size:2rem">${meta.icon}</span>
           <div>
             <strong style="font-size:1.5rem">${weather.data.current_weather.temperature} °C</strong>
@@ -1250,10 +1352,10 @@ const App = {
           <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
           <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
         </div>
-        <div class="tag-list" style="margin-top:12px">
+        <div class="tag-list" class="mt-12">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
-        <p class="muted" style="margin-top:10px;font-size:.82rem">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
+        <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
@@ -1288,7 +1390,7 @@ const App = {
             </div>
             <span class="badge ${morning.status}">${I18n.t(`status.${morning.status}`)} · ${morning.score}</span>
           </div>
-          <div class="golden-row" style="margin-top:12px">
+          <div class="golden-row">
             <div>
               <div class="golden-label">🌇 ${I18n.t('sun.evening')}</div>
               <div class="golden-time">${Util.formatTime(gh.eveningStart, I18n.locale)} – ${Util.formatTime(gh.eveningEnd, I18n.locale)}</div>
@@ -1300,7 +1402,7 @@ const App = {
         <div class="sun-arc-wrap">${UI.renderSunArc(sun.data, gh)}</div>
       `;
 
-      UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><div id="dashboardHourlyInner"></div>`;
+      UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
       UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather.data, gh);
     } catch (error) {
       console.error(error);
@@ -1463,17 +1565,17 @@ const App = {
           <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${gustsMs} <small>m/s</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} <small>mm</small></strong></div>
         </div>
-        <div class="tag-list" style="margin-top:14px">
+        <div class="tag-list" class="mt-14">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
-        <p class="muted" style="margin-top:12px;font-size:.82rem">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
+        <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
 
       const bbox = `${location.lon - 0.05},${location.lat - 0.04},${location.lon + 0.05},${location.lat + 0.04}`;
       UI.els.detailMapPanel.innerHTML = `
         <h3>${I18n.t('detail.map')}</h3>
         <iframe class="map-embed" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${location.lat},${location.lon}" loading="lazy"></iframe>
-        <div class="info-list" style="margin-top:12px">
+        <div class="info-list" class="mt-12">
           <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
           <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
           <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
@@ -1501,7 +1603,7 @@ const App = {
           <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
           <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
         </div>
-        <p style="margin-top:12px">${meta.icon} ${meta[I18n.lang]}</p>
+        <p class="mt-12">${meta.icon} ${meta[I18n.lang]}</p>
       `;
 
       const nextCountdown = gh.isActiveNow
@@ -1526,10 +1628,10 @@ const App = {
           <span class="metric-chip">⏱️ ${I18n.t('sun.dayLength')}: ${Math.floor(dayMinutes / 60)}h ${dayMinutes % 60}min</span>
           <span class="metric-chip">${I18n.t('sun.next')}: ${nextCountdown}</span>
         </div>
-        ${gh.isActiveNow ? `<p style="margin-top:12px"><strong>${I18n.t('sun.active')}</strong></p>` : ''}
+        ${gh.isActiveNow ? `<p class="mt-12"><strong>${I18n.t('sun.active')}</strong></p>` : ''}
       `;
 
-      UI.els.detailHourlyPanel.innerHTML = `<h3>${I18n.t('detail.hourly')}</h3><div id="detailHourlyInner"></div>`;
+      UI.els.detailHourlyPanel.innerHTML = `<h3>${I18n.t('detail.hourly')}</h3><div id="detailHourlyInner" class=\"hourly-inner\"></div>`;
       UI.renderHourly(document.getElementById('detailHourlyInner'), weather.data, gh);
 
       this.renderNotesPanel(location);
@@ -1567,7 +1669,7 @@ const App = {
             <input type="text" id="logNote" maxlength="200" placeholder="${I18n.t('detail.logPlaceholder')}" />
             <button class="btn" type="submit">${I18n.t('detail.saveEntry')}</button>
           </form>
-          <div class="logbook-list" style="margin-top:14px">
+          <div class="logbook-list" class="mt-14">
             ${(location.logbook || []).length
               ? location.logbook.map(entry => `
                 <article class="log-entry">

@@ -25,10 +25,19 @@
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
-html, body {
+html {
+  margin: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+body {
   margin: 0;
   min-height: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body {
@@ -54,7 +63,7 @@ a { color: inherit; text-decoration: none; }
 .app-shell {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 20px 20px calc(var(--bottom-nav-h) + 24px);
+  padding: 16px 16px calc(var(--bottom-nav-h) + 32px);
   animation: fadeIn 0.6s ease-out;
 }
 
@@ -70,30 +79,33 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .glass::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
   pointer-events: none;
+  z-index: 0;
 }
 
 .top-header {
   position: sticky;
-  top: 16px;
+  top: 10px;
   z-index: 100;
   min-height: var(--header-h);
   border-radius: var(--radius);
-  padding: 16px 28px;
-  margin-bottom: 24px;
+  padding: 14px 24px;
+  margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
-  gap: 20px;
+  gap: 16px;
   align-items: center;
   border: 1px solid rgba(255,255,255,0.08) !important;
+  overflow: hidden;
 }
 
 .brand-kicker {
@@ -144,19 +156,28 @@ a { color: inherit; text-decoration: none; }
 .panel, .empty-state, .location-card, .drone-card, .checklist-group {
   border-radius: var(--radius);
 }
-.panel { padding: 18px; }
+.panel { padding: 20px; }
+.panel > h3,
+.panel h3:first-child {
+  margin-bottom: 16px;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
 
 .panel-emphasis {
   background:
-    linear-gradient(180deg, rgba(255,214,125,0.08), rgba(255,255,255,0.03)),
+    linear-gradient(160deg, rgba(245,188,43,0.13) 0%, rgba(255,140,60,0.07) 50%, rgba(13,18,31,0.05) 100%),
     var(--surface);
+  border-color: rgba(245, 188, 43, 0.18);
 }
 
-.page-wrap { display: grid; gap: 16px; }
+.page-wrap { display: grid; gap: 14px; }
 .dashboard-grid,
 .detail-grid {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .panel-wide { grid-column: 1 / -1; }
@@ -245,16 +266,24 @@ a { color: inherit; text-decoration: none; }
 .inline-actions,
 .quick-stats,
 .tag-list,
-.metric-grid,
 .info-list,
 .form-row,
 .dashboard-source-row,
 .sun-times,
 .location-meta {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
 }
+
+.metric-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: start;
+}
+.metric-grid .kpi { flex: 1 1 120px; }
 
 .search-row {
   display: flex;
@@ -303,8 +332,9 @@ a { color: inherit; text-decoration: none; }
 
 .location-card {
   display: grid;
-  grid-template-columns: 1.2fr .9fr .9fr auto;
-  gap: 20px;
+  grid-template-columns: 1.4fr 1fr 1fr auto;
+  gap: 16px;
+  align-items: start;
 }
 .location-card h3 { margin-bottom: 8px; font-weight: 800; letter-spacing: -0.02em; }
 
@@ -353,7 +383,7 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   gap: 16px;
   align-items: start;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 .score-value {
   font-size: clamp(2.5rem, 8vw, 4.2rem);
@@ -377,7 +407,8 @@ a { color: inherit; text-decoration: none; }
 }
 .kpi {
   padding: 16px;
-  min-width: 140px;
+  min-width: 120px;
+  flex: 1 1 120px;
 }
 .kpi strong,
 .hour-card strong {
@@ -396,18 +427,33 @@ a { color: inherit; text-decoration: none; }
 .dashboard-mini-scroll,
 .hourly-scroll {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   overflow-x: auto;
-  padding: 8px 4px 16px;
-  scrollbar-width: none;
+  overflow-y: visible;
+  padding: 8px 2px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(64,160,255,0.3) transparent;
+  -webkit-overflow-scrolling: touch;
 }
 .dashboard-mini-scroll::-webkit-scrollbar,
-.hourly-scroll::-webkit-scrollbar { display: none; }
+.hourly-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.dashboard-mini-scroll::-webkit-scrollbar-thumb,
+.hourly-scroll::-webkit-scrollbar-thumb {
+  background: rgba(64,160,255,0.3);
+  border-radius: 999px;
+}
 
-.dashboard-mini-card,
-.hour-card {
+.dashboard-mini-card {
   min-width: 175px;
   padding: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.hour-card {
+  min-width: 150px;
+  padding: 14px 12px;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -449,14 +495,22 @@ a { color: inherit; text-decoration: none; }
   min-height: 280px;
   border: 0;
   border-radius: 14px;
+  display: block;
 }
+
+/* ── Sun Arc SVG ── */
 .sun-arc {
   width: 100%;
-  min-height: 160px;
+  height: auto;
+  display: block;
+  overflow: visible;
 }
 .sun-arc-wrap {
-  margin-top: 12px;
-  overflow: auto;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.15);
+  padding: 8px 6px 20px;
 }
 
 .notes-grid {
@@ -705,7 +759,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ── Golden window layout ── */
-.golden-window { display: grid; gap: 12px; margin: 14px 0; }
+.golden-window { display: grid; gap: 10px; margin: 12px 0; }
 .golden-row {
   display: flex;
   justify-content: space-between;
@@ -713,11 +767,12 @@ a { color: inherit; text-decoration: none; }
   gap: 12px;
   padding: 12px 16px;
   border-radius: 14px;
-  background: rgba(245, 188, 43, 0.06);
-  border: 1px solid rgba(245, 188, 43, 0.15);
+  background: linear-gradient(135deg, rgba(245,188,43,0.08), rgba(245,188,43,0.03));
+  border: 1px solid rgba(245, 188, 43, 0.18);
+  flex-wrap: wrap;
 }
-.golden-label { font-weight: 700; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
-.golden-time { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+.golden-label { font-weight: 700; font-size: 0.83rem; color: var(--muted); margin-bottom: 3px; }
+.golden-time { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
 
 /* ── Improved hourly cards ── */
 .hour-card {
@@ -774,23 +829,57 @@ a { color: inherit; text-decoration: none; }
 }
 .progress-fill { animation: progress-grow 0.6s ease-out; transition: width 0.4s ease; }
 
+/* ── Utility classes ── */
+.mt-8  { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-14 { margin-top: 14px; }
+.mt-16 { margin-top: 16px; }
+.weather-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 1100px) {
   .dashboard-grid,
   .detail-grid,
   .notes-grid,
-  .form-grid,
-  .location-card {
+  .form-grid {
     grid-template-columns: 1fr;
   }
   .drone-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .location-card {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .location-card {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 767px) {
+  :root {
+    --header-h: 80px;
+  }
+  .app-shell {
+    padding: 10px 10px calc(var(--bottom-nav-h) + 28px);
+  }
   .top-header {
-    padding: 16px;
-    top: 10px;
+    padding: 12px 14px;
+    top: 8px;
+    margin-bottom: 14px;
+  }
+  .top-header h1 {
+    font-size: 1.3rem;
   }
   .search-row,
   .detail-nav,
@@ -800,15 +889,29 @@ a { color: inherit; text-decoration: none; }
     flex-direction: column;
     align-items: stretch;
   }
-  .top-controls { align-items: stretch; }
+  .top-controls { align-items: stretch; gap: 8px; }
   .compact select { min-width: 0; }
   .bottom-nav {
     width: calc(100% - 16px);
-    bottom: 12px;
+    bottom: 10px;
     padding: 6px;
+    border-radius: 20px;
   }
   .tab-btn {
     font-size: 0.65rem;
-    padding: 12px 4px;
+    padding: 10px 4px;
   }
+  .panel { padding: 14px; }
+  .kpi { min-width: 110px; }
+  .score-value { font-size: clamp(2rem, 12vw, 3.5rem); }
+  .notes-grid { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .location-card { grid-template-columns: 1fr; }
+  .drone-stats { grid-template-columns: repeat(2, 1fr); }
+  .hour-card { min-width: 130px; padding: 12px 10px; }
+}
+
+@media (max-width: 400px) {
+  .tab-btn span { display: none; }
+  .tab-btn { font-size: 1.2rem; padding: 10px 6px; }
 }
