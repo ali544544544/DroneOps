@@ -1657,9 +1657,14 @@ const App = {
   renderDashboardDrone() {
     const drone = ProfileManager.getActive();
     if (!drone) return;
+    const allProfiles = ProfileManager.getAll();
+    
     UI.els.dashboardDronePanel.innerHTML = `
-      <h3>Aktive Drohne</h3>
-      <div class="drone-card active" style="--drone-accent: ${drone.color || 'var(--blue)'}; margin-top:12px; padding:16px; border-radius:16px; background:rgba(255,255,255,0.02)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="margin:0">Aktive Drohne</h3>
+        <button class="btn btn-secondary btn-small" onclick="Router.showPage('drones')">✎</button>
+      </div>
+      <div class="drone-card active" style="--drone-accent: ${drone.color || 'var(--blue)'}; padding:16px; border-radius:16px; background:rgba(255,255,255,0.02)">
         <div class="drone-header-main">
           <span style="font-size:1.8rem">🚁</span>
           <div style="display:flex; flex-direction:column">
@@ -1671,9 +1676,21 @@ const App = {
           <div><span class="muted">${I18n.t('drones.maxWind')}</span><br><strong>${drone.maxWind} m/s</strong></div>
           <div><span class="muted">${I18n.t('drones.rain')}</span><br><strong>${I18n.t('rain.' + (drone.rainTolerance || 'none'))}</strong></div>
         </div>
-        <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%" onclick="Router.showPage('drones')">${I18n.t('common.change')} 🔄</button>
+        
+        <div class="field mt-12">
+          <select id="dashboardDroneSelect" style="width:100%">
+            ${allProfiles.map(p => `<option value="${p.id}" ${p.id === drone.id ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>`).join('')}
+          </select>
+        </div>
       </div>
     `;
+
+    document.getElementById('dashboardDroneSelect').addEventListener('change', async (e) => {
+      ProfileManager.setActive(e.target.value);
+      UI.renderProfileSelect(); // Global select sync
+      await this.renderDashboard();
+      UI.toast(I18n.t('toast.profileChanged'));
+    });
   },
 
   renderDashboardChecklist() {
