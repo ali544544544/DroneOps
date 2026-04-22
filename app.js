@@ -4,9 +4,17 @@ const DATA_FILES = {
   weathercodes: './data/weathercodes.json',
 };
 
+// Supabase Config
 const SUPABASE_URL = 'https://kzlcswwwpdqrfmmqffpf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bGNzd3d3cGRxcmZtbXFmZnBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njc0NDIsImV4cCI6MjA5MjQ0MzQ0Mn0.vTOzS_eF3lJAf9G_8bcqoXkXdJf6NvRQ9YtuEoXrPGQ';
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+let supabase = null;
+try {
+  if (window.supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+} catch (e) {
+  console.error('Supabase Init Error:', e);
+}
 
 const FALLBACK_PROFILES = [
   { 
@@ -380,13 +388,18 @@ const CloudManager = {
   user: null,
 
   async init() {
-    if (!supabase) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    this.user = user;
-    if (this.user) {
-      await this.pullAll();
+    try {
+      if (!supabase) return;
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      this.user = data?.user;
+      if (this.user) {
+        await this.pullAll();
+      }
+      this.updateUI();
+    } catch (e) {
+      console.error('CloudManager init error:', e);
     }
-    this.updateUI();
   },
 
   async signup(email, password) {
@@ -1345,10 +1358,13 @@ const App = {
       UI.applyI18n();
       UI.renderProfileSelect();
       UI.renderDashboardLocationSelect();
-      UI.renderChecklistFormOptions();
       UI.setClock();
 
-      if (CloudManager) await CloudManager.init();
+      try {
+        if (CloudManager) await CloudManager.init();
+      } catch (e) {
+        console.error('CloudManager Init failed:', e);
+      }
       
       setInterval(() => UI.setClock(), 1000);
       setInterval(() => this.refreshVisibleData(), 10 * 60 * 1000);
@@ -2483,5 +2499,16 @@ const App = {
     await this.renderActivePage();
   }
 };
+
+window.addEventListener('error', (e) => {
+  if (typeof UI !== 'undefined' && UI.toast) {
+    UI.toast(`Error: ${e.message}`);
+  }
+});
+window.addEventListener('unhandledrejection', (e) => {
+  if (typeof UI !== 'undefined' && UI.toast) {
+    UI.toast(`Error: ${e.reason?.message || e.reason}`);
+  }
+});
 
 document.addEventListener('DOMContentLoaded', () => App.init());
