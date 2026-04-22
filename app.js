@@ -1030,6 +1030,14 @@ const UI = {
         `).join('')}
       </div>
     `;
+    
+    // Center current hour
+    setTimeout(() => {
+      const nowCard = target.querySelector('.hour-card.now');
+      if (nowCard) {
+        nowCard.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+      }
+    }, 100);
   },
   renderDashboardNone() {
     this.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('dashboard.none')}</p>`;
