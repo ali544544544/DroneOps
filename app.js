@@ -1620,13 +1620,14 @@ const App = {
       L.marker([location.lat, location.lon], { icon: dashIcon }).addTo(this.dashboardMap);
 
       // Sun lines on dashboard map
-      const sunRes = sun.data.results;
-      const sunriseAz = Util.parseAzimuth(sunRes.sunrise);
-      const sunsetAz = Util.parseAzimuth(sunRes.sunset);
+      const posSR  = this.getSolarPosition(new Date(sun.data.results.sunrise), location.lat, location.lon);
+      const posSS  = this.getSolarPosition(new Date(sun.data.results.sunset), location.lat, location.lon);
       
-      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], sunriseAz, 'var(--yellow)', 'Sunrise');
-      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], sunsetAz, 'var(--orange)', 'Sunset');
-      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posNow.azimuth, 'var(--blue)', 'Now');
+      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posSR.azimuth, 'var(--yellow)', I18n.t('sun.sunrise'));
+      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posSS.azimuth, '#ff7a3d', I18n.t('sun.sunset'));
+      if (posNow.elevation > 0) {
+        UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posNow.azimuth, 'white', I18n.t('dashboard.current'), '2, 5');
+      }
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
         const cache = Storage.get(Keys.weatherCache, {});
@@ -1791,6 +1792,20 @@ const App = {
     }));
 
     UI.els.dashboardLocationCardsPanel.innerHTML += `<div class="dashboard-mini-scroll">${cards.join('')}</div>`;
+  },
+
+  drawSunLine(map, center, azimuth, color, label, dash = null) {
+    if (!map || !azimuth) return;
+    const rad = (azimuth - 90) * (Math.PI / 180);
+    const dist = 0.015; // ca 1.5km
+    const lat2 = center[0] - dist * Math.sin(rad); 
+    const lon2 = center[1] + dist * Math.cos(rad);
+    L.polyline([[center[0], center[1]], [lat2, lon2]], {
+      color,
+      weight: 4,
+      dashArray: dash,
+      opacity: 0.8
+    }).addTo(map).bindTooltip(label);
   },
 
   async renderLocationsList() {
