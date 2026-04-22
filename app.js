@@ -1551,7 +1551,7 @@ const App = {
         <div class="score-hero">
           <div>
             <h3>${I18n.t('dashboard.current')}</h3>
-            <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(drone.name)}</strong></p>
+            <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(drone.label)}</strong></p>
             <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</p>
           </div>
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
@@ -1649,7 +1649,7 @@ const App = {
         <div class="drone-header-main">
           <span style="font-size:1.8rem">🚁</span>
           <div style="display:flex; flex-direction:column">
-            <strong style="font-size:1.25rem; line-height:1.2">${Util.escapeHtml(drone.name)}</strong>
+            <strong style="font-size:1.25rem; line-height:1.2">${Util.escapeHtml(drone.label)}</strong>
             <span class="muted" style="font-size:0.75rem">${I18n.t('drones.style.' + (drone.style || 'freestyle'))}</span>
           </div>
         </div>
