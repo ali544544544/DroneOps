@@ -907,19 +907,26 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 767px) {
   :root {
-    --header-h: 80px;
+    --header-h: 70px;
+    --radius: 16px;
   }
   .app-shell {
-    padding: 16px 14px calc(var(--bottom-nav-h) + 32px);
+    padding: 12px 12px calc(var(--bottom-nav-h) + 24px);
   }
   .top-header {
-    padding: 12px 14px;
-    top: 8px;
-    margin-bottom: 20px;
+    padding: 10px 16px;
+    top: 0;
+    margin-bottom: 16px;
+    border-radius: 0 0 16px 16px;
+    margin-left: -12px;
+    margin-right: -12px;
+    width: calc(100% + 24px);
   }
   .top-header h1 {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
   }
+  .brand-kicker { font-size: 0.6rem; }
+  
   .search-row,
   .detail-nav,
   .detail-nav-actions,
@@ -927,27 +934,62 @@ a { color: inherit; text-decoration: none; }
   .dashboard-source-row {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
+  
+  .dashboard-source-row .btn-action {
+    width: 100%;
+    justify-content: center;
+  }
+
   .top-controls { align-items: stretch; gap: 8px; }
   .compact select { min-width: 0; }
+  
   .bottom-nav {
-    width: calc(100% - 16px);
-    bottom: 10px;
-    padding: 6px;
-    border-radius: 20px;
+    width: 100%;
+    bottom: 0;
+    padding: 8px 12px;
+    border-radius: 16px 16px 0 0;
   }
   .tab-btn {
     font-size: 0.65rem;
-    padding: 10px 4px;
+    padding: 8px 4px;
+    gap: 4px;
   }
-  .panel { padding: 14px; }
-  .kpi { min-width: 110px; }
-  .score-value { font-size: clamp(2rem, 12vw, 3.5rem); }
-  .notes-grid { grid-template-columns: 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
-  .location-card { grid-template-columns: 1fr; }
-  .drone-stats { grid-template-columns: repeat(2, 1fr); }
-  .hour-card { min-width: 130px; padding: 12px 10px; }
+  .tab-icon { font-size: 1.2rem; }
+
+  .panel { padding: 16px; margin-bottom: 12px; }
+  .panel h3:first-child { margin-bottom: 14px; font-size: 0.95rem; }
+  
+  .metric-grid { gap: 8px; }
+  .kpi { 
+    padding: 12px; 
+    min-width: 100px;
+    border-radius: 12px;
+  }
+  .kpi strong { font-size: 1rem; }
+  
+  .score-value { font-size: 3rem; }
+  .score-hero { margin-bottom: 20px; }
+  
+  .weather-row { gap: 8px; }
+  .weather-row strong { font-size: 1.2rem; }
+  
+  .notes-grid, .form-grid, .location-card { grid-template-columns: 1fr; }
+  .drone-stats { 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 8px;
+    margin: 12px 0;
+  }
+  
+  .hour-card { 
+    min-width: 120px; 
+    padding: 10px 8px; 
+    border-radius: 12px;
+  }
+  .hourly-scroll { padding-bottom: 16px; }
+  
+  .sun-arc-wrap { padding: 10px 6px; }
 }
 
 @media (max-width: 400px) {
