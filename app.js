@@ -1757,8 +1757,8 @@ const App = {
       const bbox = `${location.lon - 0.05},${location.lat - 0.04},${location.lon + 0.05},${location.lat + 0.04}`;
       
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
-      const posSR  = this.getSolarPosition(sunrise, location.lat, location.lon);
-      const posSS  = this.getSolarPosition(sunset, location.lat, location.lon);
+      const posSR  = this.getSolarPosition(new Date(sun.data.results.sunrise), location.lat, location.lon);
+      const posSS  = this.getSolarPosition(new Date(sun.data.results.sunset), location.lat, location.lon);
       const posGHS = this.getSolarPosition(gh.morningStart, location.lat, location.lon);
       const posGHE = this.getSolarPosition(gh.eveningEnd, location.lat, location.lon);
 
