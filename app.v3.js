@@ -107,7 +107,7 @@ const CloudManager = {
   },
   async pushAll() {
     if (!this.user || !supabaseClient) return 0;
-    const keysToSync = [Keys.locations, Keys.profiles, Keys.checklist, Keys.homeBase, Keys.language, Keys.activeProfile];
+    const keysToSync = [Keys.locations, Keys.profiles, Keys.checklist, Keys.droneChecklist, Keys.homeBase, Keys.language, Keys.activeProfile];
     let count = 0;
     let errors = [];
     for (const key of keysToSync) {
@@ -163,6 +163,7 @@ const Keys = {
   weatherCache: 'drone_weather_cache',
   sunCache: 'drone_sun_cache',
   checklist: 'drone_checklist',
+  droneChecklist: 'drone_checklist_state',
   homeBase: 'drone_home_base',
   distSource: 'drone_dist_source',
   profiles: 'drone_profiles'
@@ -1694,7 +1695,15 @@ const App = {
     document.addEventListener('change', async (e) => {
       const checkToggle = e.target.closest('[data-check-toggle]');
       if (checkToggle) {
-        ChecklistManager.update(checkToggle.dataset.checkToggle, { checked: checkToggle.checked });
+        const id = checkToggle.dataset.checkToggle;
+        if (id.startsWith('drone_')) {
+          const droneId = id.replace('drone_', '');
+          const state = Storage.get(Keys.droneChecklist, {});
+          state[droneId] = checkToggle.checked;
+          Storage.set(Keys.droneChecklist, state);
+        } else {
+          ChecklistManager.update(id, { checked: checkToggle.checked });
+        }
         await this.renderChecklist();
       }
     });
@@ -2505,17 +2514,35 @@ const App = {
   },
 
   async renderChecklist() {
-    const items = ChecklistManager.getAll();
+    const checkItems = ChecklistManager.getAll();
+    const drones = ProfileManager.getAll();
+    const droneState = Storage.get(Keys.droneChecklist, {});
+    
+    const virtualDrones = drones.map(d => ({
+      id: 'drone_' + d.id,
+      name: d.label,
+      count: 1,
+      category: 'drohnen',
+      checked: !!droneState[d.id],
+      isVirtual: true
+    }));
+    
+    const items = [...virtualDrones, ...checkItems];
     const done = items.filter(i => i.checked).length;
+    
     UI.els.checklistProgressText.textContent = `${done} / ${items.length}`;
     UI.els.checklistProgressBar.style.width = `${items.length ? Math.round((done / items.length) * 100) : 0}%`;
 
-    UI.els.checklistGroups.innerHTML = ChecklistManager.categories().map(cat => {
+    const allCategories = ['drohnen', ...ChecklistManager.categories()];
+
+    UI.els.checklistGroups.innerHTML = allCategories.map(cat => {
       const groupItems = items.filter(i => i.category === cat);
+      if (groupItems.length === 0) return '';
+      
       const finished = groupItems.filter(i => i.checked).length;
       return `
         <details class="checklist-group" open>
-          <summary>${I18n.t(`check.${cat}`)} (${finished}/${groupItems.length})</summary>
+          <summary>${cat === 'drohnen' ? 'Drohnen' : I18n.t(`check.${cat}`)} (${finished}/${groupItems.length})</summary>
           <div class="check-items">
             ${groupItems.map(item => `
               <label class="check-item">
@@ -2525,8 +2552,10 @@ const App = {
                   <span class="muted">×${item.count}</span>
                 </div>
                 <div class="inline-actions">
+                  ${!item.isVirtual ? `
                   <button class="btn btn-secondary btn-small" type="button" data-check-edit="${item.id}">✎</button>
                   <button class="btn btn-secondary btn-small" type="button" data-check-delete="${item.id}">🗑️</button>
+                  ` : ''}
                 </div>
               </label>
             `).join('') || `<p class="muted">—</p>`}
