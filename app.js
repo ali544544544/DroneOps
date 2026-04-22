@@ -1724,7 +1724,10 @@ const App = {
           const time = await Util.getTravelTime(start.lat, start.lon, location.lat, location.lon);
           if (time) {
             const el = document.getElementById('dashboardTravelTime');
-            if (el) el.textContent = ` · 🚗 ${time} Min.${start.suffix}`;
+            if (el) {
+              const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${start.lat},${start.lon}&destination=${location.lat},${location.lon}&travelmode=driving`;
+              el.innerHTML = ` · 🚗 ${time} Min.${start.suffix} <a href="${mapsUrl}" target="_blank" class="nav-link-small" title="Route in Google Maps öffnen">🗺️</a>`;
+            }
           }
         }).catch(() => {});
       } else {

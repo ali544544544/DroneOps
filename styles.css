@@ -1037,3 +1037,17 @@ a { color: inherit; text-decoration: none; }
   color: var(--blue);
   font-weight: 600;
 }
+
+.nav-link-small {
+  text-decoration: none;
+  font-size: 1rem;
+  margin-left: 6px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.nav-link-small:hover {
+  opacity: 1;
+}
