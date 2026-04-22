@@ -895,49 +895,57 @@ const UI = {
   renderHourly(target, weatherData, gh) {
     const profile = ProfileManager.getActive();
     const nowHour = new Date().getHours();
-    const todayKey = Util.dayKey();
+    
     const items = weatherData.hourly.time.slice(0, 48).map((time, i) => {
+      const windMs = Util.kmhToMs(weatherData.hourly.windspeed_10m[i]);
       const score = ScoreEngine.calculate({
-        wind: weatherData.hourly.windspeed_10m[i],
-        gusts: weatherData.hourly.windgusts_10m[i],
+        wind: windMs,
+        gusts: Util.kmhToMs(weatherData.hourly.windgusts_10m[i]),
         rain: weatherData.hourly.precipitation[i],
-        clouds: weatherData.hourly.cloudcover[i],
-        visibility: weatherData.hourly.visibility[i],
-        temp: weatherData.hourly.temperature_2m[i],
         profile
       });
       return {
-        time,
-        score,
+        time, score, wind: windMs, temp: weatherData.hourly.temperature_2m[i],
         meta: this.weatherMeta(weatherData.hourly.weathercode[i]),
-        wind: Util.kmhToMs(weatherData.hourly.windspeed_10m[i]),
-        rain: weatherData.hourly.precipitation[i],
-        temp: weatherData.hourly.temperature_2m[i],
         isGolden: GoldenHour.isWithin(time, gh),
-        isNow: new Date(time).getHours() === nowHour && Util.dayKey(time) === todayKey
+        isNow: new Date(time).getHours() === nowHour && Util.dayKey(time) === Util.dayKey()
       };
     });
-    const best = Math.max(...items.map(x => x.score.score));
 
+    // HTML in den Container laden
     target.innerHTML = `
-      <div class="hourly-scroll">
+      <h3>${I18n.t('dashboard.hourly') || 'Stündliche Prognose'}</h3>
+      <div class="hourly-scroll" style="margin-top:12px">
         ${items.map(item => `
-          <article class="hour-card ${item.score.score === best ? 'best' : ''} ${item.isGolden ? 'gh' : ''} ${item.isNow ? 'now' : ''} status-${item.score.status}">
-            <span class="hour-day">${new Date(item.time).toLocaleDateString(I18n.locale, { weekday: 'short' })}</span>
-            <strong class="hour-time">${Util.formatTime(item.time, I18n.locale)}</strong>
+          <article class="hour-card ${item.isNow ? 'now' : ''} ${item.isGolden ? 'gh' : ''}">
+            <span class="muted" style="font-size:0.75rem">${new Date(item.time).toLocaleDateString(I18n.locale, { weekday: 'short' })}</span>
+            <span class="hour-time">${Util.formatTime(item.time, I18n.locale)}</span>
             <div class="hour-icon">${item.meta.icon}</div>
             <div class="hour-temp">${item.temp}°</div>
-            <div class="badge ${item.score.status} badge-sm">${item.score.score}</div>
-            <div class="hour-stats">
-              <span>💨 ${item.wind} m/s</span>
-              <span>🌧 ${item.rain} mm</span>
-            </div>
-            ${item.isGolden ? '<div class="hour-golden">🌅</div>' : ''}
-            ${item.isNow ? '<div class="hour-now-dot"></div>' : ''}
+            <div class="badge ${item.score.status}" style="margin:6px 0">${item.score.score}</div>
+            <span class="muted" style="font-size:0.8rem">💨 ${item.wind}</span>
           </article>
         `).join('')}
       </div>
     `;
+
+    // JavaScript Auto-Scroll Logic: Aktuelle Stunde mittig zentrieren
+    setTimeout(() => {
+      const scrollBox = target.querySelector('.hourly-scroll');
+      const nowCard = scrollBox?.querySelector('.hour-card.now');
+      
+      if (scrollBox && nowCard) {
+        // Berechne die absolute X-Position der Karte, ziehe die halbe Container-Breite ab 
+        // und addiere die halbe Karten-Breite, um exakt die Mitte zu treffen.
+        const centerPosition = nowCard.offsetLeft - (scrollBox.clientWidth / 2) + (nowCard.offsetWidth / 2);
+        
+        // Math.max(0, ...) stellt sicher, dass wir nicht ins Negative scrollen
+        scrollBox.scrollTo({ 
+          left: Math.max(0, centerPosition), 
+          behavior: 'smooth' 
+        });
+      }
+    }, 50); // Minimaler Delay (50ms) stellt sicher, dass das CSS/Layout vollständig vom Browser berechnet wurde
   },
   renderDashboardNone() {
     this.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('dashboard.none')}</p>`;
