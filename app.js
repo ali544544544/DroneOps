@@ -1754,44 +1754,53 @@ const App = {
         <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
 
-      const bbox = `${location.lon - 0.05},${location.lat - 0.04},${location.lon + 0.05},${location.lat + 0.04}`;
-      
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
       const posSR  = this.getSolarPosition(new Date(sun.data.results.sunrise), location.lat, location.lon);
       const posSS  = this.getSolarPosition(new Date(sun.data.results.sunset), location.lat, location.lon);
       const posGHS = this.getSolarPosition(gh.morningStart, location.lat, location.lon);
       const posGHE = this.getSolarPosition(gh.eveningEnd, location.lat, location.lon);
 
-      const compassLine = (az, color, label, width = 3, dash = '') => {
-        const angle = (az - 90) * (Math.PI / 180);
-        const r = 120; // Length of line
-        const x2 = 150 + r * Math.cos(angle);
-        const y2 = 150 + r * Math.sin(angle);
-        return `<line x1="150" y1="150" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" stroke-dasharray="${dash}" stroke-linecap="round"><title>${label}: ${az.toFixed(1)}°</title></line>`;
-      };
-
       UI.els.detailMapPanel.innerHTML = `
-        <div class="map-container-relative">
-          <h3>${I18n.t('detail.map')}</h3>
-          <iframe class="map-embed" src="https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${location.lat},${location.lon}" loading="lazy"></iframe>
-          <svg class="sun-compass-overlay" viewBox="0 0 300 300">
-            <circle cx="150" cy="150" r="4" fill="white" />
-            ${compassLine(posSR.azimuth, '#f5bc2b', 'Aufgang', 4)}
-            ${compassLine(posSS.azimuth, '#ff7a3d', 'Untergang', 4)}
-            ${compassLine(posGHS.azimuth, '#ffcc33', 'Golden Hour Start', 2, '4 4')}
-            ${compassLine(posGHE.azimuth, '#ffcc33', 'Golden Hour Ende', 2, '4 4')}
-            ${posNow.elevation > 0 ? compassLine(posNow.azimuth, 'white', 'Aktuell', 2, '2 2') : ''}
-          </svg>
-          <div class="compass-labels">
-            <span class="compass-n">N</span>
-          </div>
-        </div>
+        <h3>${I18n.t('detail.map')}</h3>
+        <div id="detailMap" style="height: 300px; border-radius: 14px; margin-top: 12px; z-index: 1;"></div>
         <div class="info-list" class="mt-12">
           <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
           <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
           <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
         </div>
       `;
+
+      if (this.detailMap) { this.detailMap.remove(); }
+      this.detailMap = L.map('detailMap', { zoomControl: false }).setView([location.lat, location.lon], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(this.detailMap);
+      
+      const icon = L.divIcon({
+        html: '<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>',
+        className: '',
+        iconSize: [12, 12]
+      });
+      L.marker([location.lat, location.lon], { icon }).addTo(this.detailMap);
+
+      const drawLine = (az, color, label, dash = null) => {
+        const rad = (az - 90) * (Math.PI / 180);
+        const dist = 0.015; // ca 1.5km
+        const lat2 = location.lat - dist * Math.sin(rad); 
+        const lon2 = location.lon + dist * Math.cos(rad);
+        L.polyline([[location.lat, location.lon], [lat2, lon2]], {
+          color,
+          weight: 4,
+          dashArray: dash,
+          opacity: 0.8
+        }).addTo(this.detailMap).bindTooltip(label);
+      };
+
+      drawLine(posSR.azimuth, '#f5bc2b', I18n.t('sun.sunrise'));
+      drawLine(posSS.azimuth, '#ff7a3d', I18n.t('sun.sunset'));
+      drawLine(posGHS.azimuth, '#ffcc33', I18n.t('sun.morning'), '5, 10');
+      drawLine(posGHE.azimuth, '#ffcc33', I18n.t('sun.evening'), '5, 10');
+      if (posNow.elevation > 0) drawLine(posNow.azimuth, 'white', I18n.t('dashboard.current'), '2, 5');
 
       const detailWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const detailGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
