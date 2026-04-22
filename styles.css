@@ -454,11 +454,11 @@ a { color: inherit; text-decoration: none; }
   width: 100%;
   height: auto;
   display: block;
-  overflow: visible; /* Wichtig: Verhindert, dass der Glow der Sonne abgeschnitten wird */
+  overflow: visible; /* Wichtig für den Glow-Effekt */
 }
+
 .sun-arc-wrap {
-  margin-top: 20px;
-  padding-bottom: 12px;
+  margin-top: 12px;
   overflow: visible;
 }
 
