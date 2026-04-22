@@ -4,17 +4,88 @@ const DATA_FILES = {
   weathercodes: './data/weathercodes.json',
 };
 
-// Supabase Config
+// --- Cloud Config ---
 const SUPABASE_URL = 'https://kzlcswwwpdqrfmmqffpf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bGNzd3d3cGRxcmZtbXFmZnBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njc0NDIsImV4cCI6MjA5MjQ0MzQ0Mn0.vTOzS_eF3lJAf9G_8bcqoXkXdJf6NvRQ9YtuEoXrPGQ';
 let supabase = null;
-try {
-  if (window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const CloudManager = {
+  user: null,
+  async init() {
+    try {
+      if (typeof window.supabase === 'undefined') return;
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const { data } = await supabase.auth.getUser();
+      this.user = data?.user;
+      if (this.user) await this.pullAll();
+      this.updateUI();
+    } catch (e) { console.warn('CloudManager disabled:', e); }
+  },
+  async signup(email, password) {
+    if (!supabase) return;
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    UI.toast(I18n.t('toast.verifyEmail'));
+    return data;
+  },
+  async login(email, password) {
+    if (!supabase) return;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    this.user = data.user;
+    await this.pullAll();
+    this.updateUI();
+    UI.toast(I18n.t('toast.loggedIn'));
+    location.reload();
+  },
+  async logout() {
+    if (supabase) await supabase.auth.signOut();
+    this.user = null;
+    this.updateUI();
+    location.reload();
+  },
+  updateUI() {
+    const authView = document.getElementById('authView');
+    const userView = document.getElementById('userView');
+    const userEmail = document.getElementById('userEmail');
+    const accountBtn = document.getElementById('accountBtn');
+    if (this.user) {
+      authView?.classList.add('hidden');
+      userView?.classList.remove('hidden');
+      if (userEmail) userEmail.textContent = this.user.email;
+      accountBtn?.classList.add('btn-active');
+    } else {
+      authView?.classList.remove('hidden');
+      userView?.classList.add('hidden');
+      accountBtn?.classList.remove('btn-active');
+    }
+  },
+  async push(key, value) {
+    if (!this.user || !supabase) return;
+    if (key === Keys.weatherCache || key === Keys.sunCache || key === Keys.activeTab) return;
+    try {
+      await supabase.from('user_data').upsert({
+        user_id: this.user.id,
+        key: key,
+        value: value,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id, key' });
+    } catch (e) { console.error('Cloud Push Error:', e); }
+  },
+  async delete(key) {
+    if (!this.user || !supabase) return;
+    await supabase.from('user_data').delete().match({ user_id: this.user.id, key: key });
+  },
+  async pullAll() {
+    if (!this.user || !supabase) return;
+    try {
+      const { data, error } = await supabase.from('user_data').select('key, value');
+      if (!error && data) {
+        data.forEach(item => localStorage.setItem(item.key, JSON.stringify(item.value)));
+      }
+    } catch (e) { console.error('Cloud Pull Error:', e); }
   }
-} catch (e) {
-  console.error('Supabase Init Error:', e);
-}
+};
 
 const FALLBACK_PROFILES = [
   { 
@@ -384,96 +455,6 @@ class Storage {
   }
 }
 
-const CloudManager = {
-  user: null,
-
-  async init() {
-    try {
-      if (!supabase) return;
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      this.user = data?.user;
-      if (this.user) {
-        await this.pullAll();
-      }
-      this.updateUI();
-    } catch (e) {
-      console.error('CloudManager init error:', e);
-    }
-  },
-
-  async signup(email, password) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    UI.toast(I18n.t('toast.verifyEmail') || 'Erfolg! Bitte E-Mail bestätigen.');
-    return data;
-  },
-
-  async login(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    this.user = data.user;
-    await this.pullAll();
-    this.updateUI();
-    UI.toast(I18n.t('toast.loggedIn') || 'Eingeloggt!');
-    setTimeout(() => location.reload(), 1000);
-  },
-
-  async logout() {
-    await supabase.auth.signOut();
-    this.user = null;
-    this.updateUI();
-    UI.toast(I18n.t('toast.loggedOut') || 'Ausgeloggt.');
-    setTimeout(() => location.reload(), 1000);
-  },
-
-  updateUI() {
-    const authView = document.getElementById('authView');
-    const userView = document.getElementById('userView');
-    const userEmail = document.getElementById('userEmail');
-    const accountBtn = document.getElementById('accountBtn');
-
-    if (this.user) {
-      if (authView) authView.classList.add('hidden');
-      if (userView) userView.classList.remove('hidden');
-      if (userEmail) userEmail.textContent = this.user.email;
-      if (accountBtn) accountBtn.classList.add('btn-active');
-    } else {
-      if (authView) authView.classList.remove('hidden');
-      if (userView) userView.classList.add('hidden');
-      if (accountBtn) accountBtn.classList.remove('btn-active');
-    }
-  },
-
-  async push(key, value) {
-    if (!this.user || !supabase) return;
-    // Skip volatile keys
-    if (key === Keys.weatherCache || key === Keys.sunCache || key === Keys.activeTab) return;
-    try {
-      await supabase.from('user_data').upsert({
-        user_id: this.user.id,
-        key: key,
-        value: value,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id, key' });
-    } catch (e) {
-      console.error('Cloud Push Error:', e);
-    }
-  },
-
-  async delete(key) {
-    if (!this.user || !supabase) return;
-    await supabase.from('user_data').delete().match({ user_id: this.user.id, key: key });
-  },
-
-  async pullAll() {
-    if (!this.user || !supabase) return;
-    try {
-      const { data, error } = await supabase.from('user_data').select('key, value');
-      if (error) throw error;
-      data.forEach(item => {
-        localStorage.setItem(item.key, JSON.stringify(item.value));
-      });
     } catch (e) {
       console.error('Cloud Pull Error:', e);
     }
