@@ -34,10 +34,22 @@ const CloudManager = {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     this.user = data.user;
+    
+    // Zuerst lokale Daten hochladen (Sync), dann Cloud-Daten ziehen
+    await this.pushAll(); 
     await this.pullAll();
+    
     this.updateUI();
     UI.toast(I18n.t('toast.loggedIn'));
     location.reload();
+  },
+  async resetPassword(email) {
+    if (!supabaseClient) return;
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) throw error;
+    UI.toast('Reset-Link wurde an E-Mail gesendet.');
   },
   async logout() {
     if (supabaseClient) await supabaseClient.auth.signOut();
@@ -85,6 +97,14 @@ const CloudManager = {
         data.forEach(item => localStorage.setItem(item.key, JSON.stringify(item.value)));
       }
     } catch (e) { console.error('Cloud Pull Error:', e); }
+  },
+  async pushAll() {
+    if (!this.user || !supabaseClient) return;
+    const syncKeys = [Keys.locations, Keys.profiles, Keys.checklist, Keys.homeBase, Keys.language];
+    for (const key of syncKeys) {
+      const val = Storage.get(key);
+      if (val) await this.push(key, val);
+    }
   }
 };
 
@@ -1677,6 +1697,19 @@ const App = {
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await CloudManager.logout();
+    });
+
+    document.getElementById('resetPassBtn').addEventListener('click', async () => {
+      const email = document.getElementById('authEmail').value;
+      if (!email) {
+        alert('Bitte E-Mail Adresse eingeben.');
+        return;
+      }
+      try {
+        await CloudManager.resetPassword(email);
+      } catch (e) {
+        alert(e.message);
+      }
     });
   },
 
