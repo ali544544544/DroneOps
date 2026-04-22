@@ -77,13 +77,20 @@ const CloudManager = {
     if (!this.user || !supabaseClient) return;
     if (key === Keys.weatherCache || key === Keys.sunCache || key === Keys.activeTab) return;
     try {
-      await supabaseClient.from('user_data').upsert({
+      const { error } = await supabaseClient.from('user_data').upsert({
         user_id: this.user.id,
         key: key,
         value: value,
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id, key' });
-    } catch (e) { console.error('Cloud Push Error:', e); }
+      
+      if (error) {
+        console.error('Supabase Push Error:', error);
+        UI.toast('Daten konnten nicht gesichert werden (Datenbank-Fehler).');
+      }
+    } catch (e) { 
+      console.error('Cloud Push Exception:', e); 
+    }
   },
   async delete(key) {
     if (!this.user || !supabaseClient) return;
@@ -99,16 +106,28 @@ const CloudManager = {
     } catch (e) { console.error('Cloud Pull Error:', e); }
   },
   async pushAll() {
-    if (!this.user || !supabaseClient) return;
-    const syncKeys = [Keys.locations, Keys.profiles, Keys.checklist, Keys.homeBase, Keys.language, Keys.activeProfile];
+    if (!this.user || !supabaseClient) return 0;
+    const keysToSync = [Keys.locations, Keys.profiles, Keys.checklist, Keys.homeBase, Keys.language, Keys.activeProfile];
     let count = 0;
-    for (const key of syncKeys) {
+    let errors = [];
+    for (const key of keysToSync) {
       const val = Storage.get(key);
-      if (val) {
-        await this.push(key, val);
-        count++;
+      if (val !== null) {
+        const { error } = await supabaseClient.from('user_data').upsert({
+          user_id: this.user.id,
+          key: key,
+          value: val,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id, key' });
+        if (error) {
+          console.error('PushAll error for key', key, error);
+          errors.push(error.message);
+        } else {
+          count++;
+        }
       }
     }
+    if (errors.length > 0) throw new Error(errors[0]);
     return count;
   }
 };
