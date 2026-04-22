@@ -1854,32 +1854,32 @@ const App = {
 
   async renderDrones() {
     const active = ProfileManager.getActive();
-    UI.els.dronesList.innerHTML = ProfileManager.getAll().map(profile => `
-      <article class="drone-card ${profile.id === active.id ? 'active' : ''}">
-        <div class="score-hero">
-          <div class="drone-header-main">
-            <div class="drone-color-tag" style="background-color: ${profile.color || '#f5bc2b'}"></div>
-            <div>
+    UI.els.dronesList.innerHTML = ProfileManager.getAll().map(profile => {
+      const droneColor = profile.color || '#f5bc2b';
+      return `
+        <article class="drone-card ${profile.id === active.id ? 'active' : ''}" style="--drone-accent: ${droneColor}">
+          <div class="score-hero">
+            <div class="drone-header-main">
               <h3>🚁 ${Util.escapeHtml(profile.label)}</h3>
               ${profile.id === active.id ? `<div class="badge fly">${I18n.t('drones.active')}</div>` : ''}
             </div>
+            <div class="inline-actions">
+              ${profile.id !== active.id ? `<button class="btn" data-set-profile="${profile.id}">${I18n.t('drones.activate')}</button>` : ''}
+              <button class="btn btn-secondary" data-edit-drone="${profile.id}">${I18n.t('drones.edit')}</button>
+              <button class="btn btn-secondary" data-delete-drone="${profile.id}">✕</button>
+            </div>
           </div>
-          <div class="inline-actions">
-            ${profile.id !== active.id ? `<button class="btn" data-set-profile="${profile.id}">${I18n.t('drones.activate')}</button>` : ''}
-            <button class="btn btn-secondary" data-edit-drone="${profile.id}">${I18n.t('drones.edit')}</button>
-            <button class="btn btn-secondary" data-delete-drone="${profile.id}">✕</button>
+          <div class="drone-stats">
+            <div class="kpi"><span>${I18n.t('drones.style')}</span><strong>${I18n.t(`drones.style.${profile.style}`)}</strong></div>
+            <div class="kpi"><span>${I18n.t('drones.weight')}</span><strong>${profile.weight} <small>g</small></strong></div>
+            <div class="kpi"><span>${I18n.t('drones.size')}</span><strong>${profile.size} <small>Zoll</small></strong></div>
+            <div class="kpi"><span>${I18n.t('drones.maxWind')}</span><strong>${profile.maxWind} <small>km/h</small></strong></div>
+            <div class="kpi"><span>${I18n.t('drones.maxGusts')}</span><strong>${profile.maxGusts} <small>km/h</small></strong></div>
+            <div class="kpi"><span>${I18n.t('drones.rain')}</span><strong>${I18n.t(`rain.${profile.rainTolerance}`)}</strong></div>
           </div>
-        </div>
-        <div class="drone-stats">
-          <div class="kpi"><span>${I18n.t('drones.style')}</span><strong>${I18n.t(`drones.style.${profile.style}`)}</strong></div>
-          <div class="kpi"><span>${I18n.t('drones.weight')}</span><strong>${profile.weight} <small>g</small></strong></div>
-          <div class="kpi"><span>${I18n.t('drones.size')}</span><strong>${profile.size} <small>Zoll</small></strong></div>
-          <div class="kpi"><span>${I18n.t('drones.maxWind')}</span><strong>${profile.maxWind} <small>km/h</small></strong></div>
-          <div class="kpi"><span>${I18n.t('drones.maxGusts')}</span><strong>${profile.maxGusts} <small>km/h</small></strong></div>
-          <div class="kpi"><span>${I18n.t('drones.rain')}</span><strong>${I18n.t(`rain.${profile.rainTolerance}`)}</strong></div>
-        </div>
-      </article>
-    `).join('');
+        </article>
+      `;
+    }).join('');
 
     UI.els.dronesList.querySelectorAll('[data-set-profile]').forEach(btn => {
       btn.addEventListener('click', async () => {
