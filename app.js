@@ -1072,6 +1072,13 @@ const UI = {
     const nowHour = new Date().getHours();
     const todayKey = Util.dayKey();
     const items = weatherData.hourly.time.slice(0, 48).map((time, i) => {
+      const score = ScoreEngine.calculate({
+        wind: weatherData.hourly.windspeed_10m[i],
+        gusts: weatherData.hourly.windgusts_10m[i],
+        rain: weatherData.hourly.precipitation[i],
+        clouds: weatherData.hourly.cloudcover[i],
+        visibility: weatherData.hourly.visibility[i],
+        temp: weatherData.hourly.temperature_2m[i],
         profile
       });
       const hDate = new Date(time);
