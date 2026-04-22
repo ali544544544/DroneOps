@@ -1132,26 +1132,42 @@ const App = {
   getSolarPosition(date, lat, lon) {
     const deg2rad = Math.PI / 180;
     const rad2deg = 180 / Math.PI;
+    
+    // Julian Day
     const jd = (date.getTime() / 86400000) + 2440587.5;
     const n = jd - 2451545.0;
+    
+    // Sun position
     const L = (280.460 + 0.9856474 * n) % 360;
     const g = (357.528 + 0.9856003 * n) % 360;
     const lambda = (L + 1.915 * Math.sin(g * deg2rad) + 0.020 * Math.sin(2 * g * deg2rad)) * deg2rad;
     const epsilon = (23.439 - 0.0000004 * n) * deg2rad;
-    const ra = Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda));
+    
     const declination = Math.asin(Math.sin(epsilon) * Math.sin(lambda));
+    const ra = Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda)) * rad2deg;
+    
+    // Sidereal Time
     const ut = (date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600);
     const gmst = (6.697374558 + 0.06570982441908 * n + ut) * 15;
-    let lha = (gmst + lon - (ra * rad2deg));
-    lha = (lha + 180) % 360 - 180;
+    const lst = gmst + lon;
+    
+    // Hour Angle
+    let ha = (lst - ra) % 360;
+    if (ha < 0) ha += 360;
+    const h = ha * deg2rad;
+    
+    // Altitude
     const phi = lat * deg2rad;
-    const h = lha * deg2rad;
     const sinAlt = Math.sin(phi) * Math.sin(declination) + Math.cos(phi) * Math.cos(declination) * Math.cos(h);
     const altitude = Math.asin(sinAlt);
-    const cosAz = (Math.sin(declination) - Math.sin(phi) * sinAlt) / (Math.cos(phi) * Math.cos(altitude));
-    let azimuth = Math.acos(Math.min(Math.max(cosAz, -1), 1)) * rad2deg;
-    if (Math.sin(h) > 0) azimuth = 360 - azimuth;
-    return { azimuth, elevation: altitude * rad2deg };
+    
+    // Azimuth (from North clockwise)
+    const azimuth = Math.atan2(Math.sin(h), Math.cos(h) * Math.sin(phi) - Math.tan(declination) * Math.cos(phi)) * rad2deg + 180;
+    
+    return { 
+      azimuth: azimuth % 360, 
+      elevation: altitude * rad2deg 
+    };
   },
 
   async init() {
@@ -1801,6 +1817,19 @@ const App = {
       drawLine(posGHS.azimuth, '#ffcc33', I18n.t('sun.morning'), '5, 10');
       drawLine(posGHE.azimuth, '#ffcc33', I18n.t('sun.evening'), '5, 10');
       if (posNow.elevation > 0) drawLine(posNow.azimuth, 'white', I18n.t('dashboard.current'), '2, 5');
+
+      const legend = L.control({ position: 'bottomright' });
+      legend.onAdd = () => {
+        const div = L.DomUtil.create('div', 'map-legend');
+        div.innerHTML = `
+          <div class="legend-item"><span class="legend-line" style="background:#f5bc2b"></span> ${I18n.t('sun.sunrise')}</div>
+          <div class="legend-item"><span class="legend-line" style="background:#ff7a3d"></span> ${I18n.t('sun.sunset')}</div>
+          <div class="legend-item"><span class="legend-line" style="background:#ffcc33;border-top:1px dashed #fff"></span> ${I18n.t('drones.golden')}</div>
+          <div class="legend-item"><span class="legend-line" style="background:#fff;border-top:1px dashed #000"></span> ${I18n.t('dashboard.current')}</div>
+        `;
+        return div;
+      };
+      legend.addTo(this.detailMap);
 
       const detailWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const detailGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
