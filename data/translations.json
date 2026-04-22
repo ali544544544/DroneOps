@@ -149,7 +149,8 @@
     "check.elektronik": "📱 Elektronik",
     "check.sonstiges": "➕ Sonstiges",
     "common.save": "Speichern",
-    "common.cancel": "Abbrechen"
+    "common.cancel": "Abbrechen",
+    "locations.namePlaceholder": "Name des Ortes..."
   },
   "en": {
     "header.profile": "Profile",
@@ -301,6 +302,7 @@
     "check.elektronik": "📱 Electronics",
     "check.sonstiges": "➕ Misc",
     "common.save": "Save",
-    "common.cancel": "Cancel"
+    "common.cancel": "Cancel",
+    "locations.namePlaceholder": "Location name..."
   }
 }

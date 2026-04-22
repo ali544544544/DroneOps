@@ -1680,7 +1680,10 @@ const App = {
   async renderLocationDetail(locationId) {
     const location = LocationManager.getById(locationId);
     if (!location) return;
-    UI.els.detailTitle.textContent = location.name;
+    UI.els.detailTitle.innerHTML = `
+      <input type="text" id="locationNameInput" class="inline-edit-input" value="${Util.escapeHtml(location.name)}" placeholder="${I18n.t('locations.namePlaceholder')}" />
+      <span id="locationNameSavedHint" class="saved-hint"></span>
+    `;
 
     try {
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
@@ -1844,6 +1847,18 @@ const App = {
     }, 1000);
 
     document.getElementById('notesArea').addEventListener('input', saveNotes);
+    
+    const nameInput = document.getElementById('locationNameInput');
+    const nameSavedHint = document.getElementById('locationNameSavedHint');
+    const saveName = Util.debounce((e) => {
+      const newName = e.target.value.trim() || 'Unbenannter Ort';
+      LocationManager.update(location.id, { name: newName });
+      nameSavedHint.textContent = I18n.t('detail.saved');
+      setTimeout(() => { if (nameSavedHint) nameSavedHint.textContent = ''; }, 1500);
+      UI.renderDashboardLocationSelect();
+    }, 1000);
+    nameInput.addEventListener('input', saveName);
+
     document.getElementById('logbookForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       LocationManager.addLog(location.id, {
