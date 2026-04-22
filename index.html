@@ -1,1 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="DRONE OPS Dashboard – Wetter, Golden Hour, Orte und Logbuch für Drohnenpiloten" />
+  <title>DRONE OPS Dashboard</title>
+  <link rel="preconnect" href="https://api.open-meteo.com" />
+  <link rel="preconnect" href="https://api.sunrise-sunset.org" />
+  <link rel="preconnect" href="https://nominatim.openstreetmap.org" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header glass">
+      <div>
+        <p class="eyebrow">🚁 Flight Planning</p>
+        <h1>DRONE OPS Dashboard</h1>
+      </div>
 
+      <div class="header-controls">
+        <label class="field compact-field">
+          <span data-i18n="header.profile">Profil</span>
+          <select id="profileSelect"></select>
+        </label>
+
+        <div class="lang-switch" role="group" aria-label="Language switch">
+          <button id="langDe" class="btn btn-secondary btn-small">DE</button>
+          <button id="langEn" class="btn btn-secondary btn-small">EN</button>
+        </div>
+
+        <div class="clock-box">
+          <span data-i18n="header.localTime">Lokale Zeit</span>
+          <strong id="liveClock">--:--:--</strong>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="viewList" class="view active">
+        <section class="search-panel glass">
+          <div class="search-row">
+            <label class="field grow">
+              <span data-i18n="search.label">Ort hinzufügen</span>
+              <input
+                id="locationSearchInput"
+                type="text"
+                autocomplete="off"
+                placeholder="Bonn, DE"
+              />
+            </label>
+            <button id="gpsAddBtn" class="btn btn-secondary">📍 <span data-i18n="search.useGps">GPS</span></button>
+          </div>
+          <div id="searchSuggestions" class="suggestions hidden"></div>
+          <p class="muted" data-i18n="search.help">Ort eintippen und Vorschlag auswählen.</p>
+        </section>
+
+        <section class="section-header">
+          <div>
+            <h2 data-i18n="list.title">Gespeicherte Orte</h2>
+            <p class="muted" data-i18n="list.subtitle">Wetter, Flugscore und Golden Hour auf einen Blick</p>
+          </div>
+        </section>
+
+        <section id="locationList" class="location-list"></section>
+      </section>
+
+      <section id="viewDetail" class="view">
+        <nav class="detail-nav">
+          <button id="backBtn" class="btn btn-secondary">← <span data-i18n="nav.back">Zurück</span></button>
+          <div class="detail-nav-actions">
+            <h2 id="detailTitle">—</h2>
+            <button id="routeBtnTop" class="btn">🗺️ <span data-i18n="nav.route">Route planen</span></button>
+          </div>
+        </nav>
+
+        <div class="detail-grid">
+          <section class="panel glass" id="flightStatusPanel"></section>
+          <section class="panel glass" id="mapPanel"></section>
+          <section class="panel glass" id="weatherPanel"></section>
+          <section class="panel glass" id="sunPanel"></section>
+          <section class="panel glass panel-wide" id="hourlyPanel"></section>
+          <section class="panel glass panel-wide" id="notesLogbookPanel"></section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <template id="emptyStateTemplate">
+    <article class="empty-state glass">
+      <h3 data-i18n="empty.title">Noch keine Orte gespeichert</h3>
+      <p data-i18n="empty.text">Füge oben deinen ersten Spot hinzu.</p>
+    </article>
+  </template>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
