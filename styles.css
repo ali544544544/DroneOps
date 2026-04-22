@@ -393,16 +393,23 @@ a { color: inherit; text-decoration: none; }
   font-size: 0.85rem;
 }
 
-.dashboard-mini-scroll,
-.hourly-scroll {
+.hourly-scroll, .dashboard-mini-scroll {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   overflow-x: auto;
-  padding: 8px 4px 16px;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; /* Zwingend für flüssiges Wischen auf iOS */
+  overscroll-behavior-x: contain;    /* Verhindert Seiten-Wischen (Navigation) am Rand */
+  padding-bottom: 16px;
   scrollbar-width: none;
+  scroll-behavior: smooth;           /* Für das automatische Zentrieren per JS */
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
 }
-.dashboard-mini-scroll::-webkit-scrollbar,
-.hourly-scroll::-webkit-scrollbar { display: none; }
+
+.hourly-scroll::-webkit-scrollbar, .dashboard-mini-scroll::-webkit-scrollbar { 
+  display: none; 
+}
 
 .dashboard-mini-card,
 .hour-card {
