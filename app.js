@@ -983,10 +983,16 @@ const UI = {
     if (this.els.searchInput) this.els.searchInput.placeholder = I18n.lang === 'de' ? 'Hamburg, DE' : 'Hamburg, DE';
   },
   toast(message) {
+    console.log('Toast:', message);
+    const container = document.getElementById('toastContainer') || this.els.toastContainer;
+    if (!container) {
+      console.warn('Toast failed: no container');
+      return;
+    }
     const node = document.createElement('div');
     node.className = 'toast';
     node.textContent = message;
-    this.els.toastContainer.appendChild(node);
+    container.appendChild(node);
     setTimeout(() => node.remove(), 3200);
   },
   setClock() {
@@ -1344,12 +1350,14 @@ const App = {
   },
 
   async init() {
+    console.log('App: Starting initialization...');
     try {
       const [profiles, translations, weathercodes] = await Promise.all([
         this.loadJson(DATA_FILES.profiles, FALLBACK_PROFILES),
         this.loadJson(DATA_FILES.translations, FALLBACK_TRANSLATIONS),
         this.loadJson(DATA_FILES.weathercodes, FALLBACK_WEATHERCODES),
       ]);
+      console.log('App: Data files loaded.');
 
       I18n.init(translations);
       ProfileManager.init(profiles);
@@ -1359,22 +1367,29 @@ const App = {
       UI.renderProfileSelect();
       UI.renderDashboardLocationSelect();
       UI.setClock();
+      console.log('App: Core managers initialized.');
 
       try {
-        if (CloudManager) await CloudManager.init();
+        if (typeof CloudManager !== 'undefined' && CloudManager.init) {
+          await CloudManager.init();
+          console.log('App: CloudManager initialized.');
+        }
       } catch (e) {
-        console.error('CloudManager Init failed:', e);
+        console.error('App: CloudManager init failed:', e);
       }
       
       setInterval(() => UI.setClock(), 1000);
       setInterval(() => this.refreshVisibleData(), 10 * 60 * 1000);
 
       this.bindEvents();
+      console.log('App: Events bound.');
+
       Router.showPage(Storage.get(Keys.activeTab, 'dashboard'));
       await this.renderAll();
+      console.log('App: Initial render complete.');
     } catch (error) {
-      console.error(error);
-      document.body.innerHTML = `<main style="padding:24px;color:white;font-family:sans-serif"><h2>App konnte nicht initialisiert werden.</h2><pre>${String(error.message || error)}</pre></main>`;
+      console.error('App: Critical initialization error:', error);
+      document.body.innerHTML = `<main style="padding:24px;color:white;font-family:sans-serif;background:#111;height:100vh"><h2>App konnte nicht initialisiert werden.</h2><p>${error.message || error}</p><button onclick="location.reload()">Neu laden</button></main>`;
     }
   },
 
