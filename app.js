@@ -1371,7 +1371,7 @@ const App = {
             <span class="inline-pill">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</span>
             <span class="inline-pill">🗓️ ${Util.formatDate(location.createdAt, I18n.locale)}</span>
           </div>
-          <p class="muted">${I18n.t('list.lastVisit')}: ${this.lastVisit(location)}</p>
+          <p class="muted">${I18n.t('list.lastVisit')}: ${UI.lastVisit(location)}</p>
         </div>
         <div id="location-weather-${location.id}">
           <span class="metric-chip">…</span>
