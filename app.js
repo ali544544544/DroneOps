@@ -1,10 +1,12 @@
+alert('DroneOps Script Loading...');
+
 const DATA_FILES = {
   profiles: './data/profiles.json',
   translations: './data/translations.json',
   weathercodes: './data/weathercodes.json',
 };
 
-// --- Cloud Config ---
+// --- Cloud Config (DISABLED FOR DEBUG) ---
 const SUPABASE_URL = 'https://kzlcswwwpdqrfmmqffpf.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bGNzd3d3cGRxcmZtbXFmZnBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njc0NDIsImV4cCI6MjA5MjQ0MzQ0Mn0.vTOzS_eF3lJAf9G_8bcqoXkXdJf6NvRQ9YtuEoXrPGQ';
 let supabase = null;
@@ -12,14 +14,8 @@ let supabase = null;
 const CloudManager = {
   user: null,
   async init() {
-    try {
-      if (typeof window.supabase === 'undefined') return;
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      const { data } = await supabase.auth.getUser();
-      this.user = data?.user;
-      if (this.user) await this.pullAll();
-      this.updateUI();
-    } catch (e) { console.warn('CloudManager disabled:', e); }
+    console.log('CloudManager: skipping init (debug)');
+    return;
   },
   async signup(email, password) {
     if (!supabase) return;
