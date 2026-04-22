@@ -811,7 +811,7 @@ const UI = {
     return { score, status };
   },
  renderSunArc(sunData, gh) {
-    // 1. Alle Zeiten strikt in Millisekunden umwandeln für absolute Präzision
+    // 1. Alle Zeiten in Millisekunden für präzise Skalierung
     const tDawn = new Date(sunData.results.civil_twilight_begin).getTime();
     const tSunrise = new Date(sunData.results.sunrise).getTime();
     const tSunset = new Date(sunData.results.sunset).getTime();
@@ -821,53 +821,74 @@ const UI = {
     const tMorningEnd = gh.morningEnd.getTime();
     const tEveningStart = gh.eveningStart.getTime();
 
-    const total = tDusk - tDawn;
+    // Der Bogen definiert sich nun strikt durch die Tageslicht-Dauer
+    const totalDaylight = tSunset - tSunrise;
 
-    // 2. Geometrie des SVGs
+    // 2. Geometrie
     const width = 340;
-    const height = 180;
-    const cx = width / 2;       // 170 (Mitte)
-    const cy = 150;             // Y-Position der Basislinie
-    const radius = 135;         // Radius des Bogens
-    const startX = cx - radius; // X-Startpunkt
-    const endX = cx + radius;   // X-Endpunkt
+    const height = 190; // Mehr Höhe, um Platz für die Uhrzeiten am Boden zu haben
+    const cx = width / 2;
+    const cy = 150;     // Y-Position der exakten Bodenlinie
+    const radius = 135; 
+    
+    // Start- und Endpunkte des Bogens sind jetzt exakt Sunrise und Sunset
+    const startX = cx - radius; 
+    const endX = cx + radius;   
 
-    // Hilfsfunktion: Wandelt eine Zeit in eine exakte X-Koordinate auf der Linie um
-    const getX = (time) => {
-      const progress = Util.clamp((time - tDawn) / total, 0, 1);
-      return startX + (radius * 2) * progress;
-    };
+    // Hilfsfunktion: Mappt eine Uhrzeit linear auf die X-Achse (Basis: Sonnenauf- bis Untergang)
+    const getX = (time) => startX + (radius * 2) * ((time - tSunrise) / totalDaylight);
 
-    // 3. X-Positionen berechnen
-    const dawnX = getX(tDawn);
-    const sunriseX = getX(tSunrise);
-    const sunsetX = getX(tSunset);
-    const duskX = getX(tDusk);
+    // 3. X-Positionen aller Elemente berechnen
+    const dawnX = getX(tDawn);       // Liegt nun korrekt links vom Bogen
+    const sunriseX = startX;
+    const sunsetX = endX;
+    const duskX = getX(tDusk);       // Liegt nun korrekt rechts vom Bogen
 
     const morningStartX = dawnX;
     const morningEndX = getX(tMorningEnd);
     const eveningStartX = getX(tEveningStart);
     const eveningEndX = duskX;
 
-    // Position der Sonne auf dem Bogen berechnen
-    const sunX = getX(tNow);
-    const dx = sunX - cx;
-    const yVal = radius * radius - dx * dx;
-    const sunY = yVal > 0 ? cy - Math.sqrt(yVal) : cy;
+    // 4. Position der aktuellen Sonne berechnen
+    let sunX = getX(tNow);
+    let sunY = cy; // Standardmäßig auf dem Boden
+    
+    // Begrenzung, falls die Sonne nachts weit außerhalb liegt
+    if (sunX < dawnX - 10) sunX = dawnX - 10;
+    if (sunX > duskX + 10) sunX = duskX + 10;
 
-    // 4. SVG Rendering
-    // WICHTIG: Die Reihenfolge der Elemente bestimmt, was im Vorder- oder Hintergrund liegt!
+    // Wenn die Sonne über dem Horizont steht, Y-Position auf dem Bogen berechnen
+    if (tNow >= tSunrise && tNow <= tSunset) {
+      const dx = sunX - cx;
+      const yVal = radius * radius - dx * dx;
+      if (yVal > 0) {
+        sunY = cy - Math.sqrt(yVal);
+      }
+    }
+
+    // Zeit-Formatierer für die Labels am Boden
+    const timeFmt = (dateNum) => new Date(dateNum).toLocaleTimeString(I18n.locale, { hour: '2-digit', minute: '2-digit' });
+
+    // 5. SVG Aufbau (von hinten nach vorne gestapelt)
     return `
       <svg class="sun-arc" viewBox="0 0 ${width} ${height}" aria-label="Sun path">
         
-        <rect x="${morningStartX}" y="${cy - 6}" width="${Math.max(0, morningEndX - morningStartX)}" height="12" rx="6" fill="rgba(245, 188, 43, 0.25)"></rect>
-        <rect x="${eveningStartX}" y="${cy - 6}" width="${Math.max(0, eveningEndX - eveningStartX)}" height="12" rx="6" fill="rgba(245, 188, 43, 0.25)"></rect>
+        <rect x="${morningStartX}" y="${cy - 4}" width="${Math.max(0, morningEndX - morningStartX)}" height="8" rx="4" fill="rgba(245, 188, 43, 0.3)"></rect>
+        <rect x="${eveningStartX}" y="${cy - 4}" width="${Math.max(0, eveningEndX - eveningStartX)}" height="8" rx="4" fill="rgba(245, 188, 43, 0.3)"></rect>
         
-        <line x1="${startX - 15}" y1="${cy}" x2="${endX + 15}" y2="${cy}" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"/>
+        <line x1="${dawnX - 15}" y1="${cy}" x2="${duskX + 15}" y2="${cy}" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-linecap="round"/>
         
-        <path d="M ${startX} ${cy} A ${radius} ${radius} 0 0 1 ${endX} ${cy}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-dasharray="5 5" />
+        <path d="M ${startX} ${cy} A ${radius} ${radius} 0 0 1 ${endX} ${cy}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-dasharray="4 6" />
         
-        <circle cx="${dawnX}" cy="${cy}" r="3.5" fill="#40a0ff"></circle>     <circle cx="${sunriseX}" cy="${cy}" r="3.5" fill="#37e781"></circle>  <circle cx="${sunsetX}" cy="${cy}" r="3.5" fill="#f5bc2b"></circle>   <circle cx="${duskX}" cy="${cy}" r="3.5" fill="#b478ff"></circle>     <circle cx="${sunX}" cy="${sunY}" r="7" fill="#f5bc2b" filter="drop-shadow(0 0 8px rgba(245,188,43,0.8))"></circle>
+        <circle cx="${dawnX}" cy="${cy}" r="3.5" fill="#40a0ff"></circle>     
+        <circle cx="${sunriseX}" cy="${cy}" r="4.5" fill="#37e781" stroke="var(--bg)" stroke-width="1.5"></circle> 
+        <circle cx="${sunsetX}" cy="${cy}" r="4.5" fill="#f5bc2b" stroke="var(--bg)" stroke-width="1.5"></circle>  
+        <circle cx="${duskX}" cy="${cy}" r="3.5" fill="#b478ff"></circle>     
+
+        <text x="${sunriseX}" y="${cy + 22}" fill="var(--muted)" font-size="11" font-weight="600" text-anchor="middle" letter-spacing="0.5">${timeFmt(tSunrise)}</text>
+        <text x="${sunsetX}" y="${cy + 22}" fill="var(--muted)" font-size="11" font-weight="600" text-anchor="middle" letter-spacing="0.5">${timeFmt(tSunset)}</text>
+
+        <circle cx="${sunX}" cy="${sunY}" r="7" fill="#f5bc2b" filter="drop-shadow(0 0 8px rgba(245,188,43,0.9))"></circle>
       </svg>
     `;
   },
