@@ -260,7 +260,7 @@ const FALLBACK_TRANSLATIONS = {
     'drones.rain': 'Regen-Toleranz',
     'drones.color': 'Drohnen-Farbe',
     'drones.always': 'Immer aktiv',
-    'checklist.title': 'Packliste',
+    'checklist.title': 'Checkliste',
     'checklist.subtitle': 'Vor dem Flug alles dabeihaben',
     'checklist.reset': 'Alle zurücksetzen',
     'checklist.add': '+ Element hinzufügen',
