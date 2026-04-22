@@ -100,11 +100,16 @@ const CloudManager = {
   },
   async pushAll() {
     if (!this.user || !supabaseClient) return;
-    const syncKeys = [Keys.locations, Keys.profiles, Keys.checklist, Keys.homeBase, Keys.language];
+    const syncKeys = [Keys.locations, Keys.profiles, Keys.checklist, Keys.homeBase, Keys.language, Keys.activeProfile];
+    let count = 0;
     for (const key of syncKeys) {
       const val = Storage.get(key);
-      if (val) await this.push(key, val);
+      if (val) {
+        await this.push(key, val);
+        count++;
+      }
     }
+    return count;
   }
 };
 
@@ -1697,6 +1702,22 @@ const App = {
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await CloudManager.logout();
+    });
+
+    document.getElementById('syncNowBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('syncNowBtn');
+      const original = btn.textContent;
+      btn.textContent = '⌛ Syncing...';
+      btn.disabled = true;
+      try {
+        const count = await CloudManager.pushAll();
+        UI.toast(`Cloud-Backup fertig (${count} Elemente)`);
+      } catch (e) {
+        alert('Sync Fehler: ' + e.message);
+      } finally {
+        btn.textContent = original;
+        btn.disabled = false;
+      }
     });
 
     document.getElementById('resetPassBtn').addEventListener('click', async () => {
