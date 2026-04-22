@@ -570,6 +570,8 @@ const WeatherService = {
       'cloudcover',
       'visibility',
       'windspeed_10m',
+      'windspeed_80m',
+      'windspeed_120m',
       'windgusts_10m',
       'surface_pressure',
       'winddirection_10m'
@@ -1219,12 +1221,28 @@ const App = {
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
         </div>
 
-        <div class="quick-stats">
+        <div class="metric-grid">
           <div class="kpi"><span>${I18n.t('weather.temp')}</span><strong>${weather.data.current_weather.temperature} °C</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.feels')}</span><strong>${weather.data.hourly.apparent_temperature[idx]} °C</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.wind')}</span><strong>${weather.data.current_weather.windspeed} m/s</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.direction')}</span><strong>${Util.windArrow(weather.data.hourly.winddirection_10m[idx])} ${weather.data.hourly.winddirection_10m[idx]}°</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${weather.data.hourly.windgusts_10m[idx]} m/s</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.wind')} (10m)</span><strong>${weather.data.current_weather.windspeed} <small>km/h</small></strong></div>
+          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${weather.data.hourly.windgusts_10m[idx]} <small>km/h</small></strong></div>
+        </div>
+
+        <div class="wind-profile glass" style="margin-top: 16px; padding: 16px; border-radius: 16px; background: rgba(255,255,255,0.03);">
+          <h4 style="margin-bottom: 12px; font-size: 0.8rem; color: var(--blue); letter-spacing: 0.05em; text-transform: uppercase;">Wind Profile (Altitudes)</h4>
+          <div style="display: grid; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+              <span class="muted">Ground (10m)</span>
+              <strong>${weather.data.current_weather.windspeed} km/h</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+              <span class="muted">Low Flight (80m)</span>
+              <strong>${weather.data.hourly.windspeed_80m[idx]} km/h</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+              <span class="muted">Max Flight (120m)</span>
+              <strong>${weather.data.hourly.windspeed_120m[idx]} km/h</strong>
+            </div>
+          </div>
         </div>
 
         <p style="margin-top:12px">${meta.icon} ${meta[I18n.lang]}</p>
@@ -1412,21 +1430,6 @@ const App = {
       UI.els.detailFlightPanel.innerHTML = `
         <h3>${I18n.t('detail.flightStatus')}</h3>
         <div class="score-hero">
-          <div>
-            <div class="score-value">${score.score}</div>
-            <div class="badge ${score.status}">${I18n.t(`status.${score.status}`)}</div>
-            <p class="muted" style="margin-top:10px">${I18n.t(`statusText.${score.status}`)}</p>
-          </div>
-          <div>
-            <div class="inline-pill">🚁 ${ProfileManager.label(ProfileManager.getActive().id)}</div>
-            <div class="inline-pill">${meta.icon} ${meta[I18n.lang]}</div>
-          </div>
-        </div>
-        <div class="quick-stats">
-          <div class="kpi"><span>${I18n.t('weather.wind')}</span><strong>${weather.data.current_weather.windspeed} m/s</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${weather.data.hourly.windgusts_10m[idx]} m/s</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} mm/h</strong></div>
-        </div>
         <div class="tag-list" style="margin-top:14px">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
@@ -1445,17 +1448,21 @@ const App = {
 
       UI.els.detailWeatherPanel.innerHTML = `
         <h3>${I18n.t('detail.weather')}</h3>
-        <div class="quick-stats">
+        <div class="metric-grid">
           <div class="kpi"><span>${I18n.t('weather.temp')}</span><strong>${weather.data.current_weather.temperature} °C</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.feels')}</span><strong>${weather.data.hourly.apparent_temperature[idx]} °C</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.wind')}</span><strong>${weather.data.current_weather.windspeed} m/s</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.direction')}</span><strong>${Util.windArrow(weather.data.hourly.winddirection_10m[idx])} ${weather.data.hourly.winddirection_10m[idx]}°</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${weather.data.hourly.windgusts_10m[idx]} m/s</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.wind')} (10m)</span><strong>${weather.data.current_weather.windspeed} km/h</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${weather.data.hourly.windgusts_10m[idx]} km/h</strong></div>
           <div class="kpi"><span>${I18n.t('weather.humidity')}</span><strong>${weather.data.hourly.relativehumidity_2m[idx]}%</strong></div>
           <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} mm/h</strong></div>
           <div class="kpi"><span>${I18n.t('weather.clouds')}</span><strong>${weather.data.hourly.cloudcover[idx]}%</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.visibility')}</span><strong>${(weather.data.hourly.visibility[idx] / 1000).toFixed(1)} km</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.pressure')}</span><strong>${Math.round(weather.data.hourly.surface_pressure[idx])} hPa</strong></div>
+        </div>
+        
+        <div class="wind-profile glass" style="margin-top: 16px; padding: 16px; border-radius: 16px; background: rgba(255,255,255,0.03);">
+          <h4 style="margin-bottom: 12px; font-size: 0.8rem; color: var(--blue); letter-spacing: 0.05em; text-transform: uppercase;">Wind Gradient (80m / 120m)</h4>
+          <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+             <span class="inline-pill">80m: <strong>${weather.data.hourly.windspeed_80m[idx]} km/h</strong></span>
+             <span class="inline-pill">120m: <strong>${weather.data.hourly.windspeed_120m[idx]} km/h</strong></span>
+          </div>
         </div>
         <p style="margin-top:12px">${meta.icon} ${meta[I18n.lang]}</p>
       `;
