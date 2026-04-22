@@ -1025,3 +1025,15 @@ a { color: inherit; text-decoration: none; }
 .mt-14 { margin-top: 14px !important; }
 .mt-16 { margin-top: 16px !important; }
 .mt-24 { margin-top: 24px !important; }
+
+.btn-active {
+  background: var(--blue) !important;
+  color: white !important;
+  border-color: var(--blue) !important;
+}
+
+.travel-time-mini {
+  font-size: 0.8rem;
+  color: var(--blue);
+  font-weight: 600;
+}

@@ -49,10 +49,17 @@
         <section class="panel glass quick-actions-panel">
           <div class="dashboard-source-row">
             <button id="dashboardUseGpsBtn" class="btn btn-action">📡 <span data-i18n="dashboard.useGps">GPS</span></button>
+            <button id="dashboardHomeBtn" class="btn btn-secondary btn-action" title="Heimat-Basis">🏠</button>
             <label class="field grow">
               <select id="dashboardLocationSelect" aria-label="Ort wählen"></select>
             </label>
             <button id="dashboardRefreshBtn" class="btn btn-secondary btn-action">🔄</button>
+          </div>
+          <div id="dashboardHomeSearchWrap" class="hidden mt-8">
+            <label class="field">
+              <input id="dashboardHomeSearchInput" type="text" placeholder="Heimat-Basis suchen..." autocomplete="off" />
+            </label>
+            <div id="dashboardHomeSuggestions" class="suggestions hidden"></div>
           </div>
         </section>
 
@@ -83,20 +90,6 @@
               <button id="gpsAddBtn" class="btn btn-secondary">📍 <span data-i18n="search.useGps">GPS</span></button>
             </div>
             <div id="searchSuggestions" class="suggestions hidden"></div>
-          </section>
-
-          <section class="panel glass">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <h3 style="margin:0" data-i18n="locations.startPoint">Heimat-Basis</h3>
-              <div id="homeBaseDisplay" class="muted" style="font-size:0.85rem">—</div>
-            </div>
-            <div class="search-row">
-              <label class="field grow">
-                <input id="homeBaseSearchInput" type="text" autocomplete="off" placeholder="Stadt für Basis eingeben..." />
-              </label>
-            </div>
-            <div id="homeBaseSuggestions" class="suggestions hidden"></div>
-            <p class="muted" style="font-size:0.75rem; margin-top:8px" data-i18n="locations.startPointHelp">Wird zur Entfernungsberechnung genutzt, falls GPS nicht aktiv ist.</p>
           </section>
 
           <section id="locationList" class="location-list"></section>

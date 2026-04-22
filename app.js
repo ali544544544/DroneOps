@@ -857,9 +857,10 @@ const UI = {
       checklistCategory: document.getElementById('checklistCategory'),
       checklistProgressText: document.getElementById('checklistProgressText'),
       checklistProgressBar: document.getElementById('checklistProgressBar'),
-      homeBaseDisplay: document.getElementById('homeBaseDisplay'),
-      homeBaseSearchInput: document.getElementById('homeBaseSearchInput'),
-      homeBaseSuggestions: document.getElementById('homeBaseSuggestions'),
+      dashboardHomeBtn: document.getElementById('dashboardHomeBtn'),
+      dashboardHomeSearchWrap: document.getElementById('dashboardHomeSearchWrap'),
+      dashboardHomeSearchInput: document.getElementById('dashboardHomeSearchInput'),
+      dashboardHomeSuggestions: document.getElementById('dashboardHomeSuggestions'),
     };
   },
   applyI18n() {
@@ -1248,9 +1249,6 @@ const App = {
       UI.renderChecklistFormOptions();
       UI.setClock();
       
-      const homeBase = Storage.get(Keys.homeBase);
-      if (homeBase) UI.els.homeBaseDisplay.textContent = homeBase.name;
-
       setInterval(() => UI.setClock(), 1000);
       setInterval(() => this.refreshVisibleData(), 10 * 60 * 1000);
 
@@ -1391,22 +1389,22 @@ const App = {
 
     const doHomeBaseSearch = Util.debounce(async (value) => {
       if (!value || value.trim().length < 2) {
-        UI.els.homeBaseSuggestions.classList.add('hidden');
-        UI.els.homeBaseSuggestions.innerHTML = '';
+        UI.els.dashboardHomeSuggestions.classList.add('hidden');
+        UI.els.dashboardHomeSuggestions.innerHTML = '';
         return;
       }
       try {
         const results = await Nominatim.search(value.trim());
         if (!results.length) return;
         
-        UI.els.homeBaseSuggestions.innerHTML = results.map(item => `
+        UI.els.dashboardHomeSuggestions.innerHTML = results.map(item => `
           <button class="suggestion-item" data-lat="${item.lat}" data-lon="${item.lon}" data-name="${Util.escapeHtml(item.display_name)}">
             ${Util.escapeHtml(item.display_name)}
           </button>
         `).join('');
-        UI.els.homeBaseSuggestions.classList.remove('hidden');
+        UI.els.dashboardHomeSuggestions.classList.remove('hidden');
 
-        UI.els.homeBaseSuggestions.querySelectorAll('.suggestion-item').forEach(btn => {
+        UI.els.dashboardHomeSuggestions.querySelectorAll('.suggestion-item').forEach(btn => {
           btn.addEventListener('click', async () => {
             const base = {
               name: btn.dataset.name,
@@ -1414,10 +1412,8 @@ const App = {
               lon: Number(btn.dataset.lon),
             };
             Storage.set(Keys.homeBase, base);
-            UI.els.homeBaseSearchInput.value = '';
-            UI.els.homeBaseSuggestions.innerHTML = '';
-            UI.els.homeBaseSuggestions.classList.add('hidden');
-            UI.els.homeBaseDisplay.textContent = base.name;
+            UI.els.dashboardHomeSearchInput.value = '';
+            UI.els.dashboardHomeSearchWrap.classList.add('hidden');
             UI.toast(I18n.t('toast.startPointSaved'));
             await this.renderDashboard();
           });
@@ -1427,7 +1423,14 @@ const App = {
       }
     }, 500);
 
-    UI.els.homeBaseSearchInput.addEventListener('input', (e) => doHomeBaseSearch(e.target.value));
+    UI.els.dashboardHomeBtn.addEventListener('click', () => {
+      UI.els.dashboardHomeSearchWrap.classList.toggle('hidden');
+      if (!UI.els.dashboardHomeSearchWrap.classList.contains('hidden')) {
+        UI.els.dashboardHomeSearchInput.focus();
+      }
+    });
+
+    UI.els.dashboardHomeSearchInput.addEventListener('input', (e) => doHomeBaseSearch(e.target.value));
     
     document.getElementById('gpsAddBtn').addEventListener('click', () => this.addLocationFromGps());
 
@@ -1691,9 +1694,18 @@ const App = {
         // Priority: GPS > Home Base
         Util.getCurrentPosition()
           .then(pos => ({ lat: pos.coords.latitude, lon: pos.coords.longitude, suffix: '' }))
-          .catch(() => homeBase ? { ...homeBase, suffix: ' (Home)' } : null)
+          .catch(() => {
+            if (homeBase) {
+              UI.els.dashboardHomeBtn.classList.add('btn-active');
+              return { ...homeBase, suffix: ' (Home)' };
+            }
+            return null;
+          })
           .then(async start => {
-            if (!start) return;
+            if (!start) {
+              UI.els.dashboardHomeBtn.classList.remove('btn-active');
+              return;
+            }
             const time = await Util.getTravelTime(start.lat, start.lon, location.lat, location.lon);
             if (time) {
               const el = document.getElementById('dashboardTravelTime');
@@ -1701,6 +1713,8 @@ const App = {
             }
           })
           .catch(() => {});
+      } else {
+        UI.els.dashboardHomeBtn.classList.remove('btn-active');
       }
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
@@ -1755,11 +1769,7 @@ const App = {
       await this.renderDashboardLocationCards();
     } catch (error) {
       console.error('Dashboard Render Error:', error);
-      UI.els.dashboardCurrentPanel.innerHTML = `
-        <h3>${I18n.t('dashboard.current')}</h3>
-        <p>${I18n.t('error.dataUnavailable')}</p>
-        <p class="muted" style="font-size:0.7rem; margin-top:8px">${Util.escapeHtml(error.message || String(error))}</p>
-      `;
+      UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       this.renderDashboardDrone();
@@ -1856,6 +1866,7 @@ const App = {
             <div class="badge ${score.status}">${I18n.t(`status.${score.status}`)}</div>
             <div style="margin-top:8px">🌅 ${Util.formatTime(gh.morningStart, I18n.locale)}–${Util.formatTime(gh.morningEnd, I18n.locale)}</div>
             <div>🌇 ${Util.formatTime(gh.eveningStart, I18n.locale)}–${Util.formatTime(gh.eveningEnd, I18n.locale)}</div>
+            <div class="mt-8 travel-time-mini" data-location-id="${location.id}"></div>
           </article>
         `;
       } catch (err) {
@@ -1870,6 +1881,20 @@ const App = {
     }));
 
     UI.els.dashboardLocationCardsPanel.innerHTML += `<div class="dashboard-mini-scroll">${cards.join('')}</div>`;
+
+    // Populate travel times from home base
+    const homeBase = Storage.get(Keys.homeBase);
+    if (homeBase) {
+      locations.forEach(async loc => {
+        try {
+          const time = await Util.getTravelTime(homeBase.lat, homeBase.lon, loc.lat, loc.lon);
+          const el = UI.els.dashboardLocationCardsPanel.querySelector(`[data-location-id="${loc.id}"]`);
+          if (el && time) {
+            el.textContent = `🚗 ${time} Min.`;
+          }
+        } catch (e) {}
+      });
+    }
   },
 
 
