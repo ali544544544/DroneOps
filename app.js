@@ -416,6 +416,23 @@ const Util = {
   },
   kmhToMs(kmh = 0) {
     return Math.round((kmh / 3.6) * 10) / 10;
+  },
+  recommendND(weatherCode, elevation) {
+    if (elevation < 0) return 'None';
+    if (elevation < 10) return 'ND4';
+    
+    const isBright = [0, 1].includes(Number(weatherCode));
+    const isCloudy = [2, 3, 45, 48].includes(Number(weatherCode));
+    
+    if (elevation > 30) {
+      if (isBright) return 'ND32';
+      if (isCloudy) return 'ND16';
+      return 'ND8';
+    } else {
+      if (isBright) return 'ND16';
+      if (isCloudy) return 'ND8';
+      return 'ND4';
+    }
   }
 };
 
@@ -1050,23 +1067,21 @@ const UI = {
     svg += '\n</svg>';
     return svg;
   },
-  renderHourly(target, weatherData, gh) {
+  renderHourly(target, weatherData, gh, location) {
     const profile = ProfileManager.getActive();
     const nowHour = new Date().getHours();
     const todayKey = Util.dayKey();
     const items = weatherData.hourly.time.slice(0, 48).map((time, i) => {
-      const score = ScoreEngine.calculate({
-        wind: weatherData.hourly.windspeed_10m[i],
-        gusts: weatherData.hourly.windgusts_10m[i],
-        rain: weatherData.hourly.precipitation[i],
-        clouds: weatherData.hourly.cloudcover[i],
-        visibility: weatherData.hourly.visibility[i],
-        temp: weatherData.hourly.temperature_2m[i],
         profile
       });
+      const hDate = new Date(time);
+      const pos = App.getSolarPosition(hDate, location.lat, location.lon);
+      const nd = Util.recommendND(weatherData.hourly.weathercode[i], pos.elevation);
+
       return {
         time,
         score,
+        nd,
         meta: this.weatherMeta(weatherData.hourly.weathercode[i]),
         wind: Util.kmhToMs(weatherData.hourly.windspeed_10m[i]),
         rain: weatherData.hourly.precipitation[i],
@@ -1090,6 +1105,7 @@ const UI = {
               <span>💨 ${item.wind} m/s</span>
               <span>🌧 ${item.rain} mm</span>
             </div>
+            <div class="hour-nd" style="font-size:0.7rem;margin-top:4px;font-weight:800;color:var(--blue)">📷 ${item.nd}</div>
             ${item.isGolden ? '<div class="hour-golden">🌅</div>' : ''}
             ${item.isNow ? '<div class="hour-now-dot"></div>' : ''}
           </article>
@@ -1540,7 +1556,7 @@ const App = {
         <div class="metric-grid">
           <div class="kpi"><span>${I18n.t('weather.wind')} 10m</span><strong>${dashWindMs} <small>m/s</small> ${dashWindDir}</strong></div>
           <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${dashGustsMs} <small>m/s</small></strong></div>
-          <div class="kpi"><span>${I18n.t('weather.humidity')}</span><strong>${weather.data.hourly.relativehumidity_2m[idx]}%</strong></div>
+          <div class="kpi"><span>ND Filter</span><strong>${Util.recommendND(weather.data.current_weather.weathercode, posNow.elevation)}</strong></div>
         </div>
         <div class="wind-alt-bar">
           <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
@@ -1597,7 +1613,7 @@ const App = {
       `;
 
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
-      UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather.data, gh);
+      UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather.data, gh, location);
     } catch (error) {
       console.error(error);
       UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
@@ -1881,7 +1897,7 @@ const App = {
       `;
 
       UI.els.detailHourlyPanel.innerHTML = `<h3>${I18n.t('detail.hourly')}</h3><div id="detailHourlyInner" class=\"hourly-inner\"></div>`;
-      UI.renderHourly(document.getElementById('detailHourlyInner'), weather.data, gh);
+      UI.renderHourly(document.getElementById('detailHourlyInner'), weather.data, gh, location);
 
       this.renderNotesPanel(location);
     } catch (error) {
