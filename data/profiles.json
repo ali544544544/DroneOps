@@ -1,0 +1,72 @@
+[
+  {
+    "id": "djimini",
+    "label": { "de": "DJI Mini (< 250g)", "en": "DJI Mini (< 250g)" },
+    "maxWind": 8,
+    "critWind": 12,
+    "maxGusts": 10,
+    "critGusts": 14,
+    "rainTolerance": "none",
+    "goldenHour": true
+  },
+  {
+    "id": "djimavic",
+    "label": { "de": "DJI Mavic / Air", "en": "DJI Mavic / Air" },
+    "maxWind": 10,
+    "critWind": 14,
+    "maxGusts": 13,
+    "critGusts": 17,
+    "rainTolerance": "none",
+    "goldenHour": true
+  },
+  {
+    "id": "tinywhoop",
+    "label": { "de": "Tinywhoop", "en": "Tinywhoop" },
+    "maxWind": 5,
+    "critWind": 8,
+    "maxGusts": 7,
+    "critGusts": 10,
+    "rainTolerance": "none",
+    "goldenHour": true
+  },
+  {
+    "id": "fpv25",
+    "label": { "de": "FPV 2.5\"", "en": "FPV 2.5\"" },
+    "maxWind": 8,
+    "critWind": 12,
+    "maxGusts": 11,
+    "critGusts": 15,
+    "rainTolerance": "low",
+    "goldenHour": true
+  },
+  {
+    "id": "fpv5",
+    "label": { "de": "FPV 5\"", "en": "FPV 5\"" },
+    "maxWind": 14,
+    "critWind": 18,
+    "maxGusts": 18,
+    "critGusts": 22,
+    "rainTolerance": "medium",
+    "goldenHour": true
+  },
+  {
+    "id": "fpv7",
+    "label": { "de": "FPV 7\"", "en": "FPV 7\"" },
+    "maxWind": 16,
+    "critWind": 20,
+    "maxGusts": 20,
+    "critGusts": 24,
+    "rainTolerance": "medium",
+    "goldenHour": true
+  },
+  {
+    "id": "fpv8",
+    "label": { "de": "FPV 8\"", "en": "FPV 8\"" },
+    "maxWind": 18,
+    "critWind": 22,
+    "maxGusts": 22,
+    "critGusts": 26,
+    "rainTolerance": "medium",
+    "goldenHour": true
+  }
+]
