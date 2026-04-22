@@ -1550,7 +1550,7 @@ const App = {
         <div class="score-hero">
           <div>
             <h3>${I18n.t('dashboard.current')}</h3>
-            <p><strong>${Util.escapeHtml(location.name)}</strong></p>
+            <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(drone.name)}</strong></p>
             <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</p>
           </div>
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
@@ -1643,11 +1643,14 @@ const App = {
     const drone = ProfileManager.getActive();
     if (!drone) return;
     UI.els.dashboardDronePanel.innerHTML = `
-      <h3>${I18n.t('drones.title')}</h3>
+      <h3>Aktive Drohne</h3>
       <div class="drone-card active" style="--drone-accent: ${drone.color || 'var(--blue)'}; margin-top:12px; padding:16px; border-radius:16px; background:rgba(255,255,255,0.02)">
         <div class="drone-header-main">
-          <span style="font-size:1.5rem">🚁</span>
-          <strong style="font-size:1.1rem">${Util.escapeHtml(drone.name)}</strong>
+          <span style="font-size:1.8rem">🚁</span>
+          <div style="display:flex; flex-direction:column">
+            <strong style="font-size:1.25rem; line-height:1.2">${Util.escapeHtml(drone.name)}</strong>
+            <span class="muted" style="font-size:0.75rem">${I18n.t('drones.style.' + (drone.style || 'freestyle'))}</span>
+          </div>
         </div>
         <div class="drone-stats" style="margin-top:12px; font-size:0.85rem">
           <div><span class="muted">${I18n.t('drones.maxWind')}</span><br><strong>${drone.maxWind} m/s</strong></div>
