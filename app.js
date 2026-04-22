@@ -4,6 +4,10 @@ const DATA_FILES = {
   weathercodes: './data/weathercodes.json',
 };
 
+const SUPABASE_URL = 'https://kzlcswwwpdqrfmmqffpf.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bGNzd3d3cGRxcmZtbXFmZnBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njc0NDIsImV4cCI6MjA5MjQ0MzQ0Mn0.vTOzS_eF3lJAf9G_8bcqoXkXdJf6NvRQ9YtuEoXrPGQ';
+const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
 const FALLBACK_PROFILES = [
   { 
     id: 'default-drone', 
@@ -361,14 +365,107 @@ class Storage {
   static set(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
+      CloudManager.push(key, value);
     } catch {}
   }
   static remove(key) {
     try {
       localStorage.removeItem(key);
+      CloudManager.delete(key);
     } catch {}
   }
 }
+
+const CloudManager = {
+  user: null,
+
+  async init() {
+    if (!supabase) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    this.user = user;
+    if (this.user) {
+      await this.pullAll();
+    }
+    this.updateUI();
+  },
+
+  async signup(email, password) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    UI.toast(I18n.t('toast.verifyEmail') || 'Erfolg! Bitte E-Mail bestätigen.');
+    return data;
+  },
+
+  async login(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    this.user = data.user;
+    await this.pullAll();
+    this.updateUI();
+    UI.toast(I18n.t('toast.loggedIn') || 'Eingeloggt!');
+    setTimeout(() => location.reload(), 1000);
+  },
+
+  async logout() {
+    await supabase.auth.signOut();
+    this.user = null;
+    this.updateUI();
+    UI.toast(I18n.t('toast.loggedOut') || 'Ausgeloggt.');
+    setTimeout(() => location.reload(), 1000);
+  },
+
+  updateUI() {
+    const authView = document.getElementById('authView');
+    const userView = document.getElementById('userView');
+    const userEmail = document.getElementById('userEmail');
+    const accountBtn = document.getElementById('accountBtn');
+
+    if (this.user) {
+      if (authView) authView.classList.add('hidden');
+      if (userView) userView.classList.remove('hidden');
+      if (userEmail) userEmail.textContent = this.user.email;
+      if (accountBtn) accountBtn.classList.add('btn-active');
+    } else {
+      if (authView) authView.classList.remove('hidden');
+      if (userView) userView.classList.add('hidden');
+      if (accountBtn) accountBtn.classList.remove('btn-active');
+    }
+  },
+
+  async push(key, value) {
+    if (!this.user || !supabase) return;
+    // Skip volatile keys
+    if (key === Keys.weatherCache || key === Keys.sunCache || key === Keys.activeTab) return;
+    try {
+      await supabase.from('user_data').upsert({
+        user_id: this.user.id,
+        key: key,
+        value: value,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id, key' });
+    } catch (e) {
+      console.error('Cloud Push Error:', e);
+    }
+  },
+
+  async delete(key) {
+    if (!this.user || !supabase) return;
+    await supabase.from('user_data').delete().match({ user_id: this.user.id, key: key });
+  },
+
+  async pullAll() {
+    if (!this.user || !supabase) return;
+    try {
+      const { data, error } = await supabase.from('user_data').select('key, value');
+      if (error) throw error;
+      data.forEach(item => {
+        localStorage.setItem(item.key, JSON.stringify(item.value));
+      });
+    } catch (e) {
+      console.error('Cloud Pull Error:', e);
+    }
+  }
+};
 
 const Util = {
   uuid() {
@@ -1250,6 +1347,8 @@ const App = {
       UI.renderDashboardLocationSelect();
       UI.renderChecklistFormOptions();
       UI.setClock();
+
+      if (CloudManager) await CloudManager.init();
       
       setInterval(() => UI.setClock(), 1000);
       setInterval(() => this.refreshVisibleData(), 10 * 60 * 1000);
@@ -1546,6 +1645,31 @@ const App = {
         ChecklistManager.update(checkToggle.dataset.checkToggle, { checked: checkToggle.checked });
         await this.renderChecklist();
       }
+    });
+
+    // Account UI Events
+    document.getElementById('accountBtn').addEventListener('click', () => {
+      document.getElementById('accountPanel').classList.toggle('hidden');
+    });
+
+    document.getElementById('accountCloseBtn').addEventListener('click', () => {
+      document.getElementById('accountPanel').classList.add('hidden');
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('authEmail').value;
+      const pass = document.getElementById('authPassword').value;
+      try { await CloudManager.login(email, pass); } catch (e) { alert(e.message); }
+    });
+
+    document.getElementById('signupBtn').addEventListener('click', async () => {
+      const email = document.getElementById('authEmail').value;
+      const pass = document.getElementById('authPassword').value;
+      try { await CloudManager.signup(email, pass); } catch (e) { alert(e.message); }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await CloudManager.logout();
     });
   },
 

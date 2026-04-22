@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -33,9 +34,35 @@
         <div class="lang-toggle" role="group" aria-label="Language">
           <button id="langDe" class="btn btn-secondary btn-small">DE</button>
           <button id="langEn" class="btn btn-secondary btn-small">EN</button>
+          <button id="accountBtn" class="btn btn-secondary btn-small" title="Account">👤</button>
         </div>
       </div>
     </header>
+
+    <div id="accountPanel" class="panel glass hidden" style="position:fixed; top:80px; right:20px; z-index:2000; width:300px; box-shadow:0 10px 30px rgba(0,0,0,0.5)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 id="accountTitle">Account</h3>
+        <button id="accountCloseBtn" class="btn btn-secondary btn-small">✕</button>
+      </div>
+      
+      <div id="authView">
+        <div class="field">
+          <input id="authEmail" type="email" placeholder="Email" autocomplete="username" />
+        </div>
+        <div class="field mt-8">
+          <input id="authPassword" type="password" placeholder="Passwort" autocomplete="current-password" />
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px;">
+          <button id="loginBtn" class="btn">Login</button>
+          <button id="signupBtn" class="btn btn-secondary">Sign Up</button>
+        </div>
+      </div>
+
+      <div id="userView" class="hidden">
+        <p id="userEmail" class="muted" style="margin-bottom:16px; font-size:0.9rem"></p>
+        <button id="logoutBtn" class="btn btn-secondary" style="width:100%">Logout</button>
+      </div>
+    </div>
 
     <main class="page-wrap">
       <section id="page-dashboard" class="page active">
