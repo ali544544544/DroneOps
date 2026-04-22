@@ -1,4 +1,3 @@
-alert('DroneOps Script Loading...');
 
 const DATA_FILES = {
   profiles: './data/profiles.json',
@@ -14,8 +13,14 @@ let supabase = null;
 const CloudManager = {
   user: null,
   async init() {
-    console.log('CloudManager: skipping init (debug)');
-    return;
+    try {
+      if (typeof window.supabase === 'undefined') return;
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const { data } = await supabase.auth.getUser();
+      this.user = data?.user;
+      if (this.user) await this.pullAll();
+      this.updateUI();
+    } catch (e) { console.warn('CloudManager disabled:', e); }
   },
   async signup(email, password) {
     if (!supabase) return;
@@ -625,49 +630,6 @@ const FALLBACK_WEATHERCODES = {
   "96": { icon: "⛈️", de: "Gewitter + Hagel", en: "Thunderstorm + hail" },
   "99": { icon: "⛈️", de: "Gewitter + Hagel", en: "Thunderstorm + hail" },
   "default": { icon: "🌦️", de: "Unbekannt", en: "Unknown" }
-};
-
-const Keys = {
-  locations: 'drone_locations',
-  activeLocation: 'drone_active_location',
-  activeProfile: 'drone_active_profile',
-  language: 'drone_language',
-  activeTab: 'drone_active_tab',
-  dashboardSource: 'drone_dashboard_source',
-  weatherCache: 'drone_weather_cache',
-  sunCache: 'drone_sun_cache',
-  checklist: 'drone_checklist',
-  homeBase: 'drone_home_base',
-  distSource: 'drone_dist_source',
-};
-
-class Storage {
-  static get(key, fallback = null) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-  static set(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      CloudManager.push(key, value);
-    } catch {}
-  }
-  static remove(key) {
-    try {
-      localStorage.removeItem(key);
-      CloudManager.delete(key);
-    } catch {}
-  }
-}
-
-    } catch (e) {
-      console.error('Cloud Pull Error:', e);
-    }
-  }
 };
 
 const Util = {
