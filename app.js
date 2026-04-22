@@ -1653,7 +1653,7 @@ const App = {
           <div><span class="muted">${I18n.t('drones.maxWind')}</span><br><strong>${drone.maxWind} m/s</strong></div>
           <div><span class="muted">${I18n.t('drones.rain')}</span><br><strong>${I18n.t('rain.' + (drone.rainTolerance || 'none'))}</strong></div>
         </div>
-        <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%" onclick="Router.showPage('drones')">${I18n.t('drones.activate').split(' ')[0]} 🔄</button>
+        <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%" onclick="Router.showPage('drones')">${I18n.t('common.change')} 🔄</button>
       </div>
     `;
   },

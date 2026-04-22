@@ -150,6 +150,7 @@
     "check.sonstiges": "➕ Sonstiges",
     "common.save": "Speichern",
     "common.cancel": "Abbrechen",
+    "common.change": "Ändern",
     "locations.namePlaceholder": "Name des Ortes..."
   },
   "en": {
@@ -303,6 +304,7 @@
     "check.sonstiges": "➕ Misc",
     "common.save": "Save",
     "common.cancel": "Cancel",
+    "common.change": "Change",
     "locations.namePlaceholder": "Location name..."
   }
 }
