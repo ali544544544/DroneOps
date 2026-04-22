@@ -5,13 +5,19 @@ const DATA_FILES = {
 };
 
 const FALLBACK_PROFILES = [
-  { id: 'djimini', label: { de: 'DJI Mini (< 250g)', en: 'DJI Mini (< 250g)' }, maxWind: 8, critWind: 12, maxGusts: 10, critGusts: 14, rainTolerance: 'none', goldenHour: true },
-  { id: 'djimavic', label: { de: 'DJI Mavic / Air', en: 'DJI Mavic / Air' }, maxWind: 10, critWind: 14, maxGusts: 13, critGusts: 17, rainTolerance: 'none', goldenHour: true },
-  { id: 'tinywhoop', label: { de: 'Tinywhoop', en: 'Tinywhoop' }, maxWind: 5, critWind: 8, maxGusts: 7, critGusts: 10, rainTolerance: 'none', goldenHour: true },
-  { id: 'fpv25', label: { de: 'FPV 2.5"', en: 'FPV 2.5"' }, maxWind: 8, critWind: 12, maxGusts: 11, critGusts: 15, rainTolerance: 'low', goldenHour: true },
-  { id: 'fpv5', label: { de: 'FPV 5"', en: 'FPV 5"' }, maxWind: 14, critWind: 18, maxGusts: 18, critGusts: 22, rainTolerance: 'medium', goldenHour: true },
-  { id: 'fpv7', label: { de: 'FPV 7"', en: 'FPV 7"' }, maxWind: 16, critWind: 20, maxGusts: 20, critGusts: 24, rainTolerance: 'medium', goldenHour: true },
-  { id: 'fpv8', label: { de: 'FPV 8"', en: 'FPV 8"' }, maxWind: 18, critWind: 22, maxGusts: 22, critGusts: 26, rainTolerance: 'medium', goldenHour: true },
+  { 
+    id: 'default-drone', 
+    label: 'Standard Drohne', 
+    style: 'freestyle', 
+    weight: 249, 
+    size: 3, 
+    maxWind: 10, 
+    critWind: 14, 
+    maxGusts: 14, 
+    critGusts: 18, 
+    rainTolerance: 'none', 
+    goldenHour: true 
+  }
 ];
 
 const FALLBACK_TRANSLATIONS = {
@@ -67,15 +73,26 @@ const FALLBACK_TRANSLATIONS = {
     'drones.scoreFly': '✅ Score ≥ 70: Fliegen',
     'drones.scoreCaution': '⚠️ Score 40–69: Vorsicht',
     'drones.scoreNogo': '🚫 Score < 40: No-Go',
-    'drones.title': 'Drohnen',
-    'drones.subtitle': 'Das aktive Profil beeinflusst alle Flugbewertungen in der gesamten App',
+    'drones.title': 'Drohnen & Setups',
+    'drones.subtitle': 'Verwalte deine Flotte. Jedes Profil definiert individuelle Wind- und Wetterlimits.',
+    'drones.add': 'Drohne hinzufügen',
+    'drones.edit': '✎ Bearbeiten',
+    'drones.delete': 'Löschen',
+    'drones.name': 'Name der Drohne',
+    'drones.style': 'Flugstil',
+    'drones.weight': 'Gewicht (g)',
+    'drones.size': 'Größe (Zoll)',
+    'drones.style.freestyle': 'Freestyle',
+    'drones.style.cinematic': 'Cinematic',
+    'drones.style.longrange': 'Longrange',
+    'drones.style.sub250': 'Sub250 / Mini',
     'drones.active': 'AKTIV ✓',
-    'drones.activate': 'Als aktives Profil wählen',
-    'drones.maxWind': 'Max Wind',
+    'drones.activate': 'Aktivieren',
+    'drones.maxWind': 'Max Wind (km/h)',
     'drones.critWind': 'Kritisch',
-    'drones.maxGusts': 'Max Böen',
+    'drones.maxGusts': 'Max Böen (km/h)',
     'drones.critGusts': 'Kritisch',
-    'drones.rain': 'Regen',
+    'drones.rain': 'Regen-Toleranz',
     'drones.golden': 'Golden Hour',
     'drones.always': 'Immer aktiv',
     'checklist.title': 'Packliste',
@@ -418,19 +435,47 @@ const I18n = {
 };
 
 const ProfileManager = {
-  profiles: [],
-  init(profiles) {
-    this.profiles = profiles?.length ? profiles : FALLBACK_PROFILES;
-    const current = Storage.get(Keys.activeProfile, this.profiles[0].id);
-    if (!this.getById(current)) Storage.set(Keys.activeProfile, this.profiles[0].id);
+  init() {
+    const existing = Storage.get(Keys.profiles, []);
+    if (!existing.length) {
+      Storage.set(Keys.profiles, FALLBACK_PROFILES);
+    }
+    const profiles = this.getAll();
+    const activeId = Storage.get(Keys.activeProfile, profiles[0]?.id);
+    if (!this.getById(activeId)) {
+      Storage.set(Keys.activeProfile, profiles[0]?.id);
+    }
   },
-  getAll() { return this.profiles; },
-  getById(id) { return this.profiles.find(p => p.id === id); },
-  getActive() { return this.getById(Storage.get(Keys.activeProfile, this.profiles[0]?.id)) || this.profiles[0]; },
+  getAll() { return Storage.get(Keys.profiles, FALLBACK_PROFILES); },
+  saveAll(profiles) { Storage.set(Keys.profiles, profiles); },
+  getById(id) { return this.getAll().find(p => p.id === id); },
+  getActive() { 
+    const profiles = this.getAll();
+    return this.getById(Storage.get(Keys.activeProfile, profiles[0]?.id)) || profiles[0]; 
+  },
   setActive(id) { Storage.set(Keys.activeProfile, id); },
+  add(profile) {
+    const profiles = this.getAll();
+    const next = { id: Util.uuid(), ...profile };
+    profiles.push(next);
+    this.saveAll(profiles);
+    return next;
+  },
+  update(id, patch) {
+    const profiles = this.getAll().map(p => p.id === id ? { ...p, ...patch } : p);
+    this.saveAll(profiles);
+  },
+  remove(id) {
+    const profiles = this.getAll().filter(p => p.id !== id);
+    if (profiles.length === 0) return; // Prevent deleting last profile
+    this.saveAll(profiles);
+    if (Storage.get(Keys.activeProfile) === id) {
+      this.setActive(profiles[0].id);
+    }
+  },
   label(id) {
     const p = this.getById(id);
-    return p?.label?.[I18n.lang] || p?.label?.de || id;
+    return p?.label || id;
   }
 };
 
@@ -749,6 +794,15 @@ const UI = {
       dashboardHourlyPanel: document.getElementById('dashboardHourlyPanel'),
       dashboardLocationSelect: document.getElementById('dashboardLocationSelect'),
       dronesList: document.getElementById('dronesList'),
+      droneForm: document.getElementById('droneForm'),
+      droneName: document.getElementById('droneName'),
+      droneStyle: document.getElementById('droneStyle'),
+      droneWeight: document.getElementById('droneWeight'),
+      droneSize: document.getElementById('droneSize'),
+      droneMaxWind: document.getElementById('droneMaxWind'),
+      droneMaxGusts: document.getElementById('droneMaxGusts'),
+      droneCancelBtn: document.getElementById('droneCancelBtn'),
+      droneAddBtn: document.getElementById('droneAddBtn'),
       checklistGroups: document.getElementById('checklistGroups'),
       checklistCategory: document.getElementById('checklistCategory'),
       checklistProgressText: document.getElementById('checklistProgressText'),
@@ -1100,6 +1154,41 @@ const App = {
     });
     document.getElementById('langEn').addEventListener('click', async () => {
       I18n.setLanguage('en');
+      await this.renderAll();
+    });
+
+    UI.els.droneAddBtn.addEventListener('click', () => {
+      this.editingDroneId = null;
+      UI.els.droneForm.reset();
+      UI.els.droneForm.classList.remove('hidden');
+    });
+
+    UI.els.droneCancelBtn.addEventListener('click', () => {
+      UI.els.droneForm.classList.add('hidden');
+    });
+
+    UI.els.droneForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        label: UI.els.droneName.value.trim(),
+        style: UI.els.droneStyle.value,
+        weight: parseInt(UI.els.droneWeight.value),
+        size: parseFloat(UI.els.droneSize.value),
+        maxWind: parseInt(UI.els.droneMaxWind.value),
+        critWind: Math.round(parseInt(UI.els.droneMaxWind.value) * 1.4),
+        maxGusts: parseInt(UI.els.droneMaxGusts.value),
+        critGusts: Math.round(parseInt(UI.els.droneMaxGusts.value) * 1.3),
+        rainTolerance: 'none',
+        goldenHour: true
+      };
+
+      if (this.editingDroneId) {
+        ProfileManager.update(this.editingDroneId, data);
+      } else {
+        ProfileManager.add(data);
+      }
+
+      UI.els.droneForm.classList.add('hidden');
       await this.renderAll();
     });
 
@@ -1750,23 +1839,21 @@ const App = {
       <article class="drone-card ${profile.id === active.id ? 'active' : ''}">
         <div class="score-hero">
           <div>
-            <h3>🚁 ${profile.label[I18n.lang] || profile.label.de}</h3>
+            <h3>🚁 ${Util.escapeHtml(profile.label)}</h3>
+            <p class="muted">${I18n.t(`drones.style.${profile.style}`)} · ${profile.weight}g · ${profile.size}"</p>
             ${profile.id === active.id ? `<div class="badge fly">${I18n.t('drones.active')}</div>` : ''}
           </div>
-          ${profile.id !== active.id ? `<button class="btn" data-set-profile="${profile.id}">${I18n.t('drones.activate')}</button>` : ''}
+          <div class="inline-actions">
+            ${profile.id !== active.id ? `<button class="btn" data-set-profile="${profile.id}">${I18n.t('drones.activate')}</button>` : ''}
+            <button class="btn btn-secondary" data-edit-drone="${profile.id}">${I18n.t('drones.edit')}</button>
+            <button class="btn btn-secondary" data-delete-drone="${profile.id}">✕</button>
+          </div>
         </div>
         <div class="drone-stats">
-          <div class="kpi"><span>${I18n.t('drones.maxWind')}</span><strong>${profile.maxWind} m/s</strong></div>
-          <div class="kpi"><span>${I18n.t('drones.critWind')}</span><strong>${profile.critWind} m/s</strong></div>
-          <div class="kpi"><span>${I18n.t('drones.maxGusts')}</span><strong>${profile.maxGusts} m/s</strong></div>
-          <div class="kpi"><span>${I18n.t('drones.critGusts')}</span><strong>${profile.critGusts} m/s</strong></div>
+          <div class="kpi"><span>${I18n.t('drones.maxWind')}</span><strong>${profile.maxWind} <small>km/h</small></strong></div>
+          <div class="kpi"><span>${I18n.t('drones.maxGusts')}</span><strong>${profile.maxGusts} <small>km/h</small></strong></div>
           <div class="kpi"><span>${I18n.t('drones.rain')}</span><strong>${I18n.t(`rain.${profile.rainTolerance}`)}</strong></div>
-          <div class="kpi"><span>${I18n.t('drones.golden')}</span><strong>✅ ${I18n.t('drones.always')}</strong></div>
-        </div>
-        <div class="drone-score-thresholds">
-          <span class="tag ok">${I18n.t('drones.scoreFly')}</span>
-          <span class="tag warn">${I18n.t('drones.scoreCaution')}</span>
-          <span class="tag critical">${I18n.t('drones.scoreNogo')}</span>
+          <div class="kpi"><span>${I18n.t('drones.golden')}</span><strong>✅</strong></div>
         </div>
       </article>
     `).join('');
@@ -1776,6 +1863,30 @@ const App = {
         ProfileManager.setActive(btn.dataset.setProfile);
         UI.renderProfileSelect();
         UI.toast(I18n.t('toast.profileChanged'));
+        await this.renderAll();
+      });
+    });
+
+    UI.els.dronesList.querySelectorAll('[data-edit-drone]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = ProfileManager.getById(btn.dataset.editDrone);
+        if (!p) return;
+        this.editingDroneId = p.id;
+        UI.els.droneName.value = p.label;
+        UI.els.droneStyle.value = p.style || 'freestyle';
+        UI.els.droneWeight.value = p.weight || 249;
+        UI.els.droneSize.value = p.size || 5;
+        UI.els.droneMaxWind.value = p.maxWind;
+        UI.els.droneMaxGusts.value = p.maxGusts;
+        UI.els.droneForm.classList.remove('hidden');
+        UI.els.droneForm.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    UI.els.dronesList.querySelectorAll('[data-delete-drone]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (ProfileManager.getAll().length <= 1) return;
+        ProfileManager.remove(btn.dataset.deleteDrone);
         await this.renderAll();
       });
     });
