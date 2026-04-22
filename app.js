@@ -819,6 +819,8 @@ const UI = {
       dashboardGoldenPanel: document.getElementById('dashboardGoldenPanel'),
       dashboardLocationCardsPanel: document.getElementById('dashboardLocationCardsPanel'),
       dashboardHourlyPanel: document.getElementById('dashboardHourlyPanel'),
+      dashboardDronePanel: document.getElementById('dashboardDronePanel'),
+      dashboardChecklistPanel: document.getElementById('dashboardChecklistPanel'),
       dashboardLocationSelect: document.getElementById('dashboardLocationSelect'),
       dronesList: document.getElementById('dronesList'),
       droneForm: document.getElementById('droneForm'),
@@ -1622,14 +1624,59 @@ const App = {
 
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
       UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather.data, gh, location);
+      
+      this.renderDashboardDrone();
+      this.renderDashboardChecklist();
+      await this.renderDashboardLocationCards();
     } catch (error) {
       console.error(error);
       UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
+      this.renderDashboardDrone();
+      this.renderDashboardChecklist();
+      await this.renderDashboardLocationCards();
     }
+  },
 
-    await this.renderDashboardLocationCards();
+  renderDashboardDrone() {
+    const drone = ProfileManager.getActive();
+    if (!drone) return;
+    UI.els.dashboardDronePanel.innerHTML = `
+      <h3>${I18n.t('drones.title')}</h3>
+      <div class="drone-card active" style="--drone-accent: ${drone.color || 'var(--blue)'}; margin-top:12px; padding:16px; border-radius:16px; background:rgba(255,255,255,0.02)">
+        <div class="drone-header-main">
+          <span style="font-size:1.5rem">🚁</span>
+          <strong style="font-size:1.1rem">${Util.escapeHtml(drone.name)}</strong>
+        </div>
+        <div class="drone-stats" style="margin-top:12px; font-size:0.85rem">
+          <div><span class="muted">${I18n.t('drones.maxWind')}</span><br><strong>${drone.maxWind} m/s</strong></div>
+          <div><span class="muted">${I18n.t('drones.rain')}</span><br><strong>${I18n.t('rain.' + (drone.rainTolerance || 'none'))}</strong></div>
+        </div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:12px;width:100%" onclick="Router.showPage('drones')">${I18n.t('drones.activate').split(' ')[0]} 🔄</button>
+      </div>
+    `;
+  },
+
+  renderDashboardChecklist() {
+    const items = ChecklistManager.getAll();
+    const checked = items.filter(x => x.checked).length;
+    const total = items.length;
+    const prog = total > 0 ? Math.round((checked / total) * 100) : 0;
+    
+    UI.els.dashboardChecklistPanel.innerHTML = `
+      <h3>${I18n.t('checklist.title')}</h3>
+      <div style="margin-top:16px">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+          <span class="muted">${checked} / ${total}</span>
+          <span style="font-weight:700">${prog}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${prog}%"></div>
+        </div>
+        <button class="btn btn-secondary btn-sm" style="margin-top:16px;width:100%" onclick="Router.showPage('checklist')">${I18n.t('checklist.title')} 🎒</button>
+      </div>
+    `;
   },
 
   async renderDashboardLocationCards() {
