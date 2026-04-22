@@ -448,7 +448,8 @@ const Util = {
       const res = await fetch(url);
       const data = await res.json();
       if (data.code !== 'Ok' || !data.routes?.length) return null;
-      return Math.round(data.routes[0].duration / 60); // Duration in minutes
+      const duration = Math.round(data.routes[0].duration / 60);
+      return duration;
     } catch (e) {
       console.error('OSRM Error:', e);
       return null;
@@ -1705,7 +1706,7 @@ const App = {
       // Async travel time
       if (location.id !== 'gps') {
         const homeBase = Storage.get(Keys.homeBase);
-        const distSource = Storage.get(Keys.distSource, 'gps');
+        const distSource = Storage.get(Keys.distSource, homeBase ? 'home' : 'gps');
         
         let getStart;
         if (distSource === 'home') {
