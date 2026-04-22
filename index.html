@@ -3,28 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="DRONE OPS Dashboard – Wetter, Golden Hour, Orte und Logbuch für Drohnenpiloten" />
-  <title>DRONE OPS Dashboard</title>
-  <link rel="preconnect" href="https://api.open-meteo.com" />
-  <link rel="preconnect" href="https://api.sunrise-sunset.org" />
-  <link rel="preconnect" href="https://nominatim.openstreetmap.org" />
-  <link rel="stylesheet" href="styles.css" />
+  <title>DRONE OPS</title>
+  <meta name="description" content="DRONE OPS – Dashboard, Locations, Drohnenprofile und Packliste für Drohnenpiloten." />
+  <link rel="preconnect" href="https://api.open-meteo.com">
+  <link rel="preconnect" href="https://api.sunrise-sunset.org">
+  <link rel="preconnect" href="https://nominatim.openstreetmap.org">
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <div class="app-shell">
-    <header class="app-header glass">
-      <div>
-        <p class="eyebrow">🚁 Flight Planning</p>
-        <h1>DRONE OPS Dashboard</h1>
+    <header class="top-header glass">
+      <div class="brand">
+        <div class="brand-kicker">🚁 Flight Planning</div>
+        <h1>DRONE OPS</h1>
       </div>
 
-      <div class="header-controls">
-        <label class="field compact-field">
+      <div class="top-controls">
+        <label class="field compact">
           <span data-i18n="header.profile">Profil</span>
           <select id="profileSelect"></select>
         </label>
 
-        <div class="lang-switch" role="group" aria-label="Language switch">
+        <div class="lang-toggle" role="group" aria-label="Language">
           <button id="langDe" class="btn btn-secondary btn-small">DE</button>
           <button id="langEn" class="btn btn-secondary btn-small">EN</button>
         </div>
@@ -36,55 +36,140 @@
       </div>
     </header>
 
-    <main>
-      <section id="viewList" class="view active">
-        <section class="search-panel glass">
-          <div class="search-row">
-            <label class="field grow">
-              <span data-i18n="search.label">Ort hinzufügen</span>
-              <input
-                id="locationSearchInput"
-                type="text"
-                autocomplete="off"
-                placeholder="Bonn, DE"
-              />
-            </label>
-            <button id="gpsAddBtn" class="btn btn-secondary">📍 <span data-i18n="search.useGps">GPS</span></button>
-          </div>
-          <div id="searchSuggestions" class="suggestions hidden"></div>
-          <p class="muted" data-i18n="search.help">Ort eintippen und Vorschlag auswählen.</p>
-        </section>
-
-        <section class="section-header">
+    <main class="page-wrap">
+      <section id="page-dashboard" class="page active">
+        <div class="page-head">
           <div>
-            <h2 data-i18n="list.title">Gespeicherte Orte</h2>
-            <p class="muted" data-i18n="list.subtitle">Wetter, Flugscore und Golden Hour auf einen Blick</p>
+            <h2 data-i18n="dashboard.title">Dashboard</h2>
+            <p class="muted" data-i18n="dashboard.subtitle">Golden Hour und Flugbedingungen auf einen Blick</p>
+          </div>
+        </div>
+
+        <section class="panel glass">
+          <div class="dashboard-source-row">
+            <button id="dashboardUseGpsBtn" class="btn btn-secondary">📡 <span data-i18n="dashboard.useGps">GPS-Position</span></button>
+            <label class="field grow">
+              <span data-i18n="dashboard.selectLocation">Ort wählen</span>
+              <select id="dashboardLocationSelect"></select>
+            </label>
           </div>
         </section>
 
-        <section id="locationList" class="location-list"></section>
+        <div class="dashboard-grid">
+          <section class="panel glass" id="dashboardCurrentPanel"></section>
+          <section class="panel glass panel-emphasis" id="dashboardGoldenPanel"></section>
+          <section class="panel glass panel-wide" id="dashboardLocationCardsPanel"></section>
+          <section class="panel glass panel-wide" id="dashboardHourlyPanel"></section>
+        </div>
       </section>
 
-      <section id="viewDetail" class="view">
-        <nav class="detail-nav">
-          <button id="backBtn" class="btn btn-secondary">← <span data-i18n="nav.back">Zurück</span></button>
-          <div class="detail-nav-actions">
-            <h2 id="detailTitle">—</h2>
-            <button id="routeBtnTop" class="btn">🗺️ <span data-i18n="nav.route">Route planen</span></button>
+      <section id="page-locations" class="page">
+        <div class="page-head">
+          <div>
+            <h2 data-i18n="locations.title">Locations</h2>
+            <p class="muted" data-i18n="locations.subtitle">Flugspots verwalten, Wetter prüfen, Notizen und Logbuch pflegen</p>
           </div>
-        </nav>
-
-        <div class="detail-grid">
-          <section class="panel glass" id="flightStatusPanel"></section>
-          <section class="panel glass" id="mapPanel"></section>
-          <section class="panel glass" id="weatherPanel"></section>
-          <section class="panel glass" id="sunPanel"></section>
-          <section class="panel glass panel-wide" id="hourlyPanel"></section>
-          <section class="panel glass panel-wide" id="notesLogbookPanel"></section>
         </div>
+
+        <section id="locationsListView">
+          <section class="panel glass">
+            <div class="search-row">
+              <label class="field grow">
+                <span data-i18n="locations.addLocation">Ort hinzufügen</span>
+                <input id="locationSearchInput" type="text" autocomplete="off" placeholder="Hamburg, DE" />
+              </label>
+              <button id="gpsAddBtn" class="btn btn-secondary">📍 <span data-i18n="search.useGps">GPS</span></button>
+            </div>
+            <div id="searchSuggestions" class="suggestions hidden"></div>
+            <p class="muted" data-i18n="search.help">Ort eintippen und Vorschlag auswählen.</p>
+          </section>
+
+          <section id="locationList" class="location-list"></section>
+        </section>
+
+        <section id="locationsDetailView" class="hidden">
+          <nav class="detail-nav">
+            <button id="detailBackBtn" class="btn btn-secondary">← <span data-i18n="nav.back">Zurück</span></button>
+            <div class="detail-nav-actions">
+              <h3 id="detailTitle">—</h3>
+              <button id="detailRouteBtnTop" class="btn">🗺️ <span data-i18n="nav.route">Route planen</span></button>
+            </div>
+          </nav>
+
+          <div class="detail-grid">
+            <section class="panel glass" id="detailFlightPanel"></section>
+            <section class="panel glass" id="detailMapPanel"></section>
+            <section class="panel glass" id="detailWeatherPanel"></section>
+            <section class="panel glass" id="detailSunPanel"></section>
+            <section class="panel glass panel-wide" id="detailHourlyPanel"></section>
+            <section class="panel glass panel-wide" id="detailNotesPanel"></section>
+          </div>
+        </section>
+      </section>
+
+      <section id="page-drones" class="page">
+        <div class="page-head">
+          <div>
+            <h2 data-i18n="drones.title">Drohnen</h2>
+            <p class="muted" data-i18n="drones.subtitle">Das aktive Profil beeinflusst alle Flugbewertungen in der gesamten App</p>
+          </div>
+        </div>
+        <section id="dronesList" class="drone-list"></section>
+      </section>
+
+      <section id="page-checklist" class="page">
+        <div class="page-head">
+          <div>
+            <h2 data-i18n="checklist.title">Packliste</h2>
+            <p class="muted" data-i18n="checklist.subtitle">Vor dem Flug alles dabeihaben</p>
+          </div>
+        </div>
+
+        <section class="panel glass">
+          <div class="checklist-head">
+            <div class="checklist-progress">
+              <strong id="checklistProgressText">0 / 0</strong>
+              <div class="progress-bar"><div id="checklistProgressBar" class="progress-fill"></div></div>
+            </div>
+            <div class="inline-actions">
+              <button id="checklistResetBtn" class="btn btn-secondary" data-i18n="checklist.reset">Alle zurücksetzen</button>
+              <button id="checklistToggleAddBtn" class="btn" data-i18n="checklist.add">+ Element hinzufügen</button>
+            </div>
+          </div>
+
+          <form id="checklistForm" class="checklist-form hidden">
+            <div class="form-grid">
+              <label class="field">
+                <span data-i18n="checklist.itemName">Name</span>
+                <input id="checklistName" type="text" required />
+              </label>
+              <label class="field">
+                <span data-i18n="checklist.itemCount">Anzahl</span>
+                <input id="checklistCount" type="number" min="1" step="1" value="1" required />
+              </label>
+              <label class="field">
+                <span data-i18n="checklist.category">Kategorie</span>
+                <select id="checklistCategory"></select>
+              </label>
+            </div>
+            <div class="inline-actions">
+              <button class="btn" type="submit" data-i18n="common.save">Speichern</button>
+              <button id="checklistCancelBtn" class="btn btn-secondary" type="button" data-i18n="common.cancel">Abbrechen</button>
+            </div>
+          </form>
+        </section>
+
+        <section id="checklistGroups" class="checklist-groups"></section>
       </section>
     </main>
   </div>
+
+  <nav class="bottom-nav glass" aria-label="App Navigation">
+    <button class="tab-btn active" data-tab="dashboard">🏠 <span data-i18n="tab.dashboard">Dashboard</span></button>
+    <button class="tab-btn" data-tab="locations">📍 <span data-i18n="tab.locations">Locations</span></button>
+    <button class="tab-btn" data-tab="drones">🚁 <span data-i18n="tab.drones">Drohnen</span></button>
+    <button class="tab-btn" data-tab="checklist">📋 <span data-i18n="tab.checklist">Checkliste</span></button>
+  </nav>
 
   <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
@@ -95,6 +180,6 @@
     </article>
   </template>
 
-  <script src="app.js" defer></script>
+  <script src="./app.js" defer></script>
 </body>
 </html>
