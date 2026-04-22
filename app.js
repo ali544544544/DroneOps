@@ -825,9 +825,9 @@ const UI = {
     const dusk    = new Date(sunData.results.civil_twilight_end);
     const now     = new Date();
 
-    const W = 460, H = 320; // Increased height significantly
+    const W = 460, H = 280; // Reduced height to remove whitespace
     const padX = 45;
-    const arcBaseY = 210; // Shifted horizon down to fit the arc top
+    const arcBaseY = 205; // Slightly adjusted horizon
     const arcRadius = (W - padX * 2) / 2;
     const arcCx     = W / 2;
     const total     = dusk - dawn;
