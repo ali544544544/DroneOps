@@ -945,18 +945,27 @@ a { color: inherit; text-decoration: none; }
   .kpi span { font-size: 0.75rem; }
   
   .score-hero { 
-    flex-direction: row; 
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-    gap: 8px;
+    flex-direction: column; 
+    align-items: stretch;
+    margin-bottom: 12px;
+    gap: 12px;
   }
+  .score-hero > div { min-width: 0; width: 100%; }
+  .score-hero h3 { margin-bottom: 4px; font-size: 0.95rem; }
+  .score-hero p { font-size: 0.85rem; line-height: 1.3; margin-bottom: 4px; word-wrap: break-word; }
+  .score-hero .btn { width: 100%; justify-content: center; font-size: 0.85rem; padding: 8px; }
+  
   .score-value { font-size: 2.2rem; }
   .badge-lg { padding: 4px 10px; min-width: 80px; font-size: 0.65rem; }
   
-  .weather-row { gap: 6px; margin: 8px 0; }
-  .weather-row strong { font-size: 1.1rem; }
+  .dashboard-map { height: 120px !important; margin-top: 8px !important; }
+  
+  .weather-row { gap: 8px; margin: 8px 0; align-items: center; }
+  .weather-row strong { font-size: 1.1rem !important; }
   .weather-row span { font-size: 1.4rem !important; }
+  .weather-row > div:nth-child(2) { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .weather-row .muted { margin-left: 0 !important; font-size: 0.8rem !important; }
+  .weather-row .badge { margin-left: 0 !important; font-size: 0.7rem; padding: 4px 8px; width: 100%; margin-top: 4px; }
   
   .bottom-nav { padding: 6px 8px; }
   .tab-btn { font-size: 0.6rem; padding: 6px 2px; }
