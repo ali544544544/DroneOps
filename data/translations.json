@@ -151,7 +151,11 @@
     "common.save": "Speichern",
     "common.cancel": "Abbrechen",
     "common.change": "Ändern",
-    "locations.namePlaceholder": "Name des Ortes..."
+    "locations.namePlaceholder": "Name des Ortes...",
+    "locations.startPoint": "🏠 Heimat-Basis",
+    "locations.setStartPoint": "Startpunkt festlegen",
+    "locations.startPointHelp": "Wird zur Entfernungsberechnung genutzt, falls GPS nicht aktiv ist.",
+    "toast.startPointSaved": "Heimat-Basis gespeichert."
   },
   "en": {
     "header.profile": "Profile",
@@ -305,6 +309,10 @@
     "common.save": "Save",
     "common.cancel": "Cancel",
     "common.change": "Change",
-    "locations.namePlaceholder": "Location name..."
+    "locations.namePlaceholder": "Location name...",
+    "locations.startPoint": "🏠 Home Base",
+    "locations.setStartPoint": "Set Starting Point",
+    "locations.startPointHelp": "Used for travel time if GPS is unavailable.",
+    "toast.startPointSaved": "Home base saved."
   }
 }

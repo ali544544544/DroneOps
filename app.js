@@ -345,6 +345,7 @@ const Keys = {
   weatherCache: 'drone_weather_cache',
   sunCache: 'drone_sun_cache',
   checklist: 'drone_checklist',
+  homeBase: 'drone_home_base',
 };
 
 class Storage {
@@ -855,7 +856,10 @@ const UI = {
       checklistGroups: document.getElementById('checklistGroups'),
       checklistCategory: document.getElementById('checklistCategory'),
       checklistProgressText: document.getElementById('checklistProgressText'),
-      checklistProgressBar: document.getElementById('checklistProgressBar')
+      checklistProgressBar: document.getElementById('checklistProgressBar'),
+      homeBaseDisplay: document.getElementById('homeBaseDisplay'),
+      homeBaseSearchInput: document.getElementById('homeBaseSearchInput'),
+      homeBaseSuggestions: document.getElementById('homeBaseSuggestions'),
     };
   },
   applyI18n() {
@@ -1243,6 +1247,10 @@ const App = {
       UI.renderDashboardLocationSelect();
       UI.renderChecklistFormOptions();
       UI.setClock();
+      
+      const homeBase = Storage.get(Keys.homeBase);
+      if (homeBase) UI.els.homeBaseDisplay.textContent = homeBase.name;
+
       setInterval(() => UI.setClock(), 1000);
       setInterval(() => this.refreshVisibleData(), 10 * 60 * 1000);
 
@@ -1380,6 +1388,47 @@ const App = {
     }, 500);
 
     UI.els.searchInput.addEventListener('input', (e) => doSearch(e.target.value));
+
+    const doHomeBaseSearch = Util.debounce(async (value) => {
+      if (!value || value.trim().length < 2) {
+        UI.els.homeBaseSuggestions.classList.add('hidden');
+        UI.els.homeBaseSuggestions.innerHTML = '';
+        return;
+      }
+      try {
+        const results = await Nominatim.search(value.trim());
+        if (!results.length) return;
+        
+        UI.els.homeBaseSuggestions.innerHTML = results.map(item => `
+          <button class="suggestion-item" data-lat="${item.lat}" data-lon="${item.lon}" data-name="${Util.escapeHtml(item.display_name)}">
+            ${Util.escapeHtml(item.display_name)}
+          </button>
+        `).join('');
+        UI.els.homeBaseSuggestions.classList.remove('hidden');
+
+        UI.els.homeBaseSuggestions.querySelectorAll('.suggestion-item').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const base = {
+              name: btn.dataset.name,
+              lat: Number(btn.dataset.lat),
+              lon: Number(btn.dataset.lon),
+            };
+            Storage.set(Keys.homeBase, base);
+            UI.els.homeBaseSearchInput.value = '';
+            UI.els.homeBaseSuggestions.innerHTML = '';
+            UI.els.homeBaseSuggestions.classList.add('hidden');
+            UI.els.homeBaseDisplay.textContent = base.name;
+            UI.toast(I18n.t('toast.startPointSaved'));
+            await this.renderDashboard();
+          });
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    }, 500);
+
+    UI.els.homeBaseSearchInput.addEventListener('input', (e) => doHomeBaseSearch(e.target.value));
+    
     document.getElementById('gpsAddBtn').addEventListener('click', () => this.addLocationFromGps());
 
     document.getElementById('detailBackBtn').addEventListener('click', async () => {
@@ -1637,12 +1686,18 @@ const App = {
 
       // Async travel time
       if (location.id !== 'gps') {
+        const homeBase = Storage.get(Keys.homeBase);
+        
+        // Priority: GPS > Home Base
         Util.getCurrentPosition()
-          .then(pos => Util.getTravelTime(pos.coords.latitude, pos.coords.longitude, location.lat, location.lon))
-          .then(time => {
+          .then(pos => ({ lat: pos.coords.latitude, lon: pos.coords.longitude, suffix: '' }))
+          .catch(() => homeBase ? { ...homeBase, suffix: ' (Home)' } : null)
+          .then(async start => {
+            if (!start) return;
+            const time = await Util.getTravelTime(start.lat, start.lon, location.lat, location.lon);
             if (time) {
               const el = document.getElementById('dashboardTravelTime');
-              if (el) el.textContent = ` · 🚗 ${time} Min.`;
+              if (el) el.textContent = ` · 🚗 ${time} Min.${start.suffix}`;
             }
           })
           .catch(() => {});
