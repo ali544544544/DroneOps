@@ -548,14 +548,30 @@ a { color: inherit; text-decoration: none; }
   align-items: start;
 }
 
+.drone-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.drone-color-tag {
+  width: 12px;
+  height: 40px;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.3);
+}
 .drone-card.active {
   outline: 2px solid rgba(89,168,255,0.9);
 }
 .drone-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 12px 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+@media (max-width: 500px) {
+  .drone-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .checklist-head {

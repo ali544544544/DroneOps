@@ -10,13 +10,13 @@ const FALLBACK_PROFILES = [
     label: 'Standard Drohne', 
     style: 'freestyle', 
     weight: 249, 
-    size: 3, 
-    maxWind: 10, 
-    critWind: 14, 
-    maxGusts: 14, 
-    critGusts: 18, 
-    rainTolerance: 'none', 
-    goldenHour: true 
+    size: 5, 
+    color: '#f5bc2b',
+    maxWind: 35, 
+    critWind: 45, 
+    maxGusts: 48, 
+    critGusts: 60, 
+    rainTolerance: 'none'
   }
 ];
 
@@ -93,7 +93,7 @@ const FALLBACK_TRANSLATIONS = {
     'drones.maxGusts': 'Max Böen (km/h)',
     'drones.critGusts': 'Kritisch',
     'drones.rain': 'Regen-Toleranz',
-    'drones.golden': 'Golden Hour',
+    'drones.color': 'Drohnen-Farbe',
     'drones.always': 'Immer aktiv',
     'checklist.title': 'Packliste',
     'checklist.subtitle': 'Vor dem Flug alles dabeihaben',
@@ -801,6 +801,7 @@ const UI = {
       droneSize: document.getElementById('droneSize'),
       droneMaxWind: document.getElementById('droneMaxWind'),
       droneMaxGusts: document.getElementById('droneMaxGusts'),
+      droneColor: document.getElementById('droneColor'),
       droneCancelBtn: document.getElementById('droneCancelBtn'),
       droneAddBtn: document.getElementById('droneAddBtn'),
       checklistGroups: document.getElementById('checklistGroups'),
@@ -1178,8 +1179,8 @@ const App = {
         critWind: Math.round(parseInt(UI.els.droneMaxWind.value) * 1.4),
         maxGusts: parseInt(UI.els.droneMaxGusts.value),
         critGusts: Math.round(parseInt(UI.els.droneMaxGusts.value) * 1.3),
-        rainTolerance: 'none',
-        goldenHour: true
+        color: UI.els.droneColor.value,
+        rainTolerance: 'none'
       };
 
       if (this.editingDroneId) {
@@ -1856,10 +1857,12 @@ const App = {
     UI.els.dronesList.innerHTML = ProfileManager.getAll().map(profile => `
       <article class="drone-card ${profile.id === active.id ? 'active' : ''}">
         <div class="score-hero">
-          <div>
-            <h3>🚁 ${Util.escapeHtml(profile.label)}</h3>
-            <p class="muted">${I18n.t(`drones.style.${profile.style}`)} · ${profile.weight}g · ${profile.size}"</p>
-            ${profile.id === active.id ? `<div class="badge fly">${I18n.t('drones.active')}</div>` : ''}
+          <div class="drone-header-main">
+            <div class="drone-color-tag" style="background-color: ${profile.color || '#f5bc2b'}"></div>
+            <div>
+              <h3>🚁 ${Util.escapeHtml(profile.label)}</h3>
+              ${profile.id === active.id ? `<div class="badge fly">${I18n.t('drones.active')}</div>` : ''}
+            </div>
           </div>
           <div class="inline-actions">
             ${profile.id !== active.id ? `<button class="btn" data-set-profile="${profile.id}">${I18n.t('drones.activate')}</button>` : ''}
@@ -1868,10 +1871,12 @@ const App = {
           </div>
         </div>
         <div class="drone-stats">
+          <div class="kpi"><span>${I18n.t('drones.style')}</span><strong>${I18n.t(`drones.style.${profile.style}`)}</strong></div>
+          <div class="kpi"><span>${I18n.t('drones.weight')}</span><strong>${profile.weight} <small>g</small></strong></div>
+          <div class="kpi"><span>${I18n.t('drones.size')}</span><strong>${profile.size} <small>Zoll</small></strong></div>
           <div class="kpi"><span>${I18n.t('drones.maxWind')}</span><strong>${profile.maxWind} <small>km/h</small></strong></div>
           <div class="kpi"><span>${I18n.t('drones.maxGusts')}</span><strong>${profile.maxGusts} <small>km/h</small></strong></div>
           <div class="kpi"><span>${I18n.t('drones.rain')}</span><strong>${I18n.t(`rain.${profile.rainTolerance}`)}</strong></div>
-          <div class="kpi"><span>${I18n.t('drones.golden')}</span><strong>✅</strong></div>
         </div>
       </article>
     `).join('');
@@ -1896,6 +1901,7 @@ const App = {
         UI.els.droneSize.value = p.size || 5;
         UI.els.droneMaxWind.value = p.maxWind;
         UI.els.droneMaxGusts.value = p.maxGusts;
+        UI.els.droneColor.value = p.color || '#f5bc2b';
         UI.els.droneForm.classList.remove('hidden');
         UI.els.droneForm.scrollIntoView({ behavior: 'smooth' });
       });
