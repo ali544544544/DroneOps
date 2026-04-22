@@ -346,6 +346,7 @@ const Keys = {
   sunCache: 'drone_sun_cache',
   checklist: 'drone_checklist',
   homeBase: 'drone_home_base',
+  distSource: 'drone_dist_source',
 };
 
 class Storage {
@@ -1337,7 +1338,8 @@ const App = {
       });
     });
 
-    document.getElementById('dashboardUseGpsBtn').addEventListener('click', () => this.setDashboardGps());
+    UI.els.dashboardHomeSearchInput.addEventListener('input', (e) => doHomeBaseSearch(e.target.value));
+    document.getElementById('gpsAddBtn').addEventListener('click', () => this.addLocationFromGps());
     UI.els.dashboardLocationSelect.addEventListener('change', async (e) => {
       Storage.set(Keys.dashboardSource, e.target.value || 'gps');
       await this.renderDashboard();
@@ -1424,15 +1426,28 @@ const App = {
     }, 500);
 
     UI.els.dashboardHomeBtn.addEventListener('click', () => {
-      UI.els.dashboardHomeSearchWrap.classList.toggle('hidden');
-      if (!UI.els.dashboardHomeSearchWrap.classList.contains('hidden')) {
-        UI.els.dashboardHomeSearchInput.focus();
+      const current = Storage.get(Keys.distSource, 'gps');
+      const homeBase = Storage.get(Keys.homeBase);
+      
+      if (current === 'home') {
+        UI.els.dashboardHomeSearchWrap.classList.toggle('hidden');
+        if (!UI.els.dashboardHomeSearchWrap.classList.contains('hidden')) {
+          UI.els.dashboardHomeSearchInput.focus();
+        }
+      } else {
+        Storage.set(Keys.distSource, 'home');
+        if (!homeBase) {
+          UI.els.dashboardHomeSearchWrap.classList.remove('hidden');
+          UI.els.dashboardHomeSearchInput.focus();
+        }
+        this.renderDashboard();
       }
     });
 
-    UI.els.dashboardHomeSearchInput.addEventListener('input', (e) => doHomeBaseSearch(e.target.value));
-    
-    document.getElementById('gpsAddBtn').addEventListener('click', () => this.addLocationFromGps());
+    document.getElementById('dashboardUseGpsBtn').addEventListener('click', () => {
+      Storage.set(Keys.distSource, 'gps');
+      this.setDashboardGps();
+    });
 
     document.getElementById('detailBackBtn').addEventListener('click', async () => {
       document.getElementById('locationsDetailView').classList.add('hidden');
@@ -1690,29 +1705,27 @@ const App = {
       // Async travel time
       if (location.id !== 'gps') {
         const homeBase = Storage.get(Keys.homeBase);
+        const distSource = Storage.get(Keys.distSource, 'gps');
         
-        // Priority: GPS > Home Base
-        Util.getCurrentPosition()
-          .then(pos => ({ lat: pos.coords.latitude, lon: pos.coords.longitude, suffix: '' }))
-          .catch(() => {
-            if (homeBase) {
-              UI.els.dashboardHomeBtn.classList.add('btn-active');
-              return { ...homeBase, suffix: ' (Home)' };
-            }
-            return null;
-          })
-          .then(async start => {
-            if (!start) {
-              UI.els.dashboardHomeBtn.classList.remove('btn-active');
-              return;
-            }
-            const time = await Util.getTravelTime(start.lat, start.lon, location.lat, location.lon);
-            if (time) {
-              const el = document.getElementById('dashboardTravelTime');
-              if (el) el.textContent = ` · 🚗 ${time} Min.${start.suffix}`;
-            }
-          })
-          .catch(() => {});
+        let getStart;
+        if (distSource === 'home') {
+          UI.els.dashboardHomeBtn.classList.add('btn-active');
+          getStart = homeBase ? Promise.resolve({ ...homeBase, suffix: ' (Home)' }) : Promise.resolve(null);
+        } else {
+          UI.els.dashboardHomeBtn.classList.remove('btn-active');
+          getStart = Util.getCurrentPosition()
+            .then(pos => ({ lat: pos.coords.latitude, lon: pos.coords.longitude, suffix: '' }))
+            .catch(() => homeBase ? { ...homeBase, suffix: ' (Home)' } : null);
+        }
+
+        getStart.then(async start => {
+          if (!start) return;
+          const time = await Util.getTravelTime(start.lat, start.lon, location.lat, location.lon);
+          if (time) {
+            const el = document.getElementById('dashboardTravelTime');
+            if (el) el.textContent = ` · 🚗 ${time} Min.${start.suffix}`;
+          }
+        }).catch(() => {});
       } else {
         UI.els.dashboardHomeBtn.classList.remove('btn-active');
       }
