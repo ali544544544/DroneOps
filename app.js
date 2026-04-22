@@ -1556,7 +1556,10 @@ const App = {
           </div>
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
         </div>
-        <div class="weather-row">
+        
+        <div id="dashboardMap" class="dashboard-map"></div>
+
+        <div class="weather-row" style="margin-top: 20px;">
           <span style="font-size:2rem">${meta.icon}</span>
           <div>
             <strong style="font-size:1.5rem">${weather.data.current_weather.temperature} °C</strong>
@@ -1578,6 +1581,17 @@ const App = {
         </div>
         <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
+
+      if (this.dashboardMap) { this.dashboardMap.remove(); }
+      this.dashboardMap = L.map('dashboardMap', { zoomControl: false, attributionControl: false }).setView([location.lat, location.lon], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
+      
+      const dashIcon = L.divIcon({
+        html: `<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>`,
+        className: '',
+        iconSize: [12, 12]
+      });
+      L.marker([location.lat, location.lon], { icon: dashIcon }).addTo(this.dashboardMap);
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
         const cache = Storage.get(Keys.weatherCache, {});
