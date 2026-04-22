@@ -1157,6 +1157,19 @@ const UI = {
     this.els.checklistCategory.innerHTML = ChecklistManager.categories()
       .map(c => `<option value="${c}">${I18n.t(`check.${c}`)}</option>`)
       .join('');
+  },
+  drawSunLine(map, center, azimuth, color, label, dash = null) {
+    if (!map || !azimuth) return;
+    const rad = (azimuth - 90) * (Math.PI / 180);
+    const dist = 0.015; // ca 1.5km
+    const lat2 = center[0] - dist * Math.sin(rad); 
+    const lon2 = center[1] + dist * Math.cos(rad);
+    L.polyline([[center[0], center[1]], [lat2, lon2]], {
+      color,
+      weight: 4,
+      dashArray: dash,
+      opacity: 0.8
+    }).addTo(map).bindTooltip(label);
   }
 };
 
@@ -1687,11 +1700,7 @@ const App = {
       await this.renderDashboardLocationCards();
     } catch (error) {
       console.error('Dashboard Render Error:', error);
-      UI.els.dashboardCurrentPanel.innerHTML = `
-        <h3>${I18n.t('dashboard.current')}</h3>
-        <p>${I18n.t('error.dataUnavailable')}</p>
-        <p class="muted" style="font-size:0.7rem; margin-top:8px">${Util.escapeHtml(error.message || String(error))}</p>
-      `;
+      UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       this.renderDashboardDrone();
@@ -1804,19 +1813,6 @@ const App = {
     UI.els.dashboardLocationCardsPanel.innerHTML += `<div class="dashboard-mini-scroll">${cards.join('')}</div>`;
   },
 
-  drawSunLine(map, center, azimuth, color, label, dash = null) {
-    if (!map || !azimuth) return;
-    const rad = (azimuth - 90) * (Math.PI / 180);
-    const dist = 0.015; // ca 1.5km
-    const lat2 = center[0] - dist * Math.sin(rad); 
-    const lon2 = center[1] + dist * Math.cos(rad);
-    L.polyline([[center[0], center[1]], [lat2, lon2]], {
-      color,
-      weight: 4,
-      dashArray: dash,
-      opacity: 0.8
-    }).addTo(map).bindTooltip(label);
-  },
 
   async renderLocationsList() {
     const locations = LocationManager.getAll();
