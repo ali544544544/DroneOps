@@ -802,6 +802,7 @@ const UI = {
       droneMaxWind: document.getElementById('droneMaxWind'),
       droneMaxGusts: document.getElementById('droneMaxGusts'),
       droneColor: document.getElementById('droneColor'),
+      droneRain: document.getElementById('droneRain'),
       droneCancelBtn: document.getElementById('droneCancelBtn'),
       droneAddBtn: document.getElementById('droneAddBtn'),
       checklistGroups: document.getElementById('checklistGroups'),
@@ -1180,7 +1181,7 @@ const App = {
         maxGusts: parseInt(UI.els.droneMaxGusts.value),
         critGusts: Math.round(parseInt(UI.els.droneMaxGusts.value) * 1.3),
         color: UI.els.droneColor.value,
-        rainTolerance: 'none'
+        rainTolerance: UI.els.droneRain.value
       };
 
       if (this.editingDroneId) {
@@ -1902,6 +1903,7 @@ const App = {
         UI.els.droneMaxWind.value = p.maxWind;
         UI.els.droneMaxGusts.value = p.maxGusts;
         UI.els.droneColor.value = p.color || '#f5bc2b';
+        UI.els.droneRain.value = p.rainTolerance || 'none';
         UI.els.droneForm.classList.remove('hidden');
         UI.els.droneForm.scrollIntoView({ behavior: 'smooth' });
       });
