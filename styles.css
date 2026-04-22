@@ -134,21 +134,42 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: center;
 }
 
 .clock-box {
   min-width: 140px;
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 42px;
   border-radius: 12px;
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border);
+  box-sizing: border-box;
 }
 .clock-box span {
-  font-size: .82rem;
-  color: var(--muted);
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+.clock-box strong {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.top-controls .field select,
+.top-controls .btn {
+  height: 42px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-actions-panel {
+  margin-bottom: 20px;
 }
 
 .page { display: none; }
