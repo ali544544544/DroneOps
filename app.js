@@ -384,6 +384,9 @@ const Util = {
   },
   dayKey(date = new Date()) {
     return new Date(date).toISOString().slice(0, 10);
+  },
+  kmhToMs(kmh = 0) {
+    return Math.round((kmh / 3.6) * 10) / 10;
   }
 };
 
@@ -870,8 +873,9 @@ const UI = {
         time,
         score,
         meta: this.weatherMeta(weatherData.hourly.weathercode[i]),
-        wind: weatherData.hourly.windspeed_10m[i],
+        wind: Util.kmhToMs(weatherData.hourly.windspeed_10m[i]),
         rain: weatherData.hourly.precipitation[i],
+        temp: weatherData.hourly.temperature_2m[i],
         isGolden: GoldenHour.isWithin(time, gh),
         isNow: new Date(time).getHours() === nowHour && Util.dayKey(time) === todayKey
       };
@@ -881,13 +885,18 @@ const UI = {
     target.innerHTML = `
       <div class="hourly-scroll">
         ${items.map(item => `
-          <article class="hour-card ${item.score.score === best ? 'best' : ''} ${item.isGolden ? 'gh' : ''} ${item.isNow ? 'now' : ''}">
-            <span>${new Date(item.time).toLocaleDateString(I18n.locale, { weekday: 'short' })}</span>
-            <strong>${Util.formatTime(item.time, I18n.locale)}</strong>
-            <div>${item.meta.icon} ${item.score.score}</div>
-            <span>${I18n.t('weather.wind')}: ${item.wind} m/s</span>
-            <span>${I18n.t('weather.rain')}: ${item.rain} mm</span>
-            ${item.isGolden ? '<div>🌅 Golden Hour</div>' : ''}
+          <article class="hour-card ${item.score.score === best ? 'best' : ''} ${item.isGolden ? 'gh' : ''} ${item.isNow ? 'now' : ''} status-${item.score.status}">
+            <span class="hour-day">${new Date(item.time).toLocaleDateString(I18n.locale, { weekday: 'short' })}</span>
+            <strong class="hour-time">${Util.formatTime(item.time, I18n.locale)}</strong>
+            <div class="hour-icon">${item.meta.icon}</div>
+            <div class="hour-temp">${item.temp}°</div>
+            <div class="badge ${item.score.status} badge-sm">${item.score.score}</div>
+            <div class="hour-stats">
+              <span>💨 ${item.wind} m/s</span>
+              <span>🌧 ${item.rain} mm</span>
+            </div>
+            ${item.isGolden ? '<div class="hour-golden">🌅</div>' : ''}
+            ${item.isNow ? '<div class="hour-now-dot"></div>' : ''}
           </article>
         `).join('')}
       </div>
@@ -1212,6 +1221,9 @@ const App = {
         civilDusk: sun.data.results.civil_twilight_end
       });
 
+      const dashWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
+      const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
+      const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
       UI.els.dashboardCurrentPanel.innerHTML = `
         <div class="score-hero">
           <div>
@@ -1221,37 +1233,27 @@ const App = {
           </div>
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
         </div>
-
-        <div class="metric-grid">
-          <div class="kpi"><span>${I18n.t('weather.temp')}</span><strong>${weather.data.current_weather.temperature} °C</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.wind')} (10m)</span><strong>${weather.data.current_weather.windspeed} <small>km/h</small></strong></div>
-          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${weather.data.hourly.windgusts_10m[idx]} <small>km/h</small></strong></div>
-        </div>
-
-        <div class="wind-profile glass" style="margin-top: 16px; padding: 16px; border-radius: 16px; background: rgba(255,255,255,0.03);">
-          <h4 style="margin-bottom: 12px; font-size: 0.8rem; color: var(--blue); letter-spacing: 0.05em; text-transform: uppercase;">Wind Profile (Altitudes)</h4>
-          <div style="display: grid; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
-              <span class="muted">Ground (10m)</span>
-              <strong>${weather.data.current_weather.windspeed} km/h</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
-              <span class="muted">Low Flight (80m)</span>
-              <strong>${weather.data.hourly.windspeed_80m[idx]} km/h</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
-              <span class="muted">Max Flight (120m)</span>
-              <strong>${weather.data.hourly.windspeed_120m[idx]} km/h</strong>
-            </div>
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0">
+          <span style="font-size:2rem">${meta.icon}</span>
+          <div>
+            <strong style="font-size:1.5rem">${weather.data.current_weather.temperature} °C</strong>
+            <span class="muted" style="margin-left:8px">${meta[I18n.lang]}</span>
           </div>
+          <div class="badge ${score.status}" style="margin-left:auto">${I18n.t(`status.${score.status}`)} · ${score.score}</div>
         </div>
-
-        <p style="margin-top:12px">${meta.icon} ${meta[I18n.lang]}</p>
-        <div class="badge ${score.status}">${I18n.t(`status.${score.status}`)} · ${score.score}</div>
+        <div class="metric-grid">
+          <div class="kpi"><span>${I18n.t('weather.wind')} 10m</span><strong>${dashWindMs} <small>m/s</small> ${dashWindDir}</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${dashGustsMs} <small>m/s</small></strong></div>
+          <div class="kpi"><span>${I18n.t('weather.humidity')}</span><strong>${weather.data.hourly.relativehumidity_2m[idx]}%</strong></div>
+        </div>
+        <div class="wind-alt-bar">
+          <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
+          <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
+        </div>
         <div class="tag-list" style="margin-top:12px">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
-        <p class="muted" style="margin-top:12px">Stand: ${Util.formatTime(new Date(), I18n.locale)} Uhr</p>
+        <p class="muted" style="margin-top:10px;font-size:.82rem">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
@@ -1267,18 +1269,34 @@ const App = {
         ? Util.countdown(new Date(), gh.whichPhase === 'morning' ? gh.morningEnd : gh.eveningEnd)
         : (gh.nextGolden ? Util.countdown(new Date(), gh.nextGolden) : '—');
 
+      const morningCountdown = gh.whichPhase === 'morning'
+        ? Util.countdown(new Date(), gh.morningEnd)
+        : (new Date() < gh.morningStart ? Util.countdown(new Date(), gh.morningStart) : '—');
+      const eveningCountdown = gh.whichPhase === 'evening'
+        ? Util.countdown(new Date(), gh.eveningEnd)
+        : (new Date() < gh.eveningStart ? Util.countdown(new Date(), gh.eveningStart) : '—');
+
       UI.els.dashboardGoldenPanel.innerHTML = `
         <h3>${I18n.t('dashboard.golden')}</h3>
-        ${gh.isActiveNow ? `<p><strong>${I18n.t('sun.active')}</strong></p>` : ''}
-        <div class="metric-grid">
-          <span class="metric-chip">🌄 ${I18n.t('sun.morning')}: ${Util.formatTime(gh.morningStart, I18n.locale)} – ${Util.formatTime(gh.morningEnd, I18n.locale)}</span>
-          <span class="badge ${morning.status}">${I18n.t(`status.${morning.status}`)} · ${morning.score}</span>
+        ${gh.isActiveNow ? `<div class="golden-active-badge">${I18n.t('sun.active')}</div>` : ''}
+        <div class="golden-window">
+          <div class="golden-row">
+            <div>
+              <div class="golden-label">🌅 ${I18n.t('sun.morning')}</div>
+              <div class="golden-time">${Util.formatTime(gh.morningStart, I18n.locale)} – ${Util.formatTime(gh.morningEnd, I18n.locale)}</div>
+              <div class="muted" style="font-size:.82rem">${morningCountdown !== '—' ? '⏱ ' + morningCountdown : ''}</div>
+            </div>
+            <span class="badge ${morning.status}">${I18n.t(`status.${morning.status}`)} · ${morning.score}</span>
+          </div>
+          <div class="golden-row" style="margin-top:12px">
+            <div>
+              <div class="golden-label">🌇 ${I18n.t('sun.evening')}</div>
+              <div class="golden-time">${Util.formatTime(gh.eveningStart, I18n.locale)} – ${Util.formatTime(gh.eveningEnd, I18n.locale)}</div>
+              <div class="muted" style="font-size:.82rem">${eveningCountdown !== '—' ? '⏱ ' + eveningCountdown : ''}</div>
+            </div>
+            <span class="badge ${evening.status}">${I18n.t(`status.${evening.status}`)} · ${evening.score}</span>
+          </div>
         </div>
-        <div class="metric-grid" style="margin-top:10px">
-          <span class="metric-chip">🌇 ${I18n.t('sun.evening')}: ${Util.formatTime(gh.eveningStart, I18n.locale)} – ${Util.formatTime(gh.eveningEnd, I18n.locale)}</span>
-          <span class="badge ${evening.status}">${I18n.t(`status.${evening.status}`)} · ${evening.score}</span>
-        </div>
-        <p style="margin-top:12px">${I18n.t('sun.countdown')}: ${countdown}</p>
         <div class="sun-arc-wrap">${UI.renderSunArc(sun.data, gh)}</div>
       `;
 
@@ -1428,12 +1446,27 @@ const App = {
 
       document.getElementById('detailRouteBtnTop').onclick = () => window.open(`https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}`, '_blank');
 
+      const windMs = Util.kmhToMs(weather.data.current_weather.windspeed);
+      const gustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
+      const windDir = Util.windArrow(weather.data.current_weather.winddirection);
       UI.els.detailFlightPanel.innerHTML = `
         <h3>${I18n.t('detail.flightStatus')}</h3>
         <div class="score-hero">
+          <div>
+            <div class="score-value">${score.score}</div>
+            <p class="muted" style="margin-top:4px">${I18n.t(`statusText.${score.status}`)}</p>
+          </div>
+          <div class="badge ${score.status} badge-lg">${I18n.t(`status.${score.status}`)}</div>
+        </div>
+        <div class="quick-stats">
+          <div class="kpi"><span>${I18n.t('weather.wind')}</span><strong>${windMs} <small>m/s</small> ${windDir}</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${gustsMs} <small>m/s</small></strong></div>
+          <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} <small>mm</small></strong></div>
+        </div>
         <div class="tag-list" style="margin-top:14px">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
+        <p class="muted" style="margin-top:12px;font-size:.82rem">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
 
       const bbox = `${location.lon - 0.05},${location.lat - 0.04},${location.lon + 0.05},${location.lat + 0.04}`;
@@ -1447,23 +1480,26 @@ const App = {
         </div>
       `;
 
+      const detailWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
+      const detailGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
+      const detailWindDir = Util.windArrow(weather.data.current_weather.winddirection);
+      const visKm = (weather.data.hourly.visibility[idx] / 1000).toFixed(1);
       UI.els.detailWeatherPanel.innerHTML = `
         <h3>${I18n.t('detail.weather')}</h3>
         <div class="metric-grid">
           <div class="kpi"><span>${I18n.t('weather.temp')}</span><strong>${weather.data.current_weather.temperature} °C</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.wind')} (10m)</span><strong>${weather.data.current_weather.windspeed} km/h</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${weather.data.hourly.windgusts_10m[idx]} km/h</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.feels')}</span><strong>${weather.data.hourly.apparent_temperature[idx]} °C</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.wind')} ${detailWindDir}</span><strong>${detailWindMs} <small>m/s</small></strong></div>
+          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${detailGustsMs} <small>m/s</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.humidity')}</span><strong>${weather.data.hourly.relativehumidity_2m[idx]}%</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} mm/h</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} <small>mm</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.clouds')}</span><strong>${weather.data.hourly.cloudcover[idx]}%</strong></div>
+          <div class="kpi"><span>${I18n.t('weather.visibility')}</span><strong>${visKm} <small>km</small></strong></div>
+          <div class="kpi"><span>${I18n.t('weather.pressure')}</span><strong>${weather.data.hourly.surface_pressure[idx]} <small>hPa</small></strong></div>
         </div>
-        
-        <div class="wind-profile glass" style="margin-top: 16px; padding: 16px; border-radius: 16px; background: rgba(255,255,255,0.03);">
-          <h4 style="margin-bottom: 12px; font-size: 0.8rem; color: var(--blue); letter-spacing: 0.05em; text-transform: uppercase;">Wind Gradient (80m / 120m)</h4>
-          <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-             <span class="inline-pill">80m: <strong>${weather.data.hourly.windspeed_80m[idx]} km/h</strong></span>
-             <span class="inline-pill">120m: <strong>${weather.data.hourly.windspeed_120m[idx]} km/h</strong></span>
-          </div>
+        <div class="wind-alt-bar">
+          <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
+          <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
         </div>
         <p style="margin-top:12px">${meta.icon} ${meta[I18n.lang]}</p>
       `;
@@ -1590,6 +1626,11 @@ const App = {
           <div class="kpi"><span>${I18n.t('drones.rain')}</span><strong>${I18n.t(`rain.${profile.rainTolerance}`)}</strong></div>
           <div class="kpi"><span>${I18n.t('drones.golden')}</span><strong>✅ ${I18n.t('drones.always')}</strong></div>
         </div>
+        <div class="drone-score-thresholds">
+          <span class="tag ok">${I18n.t('drones.scoreFly')}</span>
+          <span class="tag warn">${I18n.t('drones.scoreCaution')}</span>
+          <span class="tag critical">${I18n.t('drones.scoreNogo')}</span>
+        </div>
       </article>
     `).join('');
 
@@ -1625,7 +1666,7 @@ const App = {
                 </div>
                 <div class="inline-actions">
                   <button class="btn btn-secondary btn-small" type="button" data-check-edit="${item.id}">✎</button>
-                  <button class="btn btn-secondary btn-small" type="button" data-log-delete="${item.id}" data-check-delete="${item.id}">🗑️</button>
+                  <button class="btn btn-secondary btn-small" type="button" data-check-delete="${item.id}">🗑️</button>
                 </div>
               </label>
             `).join('') || `<p class="muted">—</p>`}
@@ -1661,10 +1702,6 @@ const App = {
 
   async refreshVisibleData() {
     await this.renderActivePage();
-  },
-
-  async lastVisit(location) {
-    return UI.lastVisit(location);
   }
 };
 
