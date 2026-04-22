@@ -433,6 +433,24 @@ const Util = {
       if (isCloudy) return 'ND8';
       return 'ND4';
     }
+  },
+  async getCurrentPosition() {
+    return new Promise((resolve, reject) => {
+      if (!('geolocation' in navigator)) return reject('GPS unavailable');
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+    });
+  },
+  async getTravelTime(lat1, lon1, lat2, lon2) {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.code !== 'Ok' || !data.routes?.length) return null;
+      return Math.round(data.routes[0].duration / 60); // Duration in minutes
+    } catch (e) {
+      console.error('OSRM Error:', e);
+      return null;
+    }
   }
 };
 
@@ -1533,6 +1551,14 @@ const App = {
     try {
       const drone = ProfileManager.getActive();
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
+      
+      let travelTime = null;
+      if (location.id !== 'gps') {
+        try {
+          const currentPos = await Util.getCurrentPosition();
+          travelTime = await Util.getTravelTime(currentPos.coords.latitude, currentPos.coords.longitude, location.lat, location.lon);
+        } catch (e) {}
+      }
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather.data);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
@@ -1552,7 +1578,7 @@ const App = {
           <div>
             <h3>${I18n.t('dashboard.current')}</h3>
             <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(drone.label)}</strong></p>
-            <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</p>
+            <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}${travelTime ? ` · 🚗 ${travelTime} Min.` : ''}</p>
           </div>
           <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
         </div>
@@ -1592,6 +1618,15 @@ const App = {
         iconSize: [12, 12]
       });
       L.marker([location.lat, location.lon], { icon: dashIcon }).addTo(this.dashboardMap);
+
+      // Sun lines on dashboard map
+      const sunRes = sun.data.results;
+      const sunriseAz = Util.parseAzimuth(sunRes.sunrise);
+      const sunsetAz = Util.parseAzimuth(sunRes.sunset);
+      
+      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], sunriseAz, 'var(--yellow)', 'Sunrise');
+      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], sunsetAz, 'var(--orange)', 'Sunset');
+      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posNow.azimuth, 'var(--blue)', 'Now');
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
         const cache = Storage.get(Keys.weatherCache, {});
