@@ -810,60 +810,64 @@ const UI = {
     const status = score >= 70 ? 'fly' : score >= 40 ? 'caution' : 'nogo';
     return { score, status };
   },
-  renderSunArc(sunData, gh) {
-    const sunrise = new Date(sunData.results.sunrise);
-    const sunset = new Date(sunData.results.sunset);
-    const dawn = new Date(sunData.results.civil_twilight_begin);
-    const dusk = new Date(sunData.results.civil_twilight_end);
-    const now = new Date();
-    
-    // Dimensionen korrigiert: Mehr Höhe für den Bogen
+ renderSunArc(sunData, gh) {
+    // 1. Alle Zeiten strikt in Millisekunden umwandeln für absolute Präzision
+    const tDawn = new Date(sunData.results.civil_twilight_begin).getTime();
+    const tSunrise = new Date(sunData.results.sunrise).getTime();
+    const tSunset = new Date(sunData.results.sunset).getTime();
+    const tDusk = new Date(sunData.results.civil_twilight_end).getTime();
+    const tNow = Date.now();
+
+    const tMorningEnd = gh.morningEnd.getTime();
+    const tEveningStart = gh.eveningStart.getTime();
+
+    const total = tDusk - tDawn;
+
+    // 2. Geometrie des SVGs
     const width = 340;
-    const height = 180; 
-    const cx = width / 2;
-    const cy = 150; // Basislinie
-    const radius = 130; // Radius verkleinert, damit er zu 100% in die Box passt
+    const height = 180;
+    const cx = width / 2;       // 170 (Mitte)
+    const cy = 150;             // Y-Position der Basislinie
+    const radius = 135;         // Radius des Bogens
+    const startX = cx - radius; // X-Startpunkt
+    const endX = cx + radius;   // X-Endpunkt
 
-    const total = dusk - dawn;
-    const progress = Util.clamp((now - dawn) / total, 0, 1);
-    
-    // Start- und Endpunkte auf der X-Achse
-    const startX = cx - radius;
-    const endX = cx + radius;
-    
-    // Aktuelle Position der Sonne
-    const x = startX + (radius * 2) * progress;
-    const dx = x - cx;
-    const y = cy - Math.sqrt(Math.max(radius * radius - dx * dx, 0));
+    // Hilfsfunktion: Wandelt eine Zeit in eine exakte X-Koordinate auf der Linie um
+    const getX = (time) => {
+      const progress = Util.clamp((time - tDawn) / total, 0, 1);
+      return startX + (radius * 2) * progress;
+    };
 
-    // Hilfsfunktion zur X-Position-Berechnung von Zeiten
-    const getX = (date) => startX + (radius * 2) * Util.clamp((date - dawn) / total, 0, 1);
-
-    const dawnX = getX(dawn);
-    const sunriseX = getX(sunrise);
-    const sunsetX = getX(sunset);
-    const duskX = getX(dusk);
+    // 3. X-Positionen berechnen
+    const dawnX = getX(tDawn);
+    const sunriseX = getX(tSunrise);
+    const sunsetX = getX(tSunset);
+    const duskX = getX(tDusk);
 
     const morningStartX = dawnX;
-    const morningEndX = getX(gh.morningEnd);
-    const eveningStartX = getX(gh.eveningStart);
+    const morningEndX = getX(tMorningEnd);
+    const eveningStartX = getX(tEveningStart);
     const eveningEndX = duskX;
 
+    // Position der Sonne auf dem Bogen berechnen
+    const sunX = getX(tNow);
+    const dx = sunX - cx;
+    const yVal = radius * radius - dx * dx;
+    const sunY = yVal > 0 ? cy - Math.sqrt(yVal) : cy;
+
+    // 4. SVG Rendering
+    // WICHTIG: Die Reihenfolge der Elemente bestimmt, was im Vorder- oder Hintergrund liegt!
     return `
       <svg class="sun-arc" viewBox="0 0 ${width} ${height}" aria-label="Sun path">
-        <line x1="${startX - 10}" y1="${cy}" x2="${endX + 10}" y2="${cy}" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"/>
         
-        <path d="M ${startX} ${cy} A ${radius} ${radius} 0 0 1 ${endX} ${cy}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-dasharray="6 6" />
+        <rect x="${morningStartX}" y="${cy - 6}" width="${Math.max(0, morningEndX - morningStartX)}" height="12" rx="6" fill="rgba(245, 188, 43, 0.25)"></rect>
+        <rect x="${eveningStartX}" y="${cy - 6}" width="${Math.max(0, eveningEndX - eveningStartX)}" height="12" rx="6" fill="rgba(245, 188, 43, 0.25)"></rect>
         
-        <rect x="${morningStartX}" y="${cy - 5}" width="${Math.max(0, morningEndX - morningStartX)}" height="10" rx="5" fill="rgba(245, 188, 43, 0.4)"></rect>
-        <rect x="${eveningStartX}" y="${cy - 5}" width="${Math.max(0, eveningEndX - eveningStartX)}" height="10" rx="5" fill="rgba(245, 188, 43, 0.4)"></rect>
+        <line x1="${startX - 15}" y1="${cy}" x2="${endX + 15}" y2="${cy}" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"/>
         
-        <circle cx="${x}" cy="${y}" r="8" fill="var(--yellow, #f5bc2b)" filter="drop-shadow(0 0 6px rgba(245,188,43,0.8))"></circle>
+        <path d="M ${startX} ${cy} A ${radius} ${radius} 0 0 1 ${endX} ${cy}" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-dasharray="5 5" />
         
-        <circle cx="${dawnX}" cy="${cy}" r="4" fill="rgba(89,168,255,0.95)"></circle>
-        <circle cx="${sunriseX}" cy="${cy}" r="4" fill="rgba(55,231,129,0.95)"></circle>
-        <circle cx="${sunsetX}" cy="${cy}" r="4" fill="rgba(245,188,43,0.95)"></circle>
-        <circle cx="${duskX}" cy="${cy}" r="4" fill="rgba(180,120,255,0.95)"></circle>
+        <circle cx="${dawnX}" cy="${cy}" r="3.5" fill="#40a0ff"></circle>     <circle cx="${sunriseX}" cy="${cy}" r="3.5" fill="#37e781"></circle>  <circle cx="${sunsetX}" cy="${cy}" r="3.5" fill="#f5bc2b"></circle>   <circle cx="${duskX}" cy="${cy}" r="3.5" fill="#b478ff"></circle>     <circle cx="${sunX}" cy="${sunY}" r="7" fill="#f5bc2b" filter="drop-shadow(0 0 8px rgba(245,188,43,0.8))"></circle>
       </svg>
     `;
   },
