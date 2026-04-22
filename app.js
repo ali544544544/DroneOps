@@ -144,23 +144,24 @@ const FALLBACK_TRANSLATIONS = {
     'rain.low': 'Gering',
     'rain.medium': 'Mittel'
   },
-  en: {
-    'header.profile': 'Profile',
-    'header.localTime': 'Local time',
-    'tab.dashboard': 'Dashboard',
-    'tab.locations': 'Locations',
-    'tab.drones': 'Drones',
-    'tab.checklist': 'Checklist',
-    'dashboard.title': 'Dashboard',
-    'dashboard.subtitle': 'Golden hour and flight conditions at a glance',
-    'dashboard.useGps': 'GPS position',
-    'dashboard.selectLocation': 'Choose location',
-    'dashboard.current': 'Current location & weather',
-    'dashboard.golden': 'Golden hour today',
-    'dashboard.locationsOverview': 'All locations overview',
-    'dashboard.hourly': 'Hourly forecast (48h)',
-    'dashboard.none': 'Please use GPS or choose a saved location.',
-    'dashboard.refresh': 'Refresh',
+  "en": {
+    "header.profile": "Profile",
+    "header.localTime": "Local time",
+    "tab.dashboard": "Dashboard",
+    "tab.locations": "Locations",
+    "tab.drones": "Drones",
+    "tab.checklist": "Checklist",
+    "dashboard.title": "Dashboard",
+    "dashboard.subtitle": "Golden hour and flight conditions at a glance",
+    "dashboard.useGps": "Use GPS Position",
+    "dashboard.selectLocation": "Select Location",
+    "dashboard.current": "Current Conditions",
+    "dashboard.golden": "Golden Hour",
+    "dashboard.locationsOverview": "Your Locations",
+    "dashboard.hourly": "Hourly Forecast (48h)",
+    "dashboard.none": "Please use GPS or select a saved location.",
+    "dashboard.refresh": "Refresh",
+
     'locations.title': 'Locations',
     'locations.subtitle': 'Manage spots, inspect weather, keep notes and logbook',
     'locations.addLocation': 'Add location',
@@ -1616,17 +1617,17 @@ const App = {
           <summary>${I18n.t(`check.${cat}`)} (${finished}/${groupItems.length})</summary>
           <div class="check-items">
             ${groupItems.map(item => `
-              <article class="check-item">
+              <label class="check-item">
                 <input type="checkbox" data-check-toggle="${item.id}" ${item.checked ? 'checked' : ''} />
                 <div class="check-item-main">
                   <strong>${Util.escapeHtml(item.name)}</strong>
                   <span class="muted">×${item.count}</span>
                 </div>
                 <div class="inline-actions">
-                  <button class="btn btn-secondary" data-check-edit="${item.id}">✎</button>
-                  <button class="btn btn-secondary" data-check-delete="${item.id}">🗑️</button>
+                  <button class="btn btn-secondary btn-small" type="button" data-check-edit="${item.id}">✎</button>
+                  <button class="btn btn-secondary btn-small" type="button" data-log-delete="${item.id}" data-check-delete="${item.id}">🗑️</button>
                 </div>
-              </article>
+              </label>
             `).join('') || `<p class="muted">—</p>`}
           </div>
         </details>
