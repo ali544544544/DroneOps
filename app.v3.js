@@ -2935,7 +2935,17 @@ const App = {
               </label>
               <label class="field">
                 <span data-i18n="drones.size">Größe (Zoll)</span>
-                <input id="inline-drone-size-${profile.id}" type="number" step="0.1" value="${profile.size}" required />
+                <select id="inline-drone-size-${profile.id}">
+                  <option value="1.6" ${profile.size == 1.6 ? 'selected' : ''}>1.6" (Whoop)</option>
+                  <option value="2" ${profile.size == 2 ? 'selected' : ''}>2"</option>
+                  <option value="2.5" ${profile.size == 2.5 ? 'selected' : ''}>2.5"</option>
+                  <option value="3" ${profile.size == 3 ? 'selected' : ''}>3"</option>
+                  <option value="3.5" ${profile.size == 3.5 ? 'selected' : ''}>3.5"</option>
+                  <option value="5" ${profile.size == 5 ? 'selected' : ''}>5" (Standard)</option>
+                  <option value="7" ${profile.size == 7 ? 'selected' : ''}>7" (Longrange)</option>
+                  <option value="8" ${profile.size == 8 ? 'selected' : ''}>8"</option>
+                  <option value="10" ${profile.size == 10 ? 'selected' : ''}>10" (Cinelifter)</option>
+                </select>
               </label>
               <label class="field">
                 <span data-i18n="drones.maxWind">Max Wind</span>
