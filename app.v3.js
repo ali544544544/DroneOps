@@ -1058,11 +1058,12 @@ const ScoreEngine = {
 };
 
 const GoldenHour = {
-  calculate({ sunrise, sunset, civilDawn, civilDusk }) {
-    const sunriseDate = new Date(sunrise);
-    const sunsetDate = new Date(sunset);
-    const dawnDate = new Date(civilDawn);
-    const duskDate = new Date(civilDusk);
+  calculate(res) {
+    if (!res) return {};
+    const sunriseDate = new Date(res.sunrise);
+    const sunsetDate = new Date(res.sunset);
+    const dawnDate = new Date(res.civil_twilight_begin || res.civilDawn);
+    const duskDate = new Date(res.civil_twilight_end || res.civilDusk);
     const morningStart = dawnDate;
     const morningEnd = new Date(sunriseDate.getTime() + 60 * 60 * 1000);
     const eveningStart = new Date(sunsetDate.getTime() - 60 * 60 * 1000);
@@ -1082,8 +1083,8 @@ const GoldenHour = {
 
     return { morningStart, morningEnd, eveningStart, eveningEnd, isActiveNow: !!whichPhase, whichPhase, nextGolden };
   },
-  isWithin(dateLike, gh) {
-    const d = new Date(dateLike);
+  isWithin(time, gh) {
+    const d = typeof time === 'string' ? new Date(time.replace('T', ' ')) : new Date(time);
     return (d >= gh.morningStart && d <= gh.morningEnd) || (d >= gh.eveningStart && d <= gh.eveningEnd);
   }
 };
@@ -1197,7 +1198,7 @@ const UI = {
     const end = which === 'morning' ? gh.morningEnd : gh.eveningEnd;
     let scores = [];
     weather.data.hourly.time.forEach((time, i) => {
-      const d = new Date(time);
+      const d = new Date(time.replace('T', ' '));
       if (d >= start && d <= end) {
         const rainSecondary = Util.getBrightSkyRain(weather.bsData, time);
         scores.push(ScoreEngine.calculate({
@@ -1399,7 +1400,7 @@ const UI = {
         temp: weather.data.hourly.temperature_2m[i],
         profile
       });
-      const hDate = new Date(time);
+      const hDate = new Date(time.replace('T', ' '));
       const pos = App.getSolarPosition(hDate, location.lat, location.lon);
       const nd = Util.recommendND(weather.data.hourly.weathercode[i], pos.elevation);
 
@@ -1413,7 +1414,7 @@ const UI = {
         rainSecondary,
         temp: weather.data.hourly.temperature_2m[i],
         isGolden: GoldenHour.isWithin(time, gh),
-        isNow: new Date(time).getHours() === nowHour && Util.dayKey(time) === todayKey
+        isNow: new Date(time.replace('T', ' ')).getHours() === nowHour && Util.dayKey(time) === todayKey
       };
     });
     const best = Math.max(...items.map(x => x.score.score));
