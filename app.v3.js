@@ -1934,20 +1934,22 @@ const App = {
         notes: UI.els.checklistNotes.value.trim()
       };
       
-      const file = UI.els.checklistFile.files[0];
-      if (file) {
-        if (file.size > 2 * 1024 * 1024) {
-          alert('Datei zu groß (Max 2MB für Offline-Speicherung).');
-          return;
+      const files = Array.from(UI.els.checklistFile.files);
+      if (files.length > 0) {
+        item.attachments = [];
+        for (const file of files) {
+          if (file.size > 2 * 1024 * 1024) {
+            alert(`Datei "${file.name}" zu groß (Max 2MB).`);
+            continue;
+          }
+          const base64 = await Util.fileToBase64(file);
+          item.attachments.push({ data: base64, type: file.type, name: file.name });
         }
-        item.attachment = await Util.fileToBase64(file);
-        item.attachmentType = file.type;
       } else if (this.editingChecklistId) {
-        // Keep existing attachment if editing
+        // Keep existing attachments if editing
         const old = ChecklistManager.getAll().find(x => x.id === this.editingChecklistId);
         if (old) {
-          item.attachment = old.attachment;
-          item.attachmentType = old.attachmentType;
+          item.attachments = old.attachments || (old.attachment ? [{ data: old.attachment, type: old.attachmentType }] : []);
         }
       }
 
@@ -1979,11 +1981,14 @@ const App = {
       const viewDoc = e.target.closest('[data-check-view]');
 
       if (viewDoc) {
-        const id = viewDoc.dataset.checkView;
+        const id = viewDoc.dataset.checkId;
+        const idx = parseInt(viewDoc.dataset.checkView);
         const item = ChecklistManager.getAll().find(x => x.id === id);
-        if (item && item.attachment) {
+        const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType }] : []);
+        const doc = docs[idx];
+        if (doc && doc.data) {
           const win = window.open();
-          win.document.write(`<iframe src="${item.attachment}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+          win.document.write(`<iframe src="${doc.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
         }
       }
 
@@ -2908,7 +2913,12 @@ const App = {
                   ${item.notes ? `<div class="check-item-notes">${Util.escapeHtml(item.notes)}</div>` : ''}
                 </div>
                 <div class="inline-actions">
-                  ${item.attachment ? `<button class="btn btn-secondary btn-small" type="button" data-check-view="${item.id}" title="Dokument ansehen">👁️</button>` : ''}
+                  ${(() => {
+                    const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType }] : []);
+                    return docs.map((d, idx) => `
+                      <button class="btn btn-secondary btn-small" type="button" data-check-id="${item.id}" data-check-view="${idx}" title="${Util.escapeHtml(d.name || 'Dokument')}">👁️${docs.length > 1 ? idx + 1 : ''}</button>
+                    `).join('');
+                  })()}
                   ${!item.isVirtual ? `
                   <button class="btn btn-secondary btn-small" type="button" data-check-edit="${item.id}">✎</button>
                   <button class="btn btn-secondary btn-small" type="button" data-check-delete="${item.id}">🗑️</button>
