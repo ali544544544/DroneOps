@@ -563,7 +563,11 @@ const Util = {
     return `${h}h ${m}m`;
   },
   dayKey(date = new Date()) {
-    return new Date(date).toISOString().slice(0, 10);
+    const d = new Date(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   },
   kmhToMs(kmh = 0) {
     return Math.round((kmh / 3.6) * 10) / 10;
@@ -2142,17 +2146,22 @@ const App = {
       const ghTomorrow = GoldenHour.calculate(sunTomorrow.data.results);
 
       const allWindows = [
-        { type: 'morning', start: ghToday.morningStart, end: ghToday.morningEnd, isTomorrow: false },
-        { type: 'evening', start: ghToday.eveningStart, end: ghToday.eveningEnd, isTomorrow: false },
-        { type: 'morning', start: ghTomorrow.morningStart, end: ghTomorrow.morningEnd, isTomorrow: true },
-        { type: 'evening', start: ghTomorrow.eveningStart, end: ghTomorrow.eveningEnd, isTomorrow: true }
+        { type: 'morning', start: ghToday.morningStart, end: ghToday.morningEnd, dateLabel: 'Heute' },
+        { type: 'evening', start: ghToday.eveningStart, end: ghToday.eveningEnd, dateLabel: 'Heute' },
+        { type: 'morning', start: ghTomorrow.morningStart, end: ghTomorrow.morningEnd, dateLabel: 'Morgen' },
+        { type: 'evening', start: ghTomorrow.eveningStart, end: ghTomorrow.eveningEnd, dateLabel: 'Morgen' }
       ];
 
-      const nextTwo = allWindows.filter(w => w.end > now).slice(0, 2);
+      // Filter and sort
+      const nextTwo = allWindows
+        .filter(w => w.end > now)
+        .sort((a, b) => a.start - b.start)
+        .slice(0, 2);
       
-      // For legacy compatibility and hourly markers, we pick the first relevant GH
-      const gh = now < ghToday.eveningEnd ? ghToday : ghTomorrow;
-      const sun = now < ghToday.eveningEnd ? sunToday : sunTomorrow;
+      // Use today's sun data if we are still before evening end, otherwise tomorrow
+      const useTomorrow = now > ghToday.eveningEnd;
+      const gh = useTomorrow ? ghTomorrow : ghToday;
+      const sun = useTomorrow ? sunTomorrow : sunToday;
 
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather);
@@ -2271,7 +2280,7 @@ const App = {
               ${isActive ? `<div class="golden-active-badge" style="top:-8px; right:0">${I18n.t('sun.active')}</div>` : ''}
               <div class="golden-row">
                 <div>
-                  <div class="golden-label">${w.type === 'morning' ? '🌅' : '🌇'} ${I18n.t('sun.' + w.type)}${w.isTomorrow ? ' <small class="muted" style="font-size:0.8rem">(Morgen)</small>' : ''}</div>
+                  <div class="golden-label">${w.type === 'morning' ? '🌅' : '🌇'} ${I18n.t('sun.' + w.type)} <small class="muted" style="font-size:0.8rem">(${w.dateLabel})</small></div>
                   <div class="golden-time">${Util.formatTime(w.start, I18n.locale)} – ${Util.formatTime(w.end, I18n.locale)}</div>
                   <div class="muted" style="font-size:.82rem">${countdown !== '—' ? '⏱ ' + countdown : ''}</div>
                 </div>
