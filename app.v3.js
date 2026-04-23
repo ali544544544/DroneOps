@@ -2024,17 +2024,22 @@ const App = {
         const fileInput = document.getElementById(`inline-file-${id}`);
         
         const item = { name, count, category, notes };
-        const file = fileInput.files[0];
-        if (file) {
-          if (file.size > 2 * 1024 * 1024) {
-            alert('Max 2MB');
-            return;
+        const old = ChecklistManager.getAll().find(x => x.id === id);
+        item.attachments = old ? (old.attachments || (old.attachment ? [{ data: old.attachment, type: old.attachmentType, name: 'Datei' }] : [])) : [];
+
+        const files = Array.from(fileInput.files);
+        if (files.length > 0) {
+          for (const file of files) {
+            if (file.size > 2 * 1024 * 1024) {
+              alert(`Datei "${file.name}" zu groß (Max 2MB)`);
+              continue;
+            }
+            item.attachments.push({
+              data: await Util.fileToBase64(file),
+              type: file.type,
+              name: file.name
+            });
           }
-          item.attachments = [{ data: await Util.fileToBase64(file), type: file.type, name: file.name }];
-        } else {
-          // Preserve existing
-          const old = ChecklistManager.getAll().find(x => x.id === id);
-          if (old) item.attachments = old.attachments;
         }
 
         ChecklistManager.update(id, item);
@@ -2050,12 +2055,17 @@ const App = {
 
       const checkDelDoc = e.target.closest('[data-check-del-doc]');
       if (checkDelDoc) {
+        e.stopPropagation();
         const id = checkDelDoc.dataset.checkId;
         const idx = parseInt(checkDelDoc.dataset.checkDelDoc);
         const all = ChecklistManager.getAll();
         const item = all.find(x => x.id === id);
-        if (item && item.attachments) {
-          item.attachments.splice(idx, 1);
+        if (item) {
+          const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType, name: 'Datei' }] : []);
+          docs.splice(idx, 1);
+          item.attachments = docs;
+          delete item.attachment;
+          delete item.attachmentType;
           ChecklistManager.saveAll(all);
           await this.renderChecklist();
         }
