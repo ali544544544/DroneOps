@@ -793,6 +793,12 @@ const LocationManager = {
     if (!location) return;
     const logbook = (location.logbook || []).filter(item => item.id !== entryId);
     this.update(locationId, { logbook });
+  },
+  updateLog(locationId, entryId, patch) {
+    const location = this.getById(locationId);
+    if (!location) return;
+    const logbook = (location.logbook || []).map(item => item.id === entryId ? { ...item, ...patch } : item);
+    this.update(locationId, { logbook });
   }
 };
 
@@ -2125,8 +2131,39 @@ const App = {
         const locationId = Storage.get(Keys.activeLocation);
         LocationManager.removeLog(locationId, logDelete.dataset.logDelete);
         await this.renderLocationDetail(locationId);
-        await this.renderLocationsList();
       }
+
+      const logEdit = e.target.closest('[data-log-edit]');
+      if (logEdit) {
+        this.editingLogId = logEdit.dataset.logEdit;
+        const locationId = Storage.get(Keys.activeLocation);
+        const loc = LocationManager.getById(locationId);
+        this.renderNotesPanel(loc);
+      }
+
+      const logSave = e.target.closest('[data-log-save]');
+      if (logSave) {
+        const id = logSave.dataset.logSave;
+        const locationId = Storage.get(Keys.activeLocation);
+        const date = document.getElementById(`inline-log-date-${id}`).value;
+        const drone = document.getElementById(`inline-log-drone-${id}`).value;
+        const note = document.getElementById(`inline-log-note-${id}`).value.trim();
+        
+        LocationManager.updateLog(locationId, id, { date, drone, note });
+        this.editingLogId = null;
+        const loc = LocationManager.getById(locationId);
+        this.renderNotesPanel(loc);
+      }
+
+      const logCancel = e.target.closest('[data-log-cancel]');
+      if (logCancel) {
+        this.editingLogId = null;
+        const locationId = Storage.get(Keys.activeLocation);
+        const loc = LocationManager.getById(locationId);
+        this.renderNotesPanel(loc);
+      }
+      
+      await this.renderLocationsList();
       if (mapsPin) window.open(mapsPin.dataset.openPin, '_blank');
       if (mapsRoute) window.open(mapsRoute.dataset.openRoute, '_blank');
     });
@@ -2657,8 +2694,8 @@ const App = {
 
   async openLocationDetail(locationId) {
     LocationManager.setActive(locationId);
-    document.getElementById('locationsListView').classList.add('hidden');
     document.getElementById('locationsDetailView').classList.remove('hidden');
+    document.getElementById('locationsListView').classList.add('hidden');
     await this.renderLocationDetail(locationId);
   },
 
@@ -2856,18 +2893,40 @@ const App = {
             <input type="text" id="logNote" maxlength="200" placeholder="${I18n.t('detail.logPlaceholder')}" />
             <button class="btn" type="submit">${I18n.t('detail.saveEntry')}</button>
           </form>
-          <div class="logbook-list" class="mt-14">
+          <div class="logbook-list mt-14">
             ${(location.logbook || []).length
-              ? location.logbook.map(entry => `
-                <article class="log-entry">
-                  <div>
-                    <strong>${Util.formatDate(entry.date, I18n.locale)}</strong>
-                    <div>${Util.escapeHtml(ProfileManager.label(entry.drone))}</div>
-                    <small>${Util.escapeHtml(entry.note || '')}</small>
-                  </div>
-                  <button class="btn btn-secondary" data-log-delete="${entry.id}">🗑️</button>
-                </article>
-              `).join('')
+              ? location.logbook.map(entry => {
+                if (entry.id === this.editingLogId) {
+                  return `
+                    <div class="inline-edit-card panel glass" style="margin: 8px 0; padding: 12px; border: 1px solid var(--accent);">
+                      <div class="form-row">
+                        <input type="date" id="inline-log-date-${entry.id}" value="${entry.date}" style="flex:1" />
+                        <select id="inline-log-drone-${entry.id}" style="flex:1">
+                          ${ProfileManager.getAll().map(p => `<option value="${p.id}" ${p.id === entry.drone ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>`).join('')}
+                        </select>
+                      </div>
+                      <input type="text" id="inline-log-note-${entry.id}" class="mt-8" value="${Util.escapeHtml(entry.note || '')}" style="width:100%" />
+                      <div class="inline-actions mt-8" style="justify-content: flex-end;">
+                        <button class="btn btn-secondary btn-small" data-log-cancel="${entry.id}">${I18n.t('common.cancel')}</button>
+                        <button class="btn btn-small" data-log-save="${entry.id}">${I18n.t('common.save')}</button>
+                      </div>
+                    </div>
+                  `;
+                }
+                return `
+                  <article class="log-entry">
+                    <div>
+                      <strong>${Util.formatDate(entry.date, I18n.locale)}</strong>
+                      <div>${Util.escapeHtml(ProfileManager.label(entry.drone))}</div>
+                      <small style="display:block; margin-top:4px; color:var(--text); opacity:0.8;">${Util.escapeHtml(entry.note || '')}</small>
+                    </div>
+                    <div class="inline-actions">
+                      <button class="btn btn-secondary btn-small" data-log-edit="${entry.id}">✎</button>
+                      <button class="btn btn-secondary btn-small" data-log-delete="${entry.id}">🗑️</button>
+                    </div>
+                  </article>
+                `;
+              }).join('')
               : `<p class="muted">${I18n.t('detail.noLogs')}</p>`
             }
           </div>
@@ -3092,7 +3151,7 @@ const App = {
                   <div class="inline-edit-card panel glass" style="margin: 12px 0; padding: 16px; border: 1px solid var(--accent); animation: slideIn 0.3s ease;">
                     <h4 style="margin-bottom:12px; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px; color:var(--accent)">${I18n.t('common.change')}</h4>
                     
-                    <div class="form-grid" style="grid-template-columns: 1fr 80px; gap: 8px;">
+                    <div class="notes-grid" style="display: flex; flex-direction: column; gap: 16px;">
                       <label class="field">
                         <span>${I18n.t('checklist.itemName')}</span>
                         <input id="inline-name-${item.id}" type="text" value="${Util.escapeHtml(item.name)}" />

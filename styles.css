@@ -771,8 +771,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .notes-grid {
-  display: grid;
-  grid-template-columns: 1.1fr .9fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
