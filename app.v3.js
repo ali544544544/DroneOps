@@ -1471,6 +1471,62 @@ const UI = {
 
 const App = {
   editingChecklistId: null,
+  pickerMap: null,
+  pickerMarker: null,
+
+  async toggleMapPicker() {
+    const listView = document.getElementById('locationsListView');
+    const pickerView = document.getElementById('locationsMapPickerView');
+    const detailView = document.getElementById('locationsDetailView');
+    const isVisible = !pickerView.classList.contains('hidden');
+
+    if (isVisible) {
+      pickerView.classList.add('hidden');
+      listView.classList.remove('hidden');
+    } else {
+      pickerView.classList.remove('hidden');
+      listView.classList.add('hidden');
+      detailView.classList.add('hidden');
+      this.initMapPicker();
+    }
+  },
+
+  initMapPicker() {
+    if (this.pickerMap) {
+      setTimeout(() => this.pickerMap.invalidateSize(), 100);
+      return;
+    }
+
+    this.pickerMap = L.map('locationsPickerMap').setView([51.1657, 10.4515], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.pickerMap);
+
+    this.pickerMap.on('click', async (e) => {
+      const { lat, lng } = e.latlng;
+      if (this.pickerMarker) this.pickerMap.removeLayer(this.pickerMarker);
+      this.pickerMarker = L.marker([lat, lng]).addTo(this.pickerMap);
+
+      let suggestedName = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      try {
+        const reverse = await Nominatim.reverse(lat, lng);
+        if (reverse && reverse.display_name) {
+          suggestedName = reverse.display_name.split(',')[0] || suggestedName;
+        }
+      } catch (err) { console.warn('Reverse geocode failed', err); }
+
+      const name = prompt(I18n.t('locations.addLocation'), suggestedName);
+      if (name) {
+        LocationManager.add({ name, lat, lon: lng });
+        UI.toast(I18n.t('detail.saved'));
+        this.toggleMapPicker();
+        await this.renderLocationsList();
+        UI.renderDashboardLocationSelect();
+      }
+    });
+
+    Util.getCurrentPosition().then(pos => {
+      this.pickerMap.setView([pos.coords.latitude, pos.coords.longitude], 12);
+    }).catch(() => {});
+  },
 
   async loadJson(path, fallback) {
     try {
@@ -1752,6 +1808,10 @@ const App = {
     document.getElementById('dashboardUseGpsBtn').addEventListener('click', () => {
       Storage.set(Keys.distSource, 'gps');
       this.setDashboardGps();
+    });
+
+    document.getElementById('toggleLocationPickerBtn').addEventListener('click', () => {
+      this.toggleMapPicker();
     });
 
     document.getElementById('detailBackBtn').addEventListener('click', async () => {

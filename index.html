@@ -119,6 +119,7 @@
             <h2 data-i18n="locations.title">Locations</h2>
             <p class="muted" data-i18n="locations.subtitle">Flugspots verwalten, Wetter prüfen, Notizen und Logbuch pflegen</p>
           </div>
+          <button id="toggleLocationPickerBtn" class="btn btn-action">🗺️ <span data-i18n="locations.mapPicker">Karte</span></button>
         </div>
 
         <section id="locationsListView">
@@ -133,6 +134,13 @@
           </section>
 
           <section id="locationList" class="location-list"></section>
+        </section>
+
+        <section id="locationsMapPickerView" class="hidden">
+          <section class="panel glass">
+            <p class="muted mb-12" data-i18n="locations.pickerHelp">Tippe auf die Karte, um einen neuen Spot zu markieren.</p>
+            <div id="locationsPickerMap" style="height: 500px; width: 100%; border-radius: var(--radius); border: 1px solid var(--border); background: #222;"></div>
+          </section>
         </section>
 
         <section id="locationsDetailView" class="hidden">
