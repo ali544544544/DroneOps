@@ -1150,7 +1150,7 @@ const UI = {
       droneSize: document.getElementById('droneSize'),
       droneMaxWind: document.getElementById('droneMaxWind'),
       droneMaxGusts: document.getElementById('droneMaxGusts'),
-      droneColor: document.getElementById('droneColor'),
+      droneColorContainer: document.getElementById('droneColorContainer'),
       droneRain: document.getElementById('droneRain'),
       droneCancelBtn: document.getElementById('droneCancelBtn'),
       droneAddBtn: document.getElementById('droneAddBtn'),
@@ -1165,6 +1165,31 @@ const UI = {
       checklistNotes: document.getElementById('checklistNotes'),
       checklistFile: document.getElementById('checklistFile'),
     };
+  },
+  renderColorPicker(current, idPrefix) {
+    const palette = ['#f5bc2b', '#ff7a3d', '#ff4d4d', '#a24dff', '#4d94ff', '#4dffc9', '#b3ff4d', '#111111', '#ffffff'];
+    const isCustom = !palette.includes(current);
+    
+    return `
+      <div class="color-selection" id="${idPrefix}-color-wrap">
+        <input type="hidden" id="${idPrefix}-color" value="${current}" />
+        ${palette.map(c => `
+          <div class="color-swatch ${c === current ? 'active' : ''}" 
+               style="background-color: ${c}" 
+               data-color="${c}"
+               onclick="this.parentElement.querySelector('input').value='${c}'; 
+                        this.parentElement.querySelectorAll('.color-swatch, .color-custom-wrap').forEach(s=>s.classList.remove('active'));
+                        this.classList.add('active');"></div>
+        `).join('')}
+        <div class="color-custom-wrap ${isCustom ? 'active' : ''}">
+          <input type="color" value="${isCustom ? current : '#ffffff'}" 
+                 onchange="this.parentElement.parentElement.querySelector('input').value=this.value;
+                           this.parentElement.parentElement.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));
+                           this.parentElement.classList.add('active');" />
+          <i>🎨</i>
+        </div>
+      </div>
+    `;
   },
   applyI18n() {
     document.documentElement.lang = I18n.lang;
@@ -1677,7 +1702,7 @@ const App = {
         critWind: Math.round(parseInt(UI.els.droneMaxWind.value) * 1.4),
         maxGusts: parseInt(UI.els.droneMaxGusts.value),
         critGusts: Math.round(parseInt(UI.els.droneMaxGusts.value) * 1.3),
-        color: UI.els.droneColor.value,
+        color: document.getElementById('global-drone-color').value,
         rainTolerance: UI.els.droneRain.value
       };
 
@@ -2922,7 +2947,7 @@ const App = {
               </label>
               <label class="field">
                 <span>Farbe</span>
-                <input id="inline-drone-color-${profile.id}" type="color" value="${profile.color || '#f5bc2b'}" />
+                ${UI.renderColorPicker(profile.color || '#f5bc2b', 'inline-drone-' + profile.id)}
               </label>
               <label class="field">
                 <span>Regen</span>
@@ -3000,7 +3025,7 @@ const App = {
           size: Number(document.getElementById(`inline-drone-size-${id}`).value),
           maxWind: Number(document.getElementById(`inline-drone-maxwind-${id}`).value),
           maxGusts: Number(document.getElementById(`inline-drone-maxgusts-${id}`).value),
-          color: document.getElementById(`inline-drone-color-${id}`).value,
+          color: document.getElementById(`inline-drone-color-${id}-color`).value,
           rainTolerance: document.getElementById(`inline-drone-rain-${id}`).value
         };
         if (!profile.label) return;
@@ -3146,6 +3171,7 @@ const App = {
     UI.renderProfileSelect();
     UI.renderDashboardLocationSelect();
     UI.renderChecklistFormOptions();
+    UI.els.droneColorContainer.innerHTML = UI.renderColorPicker('#f5bc2b', 'global-drone');
     await this.renderDashboard();
     await this.renderLocationsList();
     await this.renderDrones();
