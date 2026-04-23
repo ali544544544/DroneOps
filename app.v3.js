@@ -2131,33 +2131,32 @@ const App = {
 
     try {
       const drone = ProfileManager.getActive();
-      let targetDate = new Date();
-      let [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location, targetDate)]);
+      const now = new Date();
+      const [weather, sunToday, sunTomorrow] = await Promise.all([
+        WeatherService.get(location),
+        SunService.get(location, now),
+        SunService.get(location, new Date(now.getTime() + 86400000))
+      ]);
       
+      const ghToday = GoldenHour.calculate(sunToday.data.results);
+      const ghTomorrow = GoldenHour.calculate(sunTomorrow.data.results);
+
+      const allWindows = [
+        { type: 'morning', start: ghToday.morningStart, end: ghToday.morningEnd, isTomorrow: false },
+        { type: 'evening', start: ghToday.eveningStart, end: ghToday.eveningEnd, isTomorrow: false },
+        { type: 'morning', start: ghTomorrow.morningStart, end: ghTomorrow.morningEnd, isTomorrow: true },
+        { type: 'evening', start: ghTomorrow.eveningStart, end: ghTomorrow.eveningEnd, isTomorrow: true }
+      ];
+
+      const nextTwo = allWindows.filter(w => w.end > now).slice(0, 2);
+      
+      // For legacy compatibility and hourly markers, we pick the first relevant GH
+      const gh = now < ghToday.eveningEnd ? ghToday : ghTomorrow;
+      const sun = now < ghToday.eveningEnd ? sunToday : sunTomorrow;
+
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
-      
-      let gh = GoldenHour.calculate({
-        sunrise: sun.data.results.sunrise,
-        sunset: sun.data.results.sunset,
-        civilDawn: sun.data.results.civil_twilight_begin,
-        civilDusk: sun.data.results.civil_twilight_end
-      });
-
-      if (new Date() > gh.eveningEnd) {
-        targetDate.setDate(targetDate.getDate() + 1);
-        sun = await SunService.get(location, targetDate);
-        gh = GoldenHour.calculate({
-          sunrise: sun.data.results.sunrise,
-          sunset: sun.data.results.sunset,
-          civilDawn: sun.data.results.civil_twilight_begin,
-          civilDusk: sun.data.results.civil_twilight_end
-        });
-        gh.isTomorrow = true;
-      } else {
-        gh.isTomorrow = false;
-      }
       const dashWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
@@ -2256,34 +2255,32 @@ const App = {
         await this.renderDashboard();
       });
 
-      const morning = UI.avgWindowScore(weather, gh, 'morning');
-      const evening = UI.avgWindowScore(weather, gh, 'evening');
-      
-      const morningCountdown = GoldenHour.isWithin(new Date(), gh) ? '—' : Util.countdown(new Date(), gh.morningStart);
-      const eveningCountdown = GoldenHour.isWithin(new Date(), gh) ? '—' : Util.countdown(new Date(), gh.eveningStart);
-
       UI.els.dashboardGoldenPanel.innerHTML = `
-        <h3>${I18n.t('dashboard.golden')}${gh.isTomorrow ? ' <span class="muted" style="font-size:0.8rem">(Morgen)</span>' : ''}</h3>
-        ${gh.isActiveNow ? `<div class="golden-active-badge">${I18n.t('sun.active')}</div>` : ''}
-        <div class="golden-window">
-          <div class="golden-row">
-            <div>
-              <div class="golden-label">🌅 ${I18n.t('sun.morning')}</div>
-              <div class="golden-time">${Util.formatTime(gh.morningStart, I18n.locale)} – ${Util.formatTime(gh.morningEnd, I18n.locale)}</div>
-              <div class="muted" style="font-size:.82rem">${morningCountdown !== '—' ? '⏱ ' + morningCountdown : ''}</div>
+        <h3>${I18n.t('dashboard.golden')}</h3>
+        ${nextTwo.map(w => {
+           const tempGH = {
+             morningStart: w.start, morningEnd: w.end,
+             eveningStart: w.start, eveningEnd: w.end
+           };
+           const winScore = UI.avgWindowScore(weather, tempGH, 'morning');
+           const countdown = now >= w.start && now <= w.end ? '—' : Util.countdown(now, w.start);
+           const isActive = now >= w.start && now <= w.end;
+           
+           return `
+            <div class="golden-window" style="margin-bottom:12px; position:relative">
+              ${isActive ? `<div class="golden-active-badge" style="top:-8px; right:0">${I18n.t('sun.active')}</div>` : ''}
+              <div class="golden-row">
+                <div>
+                  <div class="golden-label">${w.type === 'morning' ? '🌅' : '🌇'} ${I18n.t('sun.' + w.type)}${w.isTomorrow ? ' <small class="muted" style="font-size:0.8rem">(Morgen)</small>' : ''}</div>
+                  <div class="golden-time">${Util.formatTime(w.start, I18n.locale)} – ${Util.formatTime(w.end, I18n.locale)}</div>
+                  <div class="muted" style="font-size:.82rem">${countdown !== '—' ? '⏱ ' + countdown : ''}</div>
+                </div>
+                <span class="badge ${winScore.status}">${I18n.t(`status.${winScore.status}`)} · ${winScore.score}</span>
+              </div>
             </div>
-            <span class="badge ${morning.status}">${I18n.t(`status.${morning.status}`)} · ${morning.score}</span>
-          </div>
-          <div class="golden-row">
-            <div>
-              <div class="golden-label">🌇 ${I18n.t('sun.evening')}</div>
-              <div class="golden-time">${Util.formatTime(gh.eveningStart, I18n.locale)} – ${Util.formatTime(gh.eveningEnd, I18n.locale)}</div>
-              <div class="muted" style="font-size:.82rem">${eveningCountdown !== '—' ? '⏱ ' + eveningCountdown : ''}</div>
-            </div>
-            <span class="badge ${evening.status}">${I18n.t(`status.${evening.status}`)} · ${evening.score}</span>
-          </div>
-        </div>
-        <div class="sun-arc-wrap">${UI.renderSunArc(sun.data, gh)}</div>
+           `;
+        }).join('')}
+        <div class="sun-arc-wrap">${UI.renderSunArc(sunToday.data, ghToday)}</div>
       `;
 
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
