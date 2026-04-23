@@ -77,6 +77,8 @@
     "sun.active": "✨ GOLDEN HOUR AKTIV",
     "sun.next": "Nächste Golden Hour",
     "sun.countdown": "Countdown",
+    "sun.golden": "Golden Hour",
+    "sun.current": "Aktueller Sonnenstand",
     "factor.windOk": "Wind im grünen Bereich",
     "factor.windWarn": "Wind erhöht",
     "factor.windCritical": "Wind kritisch",
@@ -329,6 +331,8 @@
     "toast.startPointSaved": "Home base saved.",
     "toast.verifyEmail": "Success! Please check your email.",
     "toast.loggedIn": "Logged in successfully!",
-    "toast.loggedOut": "Logged out successfully."
+    "toast.loggedOut": "Logged out successfully.",
+    "sun.golden": "Golden Hour",
+    "sun.current": "Current Sun Position"
   }
 }

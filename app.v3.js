@@ -1249,8 +1249,8 @@ const UI = {
       div.innerHTML = `
         <div class="legend-item"><span class="legend-line" style="background:#f5bc2b"></span> ${I18n.t('sun.sunrise')}</div>
         <div class="legend-item"><span class="legend-line" style="background:#ff7a3d"></span> ${I18n.t('sun.sunset')}</div>
-        <div class="legend-item"><span class="legend-line" style="background:#ffcc33;border-top:1px dashed #fff"></span> ${I18n.t('drones.golden')}</div>
-        <div class="legend-item"><span class="legend-line" style="background:#fff;border-top:1px dashed #000"></span> ${I18n.t('dashboard.current')}</div>
+        <div class="legend-item"><span class="legend-line" style="background:#ffcc33;border-top:1px dashed #fff"></span> ${I18n.t('sun.golden')}</div>
+        <div class="legend-item"><span class="legend-line" style="background:#fff;border-top:1px dashed #000"></span> ${I18n.t('sun.current')}</div>
       `;
       return div;
     };
