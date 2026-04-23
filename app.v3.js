@@ -2275,9 +2275,6 @@ const App = {
       } else {
         UI.els.dashboardHomeBtn.classList.remove('btn-active');
       }
-
-      } else {
-        UI.els.dashboardHomeBtn.classList.remove('btn-active');
       }
 
       UI.els.dashboardGoldenPanel.innerHTML = `
