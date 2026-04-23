@@ -2438,7 +2438,7 @@ const App = {
       `;
 
       if (this.dashboardMap) { this.dashboardMap.remove(); }
-      this.dashboardMap = L.map('dashboardMap', { zoomControl: false, attributionControl: false }).setView([location.lat, location.lon], 13);
+      this.dashboardMap = L.map('dashboardMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
       
       const dashIcon = L.divIcon({
@@ -2780,7 +2780,7 @@ const App = {
 
       UI.els.detailMapPanel.innerHTML = `
         <h3>${I18n.t('detail.map')}</h3>
-        <div id="detailMap" style="height: 300px; border-radius: 14px; margin-top: 12px; z-index: 1;"></div>
+        <div id="detailMap" style="height: 300px; margin-top: 12px; z-index: 1;"></div>
         <div class="info-list" class="mt-12">
           <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
           <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
@@ -2789,7 +2789,7 @@ const App = {
       `;
 
       if (this.detailMap) { this.detailMap.remove(); }
-      this.detailMap = L.map('detailMap', { zoomControl: false }).setView([location.lat, location.lon], 14);
+      this.detailMap = L.map('detailMap', { zoomControl: false, preferCanvas: true }).setView([location.lat, location.lon], 14);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap'
       }).addTo(this.detailMap);
