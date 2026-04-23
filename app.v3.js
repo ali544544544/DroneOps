@@ -1221,6 +1221,41 @@ const UI = {
       </div>
     `;
   },
+  addSunToMap(map, location, sunResults, gh, posNow) {
+    const posSR  = App.getSolarPosition(new Date(sunResults.sunrise), location.lat, location.lon);
+    const posSS  = App.getSolarPosition(new Date(sunResults.sunset), location.lat, location.lon);
+    const posGHS = App.getSolarPosition(gh.morningStart, location.lat, location.lon);
+    const posGHE = App.getSolarPosition(gh.eveningEnd, location.lat, location.lon);
+
+    const drawLine = (az, color, label, dash = null) => {
+      const rad = (az - 90) * (Math.PI / 180);
+      const dist = 0.015;
+      const lat2 = location.lat - dist * Math.sin(rad); 
+      const lon2 = location.lon + dist * Math.cos(rad);
+      L.polyline([[location.lat, location.lon], [lat2, lon2]], {
+        color, weight: 4, dashArray: dash, opacity: 0.8
+      }).addTo(map).bindTooltip(label);
+    };
+
+    drawLine(posSR.azimuth, '#f5bc2b', I18n.t('sun.sunrise'));
+    drawLine(posSS.azimuth, '#ff7a3d', I18n.t('sun.sunset'));
+    drawLine(posGHS.azimuth, '#ffcc33', I18n.t('sun.morning'), '5, 10');
+    drawLine(posGHE.azimuth, '#ffcc33', I18n.t('sun.evening'), '5, 10');
+    if (posNow.elevation > 0) drawLine(posNow.azimuth, 'white', I18n.t('dashboard.current'), '2, 5');
+
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = () => {
+      const div = L.DomUtil.create('div', 'map-legend');
+      div.innerHTML = `
+        <div class="legend-item"><span class="legend-line" style="background:#f5bc2b"></span> ${I18n.t('sun.sunrise')}</div>
+        <div class="legend-item"><span class="legend-line" style="background:#ff7a3d"></span> ${I18n.t('sun.sunset')}</div>
+        <div class="legend-item"><span class="legend-line" style="background:#ffcc33;border-top:1px dashed #fff"></span> ${I18n.t('drones.golden')}</div>
+        <div class="legend-item"><span class="legend-line" style="background:#fff;border-top:1px dashed #000"></span> ${I18n.t('dashboard.current')}</div>
+      `;
+      return div;
+    };
+    legend.addTo(map);
+  },
   applyI18n() {
     document.documentElement.lang = I18n.lang;
     document.querySelectorAll('[data-i18n]').forEach(node => {
@@ -2449,14 +2484,7 @@ const App = {
       L.marker([location.lat, location.lon], { icon: dashIcon }).addTo(this.dashboardMap);
 
       // Sun lines on dashboard map
-      const posSR  = this.getSolarPosition(new Date(sun.data.results.sunrise), location.lat, location.lon);
-      const posSS  = this.getSolarPosition(new Date(sun.data.results.sunset), location.lat, location.lon);
-      
-      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posSR.azimuth, 'var(--yellow)', I18n.t('sun.sunrise'));
-      UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posSS.azimuth, '#ff7a3d', I18n.t('sun.sunset'));
-      if (posNow.elevation > 0) {
-        UI.drawSunLine(this.dashboardMap, [location.lat, location.lon], posNow.azimuth, 'white', I18n.t('dashboard.current'), '2, 5');
-      }
+      UI.addSunToMap(this.dashboardMap, location, sunToday.data.results, ghToday, posNow);
 
       // Async travel time
       if (location.id !== 'gps') {
@@ -2801,37 +2829,7 @@ const App = {
       });
       L.marker([location.lat, location.lon], { icon }).addTo(this.detailMap);
 
-      const drawLine = (az, color, label, dash = null) => {
-        const rad = (az - 90) * (Math.PI / 180);
-        const dist = 0.015; // ca 1.5km
-        const lat2 = location.lat - dist * Math.sin(rad); 
-        const lon2 = location.lon + dist * Math.cos(rad);
-        L.polyline([[location.lat, location.lon], [lat2, lon2]], {
-          color,
-          weight: 4,
-          dashArray: dash,
-          opacity: 0.8
-        }).addTo(this.detailMap).bindTooltip(label);
-      };
-
-      drawLine(posSR.azimuth, '#f5bc2b', I18n.t('sun.sunrise'));
-      drawLine(posSS.azimuth, '#ff7a3d', I18n.t('sun.sunset'));
-      drawLine(posGHS.azimuth, '#ffcc33', I18n.t('sun.morning'), '5, 10');
-      drawLine(posGHE.azimuth, '#ffcc33', I18n.t('sun.evening'), '5, 10');
-      if (posNow.elevation > 0) drawLine(posNow.azimuth, 'white', I18n.t('dashboard.current'), '2, 5');
-
-      const legend = L.control({ position: 'bottomright' });
-      legend.onAdd = () => {
-        const div = L.DomUtil.create('div', 'map-legend');
-        div.innerHTML = `
-          <div class="legend-item"><span class="legend-line" style="background:#f5bc2b"></span> ${I18n.t('sun.sunrise')}</div>
-          <div class="legend-item"><span class="legend-line" style="background:#ff7a3d"></span> ${I18n.t('sun.sunset')}</div>
-          <div class="legend-item"><span class="legend-line" style="background:#ffcc33;border-top:1px dashed #fff"></span> ${I18n.t('drones.golden')}</div>
-          <div class="legend-item"><span class="legend-line" style="background:#fff;border-top:1px dashed #000"></span> ${I18n.t('dashboard.current')}</div>
-        `;
-        return div;
-      };
-      legend.addTo(this.detailMap);
+      UI.addSunToMap(this.detailMap, location, sun.data.results, gh, posNow);
 
       const detailWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const detailGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
