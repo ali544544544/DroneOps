@@ -2275,7 +2275,6 @@ const App = {
       } else {
         UI.els.dashboardHomeBtn.classList.remove('btn-active');
       }
-      }
 
       UI.els.dashboardGoldenPanel.innerHTML = `
         <h3>${I18n.t('dashboard.golden')}</h3>
