@@ -5,9 +5,9 @@ const DATA_FILES = {
   weathercodes: './data/weathercodes.json',
 };
 
-// --- Cloud Config (DISABLED FOR DEBUG) ---
-const SUPABASE_URL = 'https://kzlcswwwpdqrfmmqffpf.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6bGNzd3d3cGRxcmZtbXFmZnBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njc0NDIsImV4cCI6MjA5MjQ0MzQ0Mn0.vTOzS_eF3lJAf9G_8bcqoXkXdJf6NvRQ9YtuEoXrPGQ';
+// --- Cloud Config (Keys moved to config.js) ---
+const SUPABASE_URL = CONFIG.SUPABASE_URL;
+const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
 let supabaseClient = null;
 
 const CloudManager = {
@@ -167,6 +167,7 @@ const Keys = {
   activeTab: 'drone_active_tab',
   dashboardSource: 'drone_dashboard_source',
   weatherCache: 'drone_weather_cache',
+  brightSkyCache: 'drone_brightsky_cache',
   sunCache: 'drone_sun_cache',
   checklist: 'drone_checklist',
   droneChecklist: 'drone_checklist_state',
@@ -590,6 +591,17 @@ const Util = {
       console.error('OSRM Error:', e);
       return null;
     }
+  },
+  getBrightSkyRain(bsData, targetTime) {
+    if (!bsData || !bsData.weather || !bsData.weather.length) return null;
+    const target = new Date(targetTime).getTime();
+    const closest = bsData.weather.reduce((prev, curr) => {
+      const prevDiff = Math.abs(new Date(prev.timestamp).getTime() - target);
+      const currDiff = Math.abs(new Date(curr.timestamp).getTime() - target);
+      return currDiff < prevDiff ? curr : prev;
+    });
+    if (Math.abs(new Date(closest.timestamp).getTime() - target) > 3600000) return null;
+    return closest.precipitation;
   }
 };
 
@@ -816,13 +828,17 @@ const WeatherService = {
     url.searchParams.set('forecast_days', '2');
 
     try {
-      const res = await fetch(url.toString());
+      const [res, bsRes] = await Promise.all([
+        fetch(url.toString()),
+        BrightSkyService.get(location)
+      ]);
       if (!res.ok) throw new Error(`Open-Meteo API Error: ${res.status}`);
       const data = await res.json();
       if (!data.hourly || !data.current_weather) throw new Error('Open-Meteo: Invalid data format');
-      cache[location.id] = { data, timestamp: Date.now() };
+      const bsData = bsRes?.data || null;
+      cache[location.id] = { data, bsData, timestamp: Date.now() };
       this.setCache(cache);
-      return { data, timestamp: cache[location.id].timestamp, source: 'network' };
+      return { data, bsData, timestamp: cache[location.id].timestamp, source: 'network' };
     } catch (error) {
       console.error('WeatherService Fetch Error:', error);
       if (cached) {
@@ -830,6 +846,46 @@ const WeatherService = {
         return { ...cached, source: 'stale-cache', stale: true };
       }
       throw error;
+    }
+  }
+};
+
+const BrightSkyService = {
+  ttlMs: 15 * 60 * 1000,
+  getCache() { return Storage.get(Keys.brightSkyCache, {}); },
+  setCache(data) { Storage.set(Keys.brightSkyCache, data); },
+  async get(location) {
+    const cache = this.getCache();
+    const cached = cache[location.id];
+    if (cached && (Date.now() - cached.timestamp < this.ttlMs)) {
+      return { ...cached, source: 'cache' };
+    }
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const url = new URL('https://api.brightsky.dev/weather');
+    url.searchParams.set('lat', location.lat);
+    url.searchParams.set('lon', location.lon);
+    url.searchParams.set('date', today.toISOString().split('T')[0]);
+    url.searchParams.set('last_date', tomorrow.toISOString().split('T')[0]);
+    
+    try {
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(`BrightSky API Error: ${res.status}`);
+      const data = await res.json();
+      
+      // We focus on weather/hourly for better rain comparison
+      if (!data.weather) throw new Error('BrightSky: Invalid data format');
+      
+      cache[location.id] = { data, timestamp: Date.now() };
+      this.setCache(cache);
+      return { data, timestamp: cache[location.id].timestamp, source: 'network' };
+    } catch (error) {
+      console.warn('BrightSkyService Fetch Error:', error);
+      if (cached) return { ...cached, source: 'stale-cache', stale: true };
+      return null; // Don't crash if BrightSky fails
     }
   }
 };
@@ -869,9 +925,11 @@ const SunService = {
 };
 
 const ScoreEngine = {
-  calculate({ wind = 0, gusts = 0, rain = 0, clouds = 0, visibility = 10000, temp = 20, profile }) {
+  calculate({ wind = 0, gusts = 0, rain = 0, rainSecondary = null, clouds = 0, visibility = 10000, temp = 20, profile }) {
     let score = 100;
     const factors = [];
+    
+    const effectiveRain = rainSecondary !== null ? Math.max(rain, rainSecondary) : rain;
     
     // === WIND SCORING (Gewichtung: Hoch) ===
     const windRatio = wind / profile.maxWind;
@@ -909,36 +967,40 @@ const ScoreEngine = {
 
     // === REGEN SCORING (Gewichtung: Hoch bei "none", Mittel bei anderen) ===
     if (profile.rainTolerance === 'none') {
-      if (rain > 0.2) { 
+      if (effectiveRain > 0.2) { 
         score -= 35; 
         factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); 
-      } else if (rain > 0) {
+      } else if (effectiveRain > 0) {
         score -= 15;
         factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' });
       }
     } else if (profile.rainTolerance === 'low') {
-      if (rain > 2.5) { 
+      if (effectiveRain > 2.5) { 
         score -= 30; 
         factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); 
-      } else if (rain > 1) { 
+      } else if (effectiveRain > 1) { 
         score -= 15; 
         factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' }); 
       }
     } else if (profile.rainTolerance === 'medium') {
-      if (rain > 5) { 
+      if (effectiveRain > 5) { 
         score -= 20; 
         factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); 
-      } else if (rain > 2.5) { 
+      } else if (effectiveRain > 2.5) { 
         score -= 10; 
         factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' }); 
       }
     } else if (profile.rainTolerance === 'waterproof') {
-      if (rain > 10) {
+      if (effectiveRain > 10) {
         score -= 10;
         factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' });
       } else {
         factors.push({ key: 'rain', label: I18n.t('factor.rainOk'), severity: 'ok' });
       }
+    }
+
+    if (rainSecondary !== null && Math.abs(rain - rainSecondary) > 0.5) {
+      factors.push({ key: 'rainSource', label: `Regen-Abweichung: OM ${rain.toFixed(1)} / BS ${rainSecondary.toFixed(1)}`, severity: 'warn' });
     }
 
     // === SICHT (Gewichtung: Mittel) ===
@@ -1113,21 +1175,23 @@ const UI = {
     if (!entry) return '—';
     return `${Util.formatDate(entry.date, I18n.locale)} · ${ProfileManager.label(entry.drone)}`;
   },
-  avgWindowScore(weatherData, gh, which = 'morning') {
+  avgWindowScore(weather, gh, which = 'morning') {
     const profile = ProfileManager.getActive();
     const start = which === 'morning' ? gh.morningStart : gh.eveningStart;
     const end = which === 'morning' ? gh.morningEnd : gh.eveningEnd;
     let scores = [];
-    weatherData.hourly.time.forEach((time, i) => {
+    weather.data.hourly.time.forEach((time, i) => {
       const d = new Date(time);
       if (d >= start && d <= end) {
+        const rainSecondary = Util.getBrightSkyRain(weather.bsData, time);
         scores.push(ScoreEngine.calculate({
-          wind: weatherData.hourly.windspeed_10m[i],
-          gusts: weatherData.hourly.windgusts_10m[i],
-          rain: weatherData.hourly.precipitation[i],
-          clouds: weatherData.hourly.cloudcover[i],
-          visibility: weatherData.hourly.visibility[i],
-          temp: weatherData.hourly.temperature_2m[i],
+          wind: weather.data.hourly.windspeed_10m[i],
+          gusts: weather.data.hourly.windgusts_10m[i],
+          rain: weather.data.hourly.precipitation[i],
+          rainSecondary,
+          clouds: weather.data.hourly.cloudcover[i],
+          visibility: weather.data.hourly.visibility[i],
+          temp: weather.data.hourly.temperature_2m[i],
           profile
         }).score);
       }
@@ -1303,32 +1367,35 @@ const UI = {
     svg += '\n</svg>';
     return svg;
   },
-  renderHourly(target, weatherData, gh, location) {
+  renderHourly(target, weather, gh, location) {
     const profile = ProfileManager.getActive();
     const nowHour = new Date().getHours();
     const todayKey = Util.dayKey();
-    const items = weatherData.hourly.time.slice(0, 48).map((time, i) => {
+    const items = weather.data.hourly.time.slice(0, 48).map((time, i) => {
+      const rainSecondary = Util.getBrightSkyRain(weather.bsData, time);
       const score = ScoreEngine.calculate({
-        wind: weatherData.hourly.windspeed_10m[i],
-        gusts: weatherData.hourly.windgusts_10m[i],
-        rain: weatherData.hourly.precipitation[i],
-        clouds: weatherData.hourly.cloudcover[i],
-        visibility: weatherData.hourly.visibility[i],
-        temp: weatherData.hourly.temperature_2m[i],
+        wind: weather.data.hourly.windspeed_10m[i],
+        gusts: weather.data.hourly.windgusts_10m[i],
+        rain: weather.data.hourly.precipitation[i],
+        rainSecondary,
+        clouds: weather.data.hourly.cloudcover[i],
+        visibility: weather.data.hourly.visibility[i],
+        temp: weather.data.hourly.temperature_2m[i],
         profile
       });
       const hDate = new Date(time);
       const pos = App.getSolarPosition(hDate, location.lat, location.lon);
-      const nd = Util.recommendND(weatherData.hourly.weathercode[i], pos.elevation);
+      const nd = Util.recommendND(weather.data.hourly.weathercode[i], pos.elevation);
 
       return {
         time,
         score,
         nd,
-        meta: this.weatherMeta(weatherData.hourly.weathercode[i]),
-        wind: Util.kmhToMs(weatherData.hourly.windspeed_10m[i]),
-        rain: weatherData.hourly.precipitation[i],
-        temp: weatherData.hourly.temperature_2m[i],
+        meta: this.weatherMeta(weather.data.hourly.weathercode[i]),
+        wind: Util.kmhToMs(weather.data.hourly.windspeed_10m[i]),
+        rain: weather.data.hourly.precipitation[i],
+        rainSecondary,
+        temp: weather.data.hourly.temperature_2m[i],
         isGolden: GoldenHour.isWithin(time, gh),
         isNow: new Date(time).getHours() === nowHour && Util.dayKey(time) === todayKey
       };
@@ -1346,7 +1413,7 @@ const UI = {
             <div class="badge ${item.score.status} badge-sm">${item.score.score}</div>
             <div class="hour-stats">
               <span>💨 ${item.wind} m/s</span>
-              <span>🌧 ${item.rain} mm</span>
+              <span>🌧 ${Math.max(item.rain, item.rainSecondary || 0)} mm${item.rainSecondary !== null && Math.abs(item.rain - item.rainSecondary) > 0.1 ? ` <span title="OM: ${item.rain} / BS: ${item.rainSecondary}" style="cursor:help; opacity:0.6">ⓘ</span>` : ''}</span>
             </div>
             <div class="hour-nd" style="font-size:0.7rem;margin-top:4px;font-weight:800;color:var(--blue)">📷 ${item.nd}</div>
             ${item.isGolden ? '<div class="hour-golden">🌅</div>' : ''}
@@ -1911,16 +1978,18 @@ const App = {
     return idx >= 0 ? idx : 0;
   },
 
-  scoreForCurrent(weatherData) {
-    const idx = this.currentIndex(weatherData);
+  scoreForCurrent(weather) {
+    const idx = this.currentIndex(weather.data);
     const profile = ProfileManager.getActive();
+    const rainSecondary = Util.getBrightSkyRain(weather.bsData, weather.data.current_weather.time);
     return ScoreEngine.calculate({
-      wind: weatherData.current_weather.windspeed,
-      gusts: weatherData.hourly.windgusts_10m[idx],
-      rain: weatherData.hourly.precipitation[idx],
-      clouds: weatherData.hourly.cloudcover[idx],
-      visibility: weatherData.hourly.visibility[idx],
-      temp: weatherData.current_weather.temperature,
+      wind: weather.data.current_weather.windspeed,
+      gusts: weather.data.hourly.windgusts_10m[idx],
+      rain: weather.data.hourly.precipitation[idx],
+      rainSecondary,
+      clouds: weather.data.hourly.cloudcover[idx],
+      visibility: weather.data.hourly.visibility[idx],
+      temp: weather.data.current_weather.temperature,
       profile
     });
   },
@@ -1940,7 +2009,7 @@ const App = {
       let [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location, targetDate)]);
       
       const idx = this.currentIndex(weather.data);
-      const score = this.scoreForCurrent(weather.data);
+      const score = this.scoreForCurrent(weather);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
       
       let gh = GoldenHour.calculate({
@@ -2061,18 +2130,11 @@ const App = {
         await this.renderDashboard();
       });
 
-      const morning = UI.avgWindowScore(weather.data, gh, 'morning');
-      const evening = UI.avgWindowScore(weather.data, gh, 'evening');
-      const countdown = gh.isActiveNow
-        ? Util.countdown(new Date(), gh.whichPhase === 'morning' ? gh.morningEnd : gh.eveningEnd)
-        : (gh.nextGolden ? Util.countdown(new Date(), gh.nextGolden) : '—');
-
-      const morningCountdown = gh.whichPhase === 'morning'
-        ? Util.countdown(new Date(), gh.morningEnd)
-        : (new Date() < gh.morningStart ? Util.countdown(new Date(), gh.morningStart) : '—');
-      const eveningCountdown = gh.whichPhase === 'evening'
-        ? Util.countdown(new Date(), gh.eveningEnd)
-        : (new Date() < gh.eveningStart ? Util.countdown(new Date(), gh.eveningStart) : '—');
+      const morning = UI.avgWindowScore(weather, gh, 'morning');
+      const evening = UI.avgWindowScore(weather, gh, 'evening');
+      
+      const morningCountdown = GoldenHour.isWithin(new Date(), gh) ? '—' : Util.countdown(new Date(), gh.morningStart);
+      const eveningCountdown = GoldenHour.isWithin(new Date(), gh) ? '—' : Util.countdown(new Date(), gh.eveningStart);
 
       UI.els.dashboardGoldenPanel.innerHTML = `
         <h3>${I18n.t('dashboard.golden')}${gh.isTomorrow ? ' <span class="muted" style="font-size:0.8rem">(Morgen)</span>' : ''}</h3>
@@ -2099,7 +2161,7 @@ const App = {
       `;
 
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
-      UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather.data, gh, location);
+      UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather, gh, location);
       
       this.renderDashboardDrone();
       this.renderDashboardChecklist();
@@ -2186,7 +2248,7 @@ const App = {
     const cards = await Promise.all(locations.map(async location => {
       try {
         const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
-        const score = this.scoreForCurrent(weather.data);
+        const score = this.scoreForCurrent(weather);
         const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
         const gh = GoldenHour.calculate({
           sunrise: sun.data.results.sunrise,
@@ -2269,7 +2331,7 @@ const App = {
     await Promise.all(locations.map(async (location) => {
       try {
         const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
-        const score = this.scoreForCurrent(weather.data);
+        const score = this.scoreForCurrent(weather);
         const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
         const gh = GoldenHour.calculate({
           sunrise: sun.data.results.sunrise,
@@ -2319,7 +2381,7 @@ const App = {
     try {
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
       const idx = this.currentIndex(weather.data);
-      const score = this.scoreForCurrent(weather.data);
+      const score = this.scoreForCurrent(weather);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
       const gh = GoldenHour.calculate({
         sunrise: sun.data.results.sunrise,
@@ -2418,6 +2480,7 @@ const App = {
       const detailGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const detailWindDir = Util.windArrow(weather.data.current_weather.winddirection);
       const visKm = (weather.data.hourly.visibility[idx] / 1000).toFixed(1);
+      const detailRainBS = Util.getBrightSkyRain(weather.bsData, weather.data.current_weather.time);
       UI.els.detailWeatherPanel.innerHTML = `
         <h3>${I18n.t('detail.weather')}</h3>
         <div class="metric-grid">
@@ -2426,7 +2489,7 @@ const App = {
           <div class="kpi"><span>${I18n.t('weather.wind')} ${detailWindDir}</span><strong>${detailWindMs} <small>m/s</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${detailGustsMs} <small>m/s</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.humidity')}</span><strong>${weather.data.hourly.relativehumidity_2m[idx]}%</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} <small>mm</small></strong></div>
+          <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${Math.max(weather.data.hourly.precipitation[idx], detailRainBS || 0)} <small>mm</small>${detailRainBS !== null && Math.abs(weather.data.hourly.precipitation[idx] - detailRainBS) > 0.1 ? ` <span title="Open-Meteo: ${weather.data.hourly.precipitation[idx]} / BrightSky: ${detailRainBS}" style="cursor:help; opacity:0.6; font-size: 0.8rem">ⓘ</span>` : ''}</strong></div>
           <div class="kpi"><span>${I18n.t('weather.clouds')}</span><strong>${weather.data.hourly.cloudcover[idx]}%</strong></div>
           <div class="kpi"><span>${I18n.t('weather.visibility')}</span><strong>${visKm} <small>km</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.pressure')}</span><strong>${weather.data.hourly.surface_pressure[idx]} <small>hPa</small></strong></div>
