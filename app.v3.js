@@ -1912,7 +1912,7 @@ const App = {
 
     document.getElementById('checklistToggleAddBtn').addEventListener('click', () => {
       this.editingChecklistId = null;
-      document.getElementById('checklistForm').classList.remove('hidden');
+      document.getElementById('checklistForm').classList.toggle('hidden');
       document.getElementById('checklistName').value = '';
       document.getElementById('checklistCount').value = 1;
       document.getElementById('checklistCategory').value = 'akkus';
@@ -2010,16 +2010,42 @@ const App = {
         await this.renderChecklist();
       }
       if (checkEdit) {
-        const item = ChecklistManager.getAll().find(x => x.id === checkEdit.dataset.checkEdit);
-        if (item) {
-          this.editingChecklistId = item.id;
-          document.getElementById('checklistForm').classList.remove('hidden');
-          document.getElementById('checklistName').value = item.name;
-          document.getElementById('checklistCount').value = item.count;
-          document.getElementById('checklistCategory').value = item.category;
-          UI.els.checklistNotes.value = item.notes || '';
-          UI.els.checklistFile.value = '';
+        this.editingChecklistId = checkEdit.dataset.checkEdit;
+        await this.renderChecklist();
+      }
+
+      const checkSave = e.target.closest('[data-check-save]');
+      if (checkSave) {
+        const id = checkSave.dataset.checkSave;
+        const name = document.getElementById(`inline-name-${id}`).value.trim();
+        const count = Number(document.getElementById(`inline-count-${id}`).value);
+        const category = document.getElementById(`inline-cat-${id}`).value;
+        const notes = document.getElementById(`inline-notes-${id}`).value.trim();
+        const fileInput = document.getElementById(`inline-file-${id}`);
+        
+        const item = { name, count, category, notes };
+        const file = fileInput.files[0];
+        if (file) {
+          if (file.size > 2 * 1024 * 1024) {
+            alert('Max 2MB');
+            return;
+          }
+          item.attachments = [{ data: await Util.fileToBase64(file), type: file.type, name: file.name }];
+        } else {
+          // Preserve existing
+          const old = ChecklistManager.getAll().find(x => x.id === id);
+          if (old) item.attachments = old.attachments;
         }
+
+        ChecklistManager.update(id, item);
+        this.editingChecklistId = null;
+        await this.renderChecklist();
+      }
+
+      const checkCancel = e.target.closest('[data-check-cancel]');
+      if (checkCancel) {
+        this.editingChecklistId = null;
+        await this.renderChecklist();
       }
       if (logDelete) {
         const locationId = Storage.get(Keys.activeLocation);
@@ -2904,28 +2930,49 @@ const App = {
         <details class="checklist-group" open>
           <summary>${cat === 'drohnen' ? 'Drohnen' : I18n.t(`check.${cat}`)} (${finished}/${groupItems.length})</summary>
           <div class="check-items">
-            ${groupItems.map(item => `
-              <label class="check-item">
-                <input type="checkbox" data-check-toggle="${item.id}" ${item.checked ? 'checked' : ''} />
-                <div class="check-item-main">
-                  <strong>${Util.escapeHtml(item.name)}</strong>
-                  <span class="muted">×${item.count}</span>
-                  ${item.notes ? `<div class="check-item-notes">${Util.escapeHtml(item.notes)}</div>` : ''}
-                </div>
-                <div class="inline-actions">
-                  ${(() => {
-                    const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType }] : []);
-                    return docs.map((d, idx) => `
-                      <button class="btn btn-secondary btn-small" type="button" data-check-id="${item.id}" data-check-view="${idx}" title="${Util.escapeHtml(d.name || 'Dokument')}">👁️${docs.length > 1 ? idx + 1 : ''}</button>
-                    `).join('');
-                  })()}
-                  ${!item.isVirtual ? `
-                  <button class="btn btn-secondary btn-small" type="button" data-check-edit="${item.id}">✎</button>
-                  <button class="btn btn-secondary btn-small" type="button" data-check-delete="${item.id}">🗑️</button>
-                  ` : ''}
-                </div>
-              </label>
-            `).join('') || `<p class="muted">—</p>`}
+            ${groupItems.map(item => {
+              if (item.id === this.editingChecklistId) {
+                return `
+                  <div class="inline-edit-form panel glass" style="margin: 8px 0; padding: 12px; grid-column: 1/-1;">
+                    <div class="form-grid" style="grid-template-columns: 1fr auto;">
+                      <input id="inline-name-${item.id}" type="text" value="${Util.escapeHtml(item.name)}" style="width:100%" />
+                      <input id="inline-count-${item.id}" type="number" value="${item.count}" style="width:60px" />
+                    </div>
+                    <select id="inline-cat-${item.id}" class="mt-8" style="width:100%">
+                      ${ChecklistManager.categories().map(c => `<option value="${c}" ${c === item.category ? 'selected' : ''}>${I18n.t('check.' + c)}</option>`).join('')}
+                    </select>
+                    <textarea id="inline-notes-${item.id}" class="mt-8" style="width:100%; min-height:50px">${Util.escapeHtml(item.notes || '')}</textarea>
+                    <input id="inline-file-${item.id}" type="file" class="mt-8" style="width:100%" multiple />
+                    <div class="inline-actions mt-8">
+                      <button class="btn btn-small" data-check-save="${item.id}">${I18n.t('common.save')}</button>
+                      <button class="btn btn-secondary btn-small" data-check-cancel="${item.id}">${I18n.t('common.cancel')}</button>
+                    </div>
+                  </div>
+                `;
+              }
+              return `
+                <label class="check-item">
+                  <input type="checkbox" data-check-toggle="${item.id}" ${item.checked ? 'checked' : ''} />
+                  <div class="check-item-main">
+                    <strong>${Util.escapeHtml(item.name)}</strong>
+                    <span class="muted">×${item.count}</span>
+                    ${item.notes ? `<div class="check-item-notes">${Util.escapeHtml(item.notes)}</div>` : ''}
+                  </div>
+                  <div class="inline-actions">
+                    ${(() => {
+                      const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType }] : []);
+                      return docs.map((d, idx) => `
+                        <button class="btn btn-secondary btn-small" type="button" data-check-id="${item.id}" data-check-view="${idx}" title="${Util.escapeHtml(d.name || 'Dokument')}">👁️${docs.length > 1 ? idx + 1 : ''}</button>
+                      `).join('');
+                    })()}
+                    ${!item.isVirtual ? `
+                    <button class="btn btn-secondary btn-small" type="button" data-check-edit="${item.id}">✎</button>
+                    <button class="btn btn-secondary btn-small" type="button" data-check-delete="${item.id}">🗑️</button>
+                    ` : ''}
+                  </div>
+                </label>
+              `;
+            }).join('') || `<p class="muted">—</p>`}
           </div>
         </details>
       `;
