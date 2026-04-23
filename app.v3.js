@@ -2945,10 +2945,10 @@ const App = {
                 <span data-i18n="drones.maxGusts">Max Böen</span>
                 <input id="inline-drone-maxgusts-${profile.id}" type="number" value="${profile.maxGusts}" required />
               </label>
-              <label class="field">
+              <div class="field">
                 <span>Farbe</span>
                 ${UI.renderColorPicker(profile.color || '#f5bc2b', 'inline-drone-' + profile.id)}
-              </label>
+              </div>
               <label class="field">
                 <span>Regen</span>
                 <select id="inline-drone-rain-${profile.id}">
