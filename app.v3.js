@@ -886,6 +886,18 @@ const WeatherService = {
       }
       throw error;
     }
+  },
+  cleanup() {
+    const cache = this.getCache();
+    const now = Date.now();
+    let changed = false;
+    for (const id in cache) {
+      if (now - cache[id].timestamp > 24 * 60 * 60 * 1000) {
+        delete cache[id];
+        changed = true;
+      }
+    }
+    if (changed) this.setCache(cache);
   }
 };
 
@@ -960,6 +972,18 @@ const SunService = {
       if (cached) return { ...cached, source: 'stale-cache', stale: true };
       throw error;
     }
+  },
+  cleanup() {
+    const cache = this.getCache();
+    const now = Date.now();
+    let changed = false;
+    for (const key in cache) {
+      if (now - cache[key].timestamp > 48 * 60 * 60 * 1000) {
+        delete cache[key];
+        changed = true;
+      }
+    }
+    if (changed) this.setCache(cache);
   }
 };
 
@@ -1719,7 +1743,9 @@ const App = {
       }
 
       UI.els.droneForm.classList.add('hidden');
-      await this.renderAll();
+      await this.renderDrones();
+      UI.renderProfileSelect();
+      UI.renderDashboardLocationSelect();
     });
 
     UI.els.droneSize.addEventListener('change', (e) => {
@@ -1744,7 +1770,9 @@ const App = {
     UI.els.profileSelect.addEventListener('change', async (e) => {
       ProfileManager.setActive(e.target.value);
       UI.toast(I18n.t('toast.profileChanged'));
-      await this.renderAll();
+      await this.renderActivePage();
+      UI.renderProfileSelect();
+      UI.renderDashboardLocationSelect();
     });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -3076,7 +3104,8 @@ const App = {
         ProfileManager.setActive(btn.dataset.setProfile);
         UI.renderProfileSelect();
         UI.toast(I18n.t('toast.profileChanged'));
-        await this.renderAll();
+        await this.renderActivePage();
+        UI.renderDashboardLocationSelect();
       });
     });
 
@@ -3110,7 +3139,9 @@ const App = {
         if (!profile.label) return;
         ProfileManager.update(id, profile);
         this.editingDroneId = null;
-        await this.renderAll();
+        await this.renderDrones();
+        UI.renderProfileSelect();
+        UI.renderDashboardLocationSelect();
       });
     });
 
@@ -3118,7 +3149,9 @@ const App = {
       btn.addEventListener('click', async () => {
         if (ProfileManager.getAll().length <= 1) return;
         ProfileManager.remove(btn.dataset.deleteDrone);
-        await this.renderAll();
+        await this.renderDrones();
+        UI.renderProfileSelect();
+        UI.renderDashboardLocationSelect();
       });
     });
   },
@@ -3246,6 +3279,8 @@ const App = {
   },
 
   async renderAll() {
+    WeatherService.cleanup();
+    SunService.cleanup();
     UI.applyI18n();
     UI.renderProfileSelect();
     UI.renderDashboardLocationSelect();

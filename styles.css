@@ -1691,6 +1691,10 @@ a { color: inherit; text-decoration: none; }
   100% { background-position: -200% 0; }
 }
 
+.drone-card, .check-item, .log-entry, .panel, .toast, .inline-edit-card {
+  will-change: transform, opacity;
+}
+
 /* ── Color Picker Styling ── */
 .color-selection {
   display: flex;
