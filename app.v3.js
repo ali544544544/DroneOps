@@ -1819,6 +1819,27 @@ const App = {
       this.toggleMapPicker();
     });
 
+    document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
+      const location = await this.resolveDashboardLocation();
+      if (!location) return;
+      
+      const wCache = Storage.get(Keys.weatherCache, {});
+      const sCache = Storage.get(Keys.sunCache, {});
+      const bCache = Storage.get(Keys.brightSkyCache, {});
+      
+      delete wCache[location.id];
+      delete sCache[`${location.id}_${Util.dayKey()}`];
+      delete sCache[`${location.id}_${Util.dayKey(new Date(Date.now() + 86400000))}`];
+      delete bCache[location.id];
+      
+      Storage.set(Keys.weatherCache, wCache);
+      Storage.set(Keys.sunCache, sCache);
+      Storage.set(Keys.brightSkyCache, bCache);
+      
+      UI.toast(I18n.t('dashboard.refresh'));
+      await this.renderDashboard();
+    });
+
     const pickerSearchInput = document.getElementById('pickerSearchInput');
     const pickerSuggestions = document.getElementById('pickerSearchSuggestions');
 
@@ -2176,7 +2197,6 @@ const App = {
             <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(drone.label)}</strong></p>
             <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
           </div>
-          <button id="dashboardRefreshBtn" class="btn btn-secondary">${I18n.t('dashboard.refresh')}</button>
         </div>
         
         <div id="dashboardMap" class="dashboard-map"></div>
@@ -2256,19 +2276,9 @@ const App = {
         UI.els.dashboardHomeBtn.classList.remove('btn-active');
       }
 
-      document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
-        const wCache = Storage.get(Keys.weatherCache, {});
-        const sCache = Storage.get(Keys.sunCache, {});
-        const bCache = Storage.get(Keys.brightSkyCache, {});
-        delete wCache[location.id];
-        delete sCache[`${location.id}_${Util.dayKey()}`];
-        delete sCache[`${location.id}_${Util.dayKey(new Date(Date.now() + 86400000))}`];
-        delete bCache[location.id];
-        Storage.set(Keys.weatherCache, wCache);
-        Storage.set(Keys.sunCache, sCache);
-        Storage.set(Keys.brightSkyCache, bCache);
-        await this.renderDashboard();
-      });
+      } else {
+        UI.els.dashboardHomeBtn.classList.remove('btn-active');
+      }
 
       UI.els.dashboardGoldenPanel.innerHTML = `
         <h3>${I18n.t('dashboard.golden')}</h3>
