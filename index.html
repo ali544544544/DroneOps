@@ -139,6 +139,13 @@
         <section id="locationsMapPickerView" class="hidden">
           <section class="panel glass">
             <p class="muted mb-12" data-i18n="locations.pickerHelp">Tippe auf die Karte, um einen neuen Spot zu markieren.</p>
+            <div class="search-row mb-12">
+              <label class="field grow">
+                <input id="pickerSearchInput" type="text" autocomplete="off" placeholder="Ort suchen..." />
+              </label>
+              <button id="pickerSearchBtn" class="btn btn-secondary">🔍</button>
+            </div>
+            <div id="pickerSearchSuggestions" class="suggestions hidden"></div>
             <div id="locationsPickerMap" style="height: 500px; width: 100%; border-radius: var(--radius); border: 1px solid var(--border); background: #222;"></div>
           </section>
         </section>

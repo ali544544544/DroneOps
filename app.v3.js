@@ -1814,6 +1814,60 @@ const App = {
       this.toggleMapPicker();
     });
 
+    const pickerSearchInput = document.getElementById('pickerSearchInput');
+    const pickerSuggestions = document.getElementById('pickerSearchSuggestions');
+
+    pickerSearchInput.addEventListener('input', Util.debounce(async (e) => {
+      const q = e.target.value.trim();
+      if (q.length < 3) {
+        pickerSuggestions.classList.add('hidden');
+        return;
+      }
+      try {
+        const results = await Nominatim.search(q);
+        if (results.length > 0) {
+          pickerSuggestions.innerHTML = results.map(r => `
+            <div class="suggestion-item" data-lat="${r.lat}" data-lon="${r.lon}">${Util.escapeHtml(r.display_name)}</div>
+          `).join('');
+          pickerSuggestions.classList.remove('hidden');
+        } else {
+          pickerSuggestions.classList.add('hidden');
+        }
+      } catch (err) { console.error('Picker search error', err); }
+    }, 400));
+
+    pickerSuggestions.addEventListener('click', (e) => {
+      const item = e.target.closest('.suggestion-item');
+      if (item && this.pickerMap) {
+        const lat = parseFloat(item.dataset.lat);
+        const lon = parseFloat(item.dataset.lon);
+        this.pickerMap.setView([lat, lon], 14);
+        if (this.pickerMarker) this.pickerMap.removeLayer(this.pickerMarker);
+        this.pickerMarker = L.marker([lat, lon]).addTo(this.pickerMap);
+        pickerSuggestions.classList.add('hidden');
+        pickerSearchInput.value = item.textContent;
+      }
+    });
+
+    document.getElementById('pickerSearchBtn').addEventListener('click', async () => {
+      const q = pickerSearchInput.value.trim();
+      if (!q) return;
+      try {
+        const results = await Nominatim.search(q);
+        if (results.length > 0) {
+          const { lat, lon } = results[0];
+          this.pickerMap.setView([lat, lon], 14);
+          if (this.pickerMarker) this.pickerMap.removeLayer(this.pickerMarker);
+          this.pickerMarker = L.marker([lat, lon]).addTo(this.pickerMap);
+          pickerSuggestions.classList.add('hidden');
+        }
+      } catch (err) { console.error('Picker search error', err); }
+    });
+
+    pickerSearchInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') document.getElementById('pickerSearchBtn').click();
+    });
+
     document.getElementById('detailBackBtn').addEventListener('click', async () => {
       document.getElementById('locationsDetailView').classList.add('hidden');
       document.getElementById('locationsListView').classList.remove('hidden');
