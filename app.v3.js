@@ -210,6 +210,14 @@ const FALLBACK_TRANSLATIONS = {
     'tab.locations': 'Locations',
     'tab.drones': 'Drohnen',
     'tab.checklist': 'Checkliste',
+    "list.title": "Gespeicherte Orte",
+    "list.subtitle": "Wetter, Flugscore und Golden Hour auf einen Blick",
+    "list.import": "Spots importieren",
+    "import.title": "Bulk Import",
+    "import.help": "Lade eine .kml Datei hoch oder füge Text (Name, Lat, Lon) ein.",
+    "import.placeholder": "Name, Breitengrad, Längengrad...",
+    "import.success": "{count} Spots erfolgreich importiert!",
+    "import.error": "Fehler beim Importieren der Daten.",
     'dashboard.title': 'Dashboard',
     'dashboard.subtitle': 'Golden Hour und Flugbedingungen auf einen Blick',
     'dashboard.useGps': 'GPS-Position',
@@ -356,6 +364,14 @@ const FALLBACK_TRANSLATIONS = {
     "tab.locations": "Locations",
     "tab.drones": "Drones",
     "tab.checklist": "Checklist",
+    "list.title": "Saved Locations",
+    "list.subtitle": "Weather, flight score and golden hour at a glance",
+    "list.import": "Import Spots",
+    "import.title": "Bulk Import",
+    "import.help": "Upload a .kml file or paste text (Name, Lat, Lon).",
+    "import.placeholder": "Name, Latitude, Longitude...",
+    "import.success": "{count} spots imported successfully!",
+    "import.error": "Error importing data.",
     "dashboard.title": "Dashboard",
     "dashboard.subtitle": "Golden hour and flight conditions at a glance",
     "dashboard.useGps": "Use GPS Position",
@@ -1256,6 +1272,34 @@ const UI = {
     };
     legend.addTo(map);
   },
+  renderImportModal() {
+    const container = document.getElementById('importModalContainer') || document.body.appendChild(document.createElement('div'));
+    container.id = 'importModalContainer';
+    container.innerHTML = `
+      <div class="modal-overlay" onclick="this.parentElement.innerHTML=''">
+        <div class="modal-content glass panel" onclick="event.stopPropagation()" style="max-width:500px; width:90%; animation: slideIn 0.3s ease;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0">${I18n.t('import.title')}</h3>
+            <button class="btn-icon" onclick="this.closest('#importModalContainer').innerHTML=''">&times;</button>
+          </div>
+          <p class="muted" style="font-size:0.9rem; margin-bottom:16px">${I18n.t('import.help')}</p>
+          <div class="field">
+            <span>Datei wählen (.kml)</span>
+            <input type="file" id="importFile" accept=".kml" style="width:100%" />
+          </div>
+          <div class="field mt-16">
+            <span>Oder Text einfügen (Name, Lat, Lon)</span>
+            <textarea id="importText" placeholder="${I18n.t('import.placeholder')}" style="width:100%; min-height:120px; font-family:monospace; font-size:0.8rem"></textarea>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
+            <button class="btn btn-secondary" onclick="this.closest('#importModalContainer').innerHTML=''">${I18n.t('common.cancel')}</button>
+            <button class="btn" id="doImportBtn" style="min-width:120px">🚀 ${I18n.t('list.import')}</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById('doImportBtn').addEventListener('click', () => App.handleBulkImport());
+  },
   applyI18n() {
     document.documentElement.lang = I18n.lang;
     document.querySelectorAll('[data-i18n]').forEach(node => {
@@ -1587,6 +1631,58 @@ const App = {
   editingChecklistId: null,
   pickerMap: null,
   pickerMarker: null,
+
+  handleBulkImport() {
+    const file = document.getElementById('importFile').files[0];
+    const text = document.getElementById('importText').value;
+    let newSpots = [];
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(e.target.result, 'text/xml');
+        xml.querySelectorAll('Placemark').forEach(p => {
+          const name = p.querySelector('name')?.textContent || 'Imported Spot';
+          const coords = p.querySelector('coordinates')?.textContent.split(',');
+          if (coords && coords.length >= 2) newSpots.push({ name, lat: parseFloat(coords[1]), lon: parseFloat(coords[0]) });
+        });
+        this.finishImport(newSpots);
+      };
+      reader.readAsText(file);
+    } else if (text) {
+      const lines = text.split('\n');
+      lines.forEach(line => {
+        if (!line.trim()) return;
+        // Try CSV: Name, Lat, Lon or Name, Lon, Lat
+        const match = line.match(/(.+?)[,;\t]\s*(-?\d+\.\d+)[,;\t]\s*(-?\d+\.\d+)/);
+        if (match) {
+          const name = match[1].trim();
+          const p1 = parseFloat(match[2]);
+          const p2 = parseFloat(match[3]);
+          // Simple heuristic: latitude is usually smaller than longitude in DE, or within -90 to 90
+          if (Math.abs(p1) <= 90 && Math.abs(p2) <= 180) {
+            newSpots.push({ name, lat: p1, lon: p2 });
+          } else if (Math.abs(p2) <= 90 && Math.abs(p1) <= 180) {
+            newSpots.push({ name, lat: p2, lon: p1 });
+          }
+        } else {
+          // Try JSON
+          try {
+            const obj = JSON.parse(line);
+            if (obj.name && obj.lat && obj.lon) newSpots.push(obj);
+          } catch(e) {}
+        }
+      });
+      this.finishImport(newSpots);
+    }
+  },
+  finishImport(spots) {
+    spots.forEach(s => LocationManager.add(s));
+    UI.toast(I18n.t('import.success', { count: spots.length }));
+    document.getElementById('importModalContainer').innerHTML = '';
+    this.renderLocationsList();
+  },
 
   async toggleMapPicker() {
     const listView = document.getElementById('locationsListView');
@@ -2684,68 +2780,46 @@ const App = {
 
   async renderLocationsList() {
     const locations = LocationManager.getAll();
-    if (!locations.length) {
-      UI.els.locationList.innerHTML = document.getElementById('emptyStateTemplate').innerHTML;
-      UI.applyI18n();
-      return;
-    }
-
-    UI.els.locationList.innerHTML = locations.map(location => `
-      <article class="location-card">
+    const activeId = Storage.get(Keys.activeLocation);
+    
+    UI.els.locationList.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <div>
-          <h3>${Util.escapeHtml(location.name)}</h3>
-          <div class="location-meta">
-            <span class="inline-pill">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</span>
-            <span class="inline-pill">🗓️ ${Util.formatDate(location.createdAt, I18n.locale)}</span>
+          <h2>${I18n.t('list.title')}</h2>
+          <p class="muted">${I18n.t('list.subtitle')}</p>
+        </div>
+        <button class="btn btn-secondary btn-small" id="openImportBtn">📥 ${I18n.t('list.import')}</button>
+      </div>
+      <div class="locations-grid">
+        ${locations.length ? locations.map(loc => `
+          <div class="location-mini-card ${loc.id === activeId ? 'active' : ''}" data-id="${loc.id}">
+            <div style="display:flex; justify-content:space-between; align-items:start">
+              <strong>${Util.escapeHtml(loc.name)}</strong>
+              <div class="inline-actions">
+                <button class="btn btn-icon btn-small" data-delete-id="${loc.id}">✕</button>
+              </div>
+            </div>
+            <div class="muted" style="font-size:0.8rem; margin-top:4px">${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}</div>
           </div>
-          <p class="muted">${I18n.t('list.lastVisit')}: ${UI.lastVisit(location)}</p>
-        </div>
-        <div id="location-weather-${location.id}">
-          <span class="metric-chip">…</span>
-        </div>
-        <div id="location-golden-${location.id}">
-          <span class="metric-chip">…</span>
-        </div>
-        <div class="inline-actions">
-          <button class="btn" data-action="detail" data-id="${location.id}">${I18n.t('list.details')}</button>
-          <button class="btn btn-secondary" data-action="delete" data-id="${location.id}">✕</button>
-        </div>
-      </article>
-    `).join('');
+        `).join('') : `<p class="muted">${I18n.t('empty.text')}</p>`}
+      </div>
+    `;
 
-    await Promise.all(locations.map(async (location) => {
-      try {
-        const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
-        const score = this.scoreForCurrent(weather);
-        const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
-        const gh = GoldenHour.calculate({
-          sunrise: sun.data.results.sunrise,
-          sunset: sun.data.results.sunset,
-          civilDawn: sun.data.results.civil_twilight_begin,
-          civilDusk: sun.data.results.civil_twilight_end
-        });
-
-        document.getElementById(`location-weather-${location.id}`).innerHTML = `
-          <strong>${I18n.t('list.liveWeather')}</strong>
-          <div class="metric-grid">
-            <span class="metric-chip">${meta.icon} ${weather.data.current_weather.temperature}°C</span>
-            <span class="metric-chip">💨 ${weather.data.current_weather.windspeed} m/s</span>
-            <span class="badge ${score.status}">${I18n.t(`status.${score.status}`)} · ${score.score}</span>
-          </div>
-        `;
-        document.getElementById(`location-golden-${location.id}`).innerHTML = `
-          <strong>${I18n.t('list.goldenHour')}</strong>
-          <div class="metric-grid">
-            <span class="metric-chip">🌅 ${Util.formatTime(gh.morningStart, I18n.locale)}–${Util.formatTime(gh.morningEnd, I18n.locale)}</span>
-            <span class="metric-chip">🌇 ${Util.formatTime(gh.eveningStart, I18n.locale)}–${Util.formatTime(gh.eveningEnd, I18n.locale)}</span>
-          </div>
-        `;
-      } catch (err) {
-        console.error(`List Card Error for ${location.name}:`, err);
-        document.getElementById(`location-weather-${location.id}`).innerHTML = `<p>${I18n.t('error.dataUnavailable')}</p>`;
-        document.getElementById(`location-golden-${location.id}`).innerHTML = `<p>${I18n.t('error.dataUnavailable')}</p>`;
-      }
-    }));
+    document.getElementById('openImportBtn').addEventListener('click', () => UI.renderImportModal());
+    UI.els.locationList.querySelectorAll('[data-id]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (!e.target.closest('[data-delete-id]')) this.openLocationDetail(el.dataset.id);
+      });
+    });
+    UI.els.locationList.querySelectorAll('[data-delete-id]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(I18n.t('confirm.deleteLocation'))) {
+          LocationManager.remove(btn.dataset.deleteId);
+          this.renderLocationsList();
+        }
+      });
+    });
   },
 
   async openLocationDetail(locationId) {
