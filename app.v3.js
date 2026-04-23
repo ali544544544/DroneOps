@@ -2886,12 +2886,67 @@ const App = {
   async renderDrones() {
     const active = ProfileManager.getActive();
     UI.els.dronesList.innerHTML = ProfileManager.getAll().map(profile => {
+      if (profile.id === this.editingDroneId) {
+        return `
+          <div class="drone-card panel glass" style="margin: 12px 0; padding: 16px; border: 1px solid var(--accent); animation: slideIn 0.3s ease;">
+            <h4 style="margin-bottom:12px; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px; color:var(--accent)">${I18n.t('common.change')}</h4>
+            <div class="form-grid">
+              <label class="field">
+                <span data-i18n="drones.name">Name</span>
+                <input id="inline-drone-name-${profile.id}" type="text" value="${Util.escapeHtml(profile.label)}" required />
+              </label>
+              <label class="field">
+                <span data-i18n="drones.style">Stil</span>
+                <select id="inline-drone-style-${profile.id}">
+                  <option value="freestyle" ${profile.style === 'freestyle' ? 'selected' : ''}>Freestyle</option>
+                  <option value="cinematic" ${profile.style === 'cinematic' ? 'selected' : ''}>Cinematic</option>
+                  <option value="race" ${profile.style === 'race' ? 'selected' : ''}>Race</option>
+                  <option value="longrange" ${profile.style === 'longrange' ? 'selected' : ''}>Longrange</option>
+                </select>
+              </label>
+              <label class="field">
+                <span data-i18n="drones.weight">Gewicht (g)</span>
+                <input id="inline-drone-weight-${profile.id}" type="number" value="${profile.weight}" required />
+              </label>
+              <label class="field">
+                <span data-i18n="drones.size">Größe (Zoll)</span>
+                <input id="inline-drone-size-${profile.id}" type="number" step="0.1" value="${profile.size}" required />
+              </label>
+              <label class="field">
+                <span data-i18n="drones.maxWind">Max Wind</span>
+                <input id="inline-drone-maxwind-${profile.id}" type="number" value="${profile.maxWind}" required />
+              </label>
+              <label class="field">
+                <span data-i18n="drones.maxGusts">Max Böen</span>
+                <input id="inline-drone-maxgusts-${profile.id}" type="number" value="${profile.maxGusts}" required />
+              </label>
+              <label class="field">
+                <span>Farbe</span>
+                <input id="inline-drone-color-${profile.id}" type="color" value="${profile.color || '#f5bc2b'}" />
+              </label>
+              <label class="field">
+                <span>Regen</span>
+                <select id="inline-drone-rain-${profile.id}">
+                  <option value="none" ${profile.rainTolerance === 'none' ? 'selected' : ''}>Keine</option>
+                  <option value="low" ${profile.rainTolerance === 'low' ? 'selected' : ''}>Gering</option>
+                  <option value="medium" ${profile.rainTolerance === 'medium' ? 'selected' : ''}>Mittel</option>
+                  <option value="waterproof" ${profile.rainTolerance === 'waterproof' ? 'selected' : ''}>Wasserfest</option>
+                </select>
+              </label>
+            </div>
+            <div class="inline-actions mt-16" style="justify-content: flex-end; gap:12px;">
+              <button class="btn btn-secondary" data-drone-cancel="${profile.id}">${I18n.t('common.cancel')}</button>
+              <button class="btn" data-drone-save="${profile.id}" style="min-width:100px">💾 ${I18n.t('common.save')}</button>
+            </div>
+          </div>
+        `;
+      }
       const droneColor = profile.color || '#f5bc2b';
       return `
         <article class="drone-card ${profile.id === active.id ? 'active' : ''}" style="--drone-accent: ${droneColor}">
           <div class="score-hero">
             <div class="drone-header-main">
-              <h3>🚁 ${Util.escapeHtml(profile.label)}</h3>
+              <h3>🚀 ${Util.escapeHtml(profile.label)}</h3>
               ${profile.id === active.id ? `<div class="badge fly">${I18n.t('drones.active')}</div>` : ''}
             </div>
             <div class="inline-actions">
@@ -2922,20 +2977,36 @@ const App = {
     });
 
     UI.els.dronesList.querySelectorAll('[data-edit-drone]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const p = ProfileManager.getById(btn.dataset.editDrone);
-        if (!p) return;
-        this.editingDroneId = p.id;
-        UI.els.droneName.value = p.label;
-        UI.els.droneStyle.value = p.style || 'freestyle';
-        UI.els.droneWeight.value = p.weight || 249;
-        UI.els.droneSize.value = p.size || 5;
-        UI.els.droneMaxWind.value = p.maxWind;
-        UI.els.droneMaxGusts.value = p.maxGusts;
-        UI.els.droneColor.value = p.color || '#f5bc2b';
-        UI.els.droneRain.value = p.rainTolerance || 'none';
-        UI.els.droneForm.classList.remove('hidden');
-        UI.els.droneForm.scrollIntoView({ behavior: 'smooth' });
+      btn.addEventListener('click', async () => {
+        this.editingDroneId = btn.dataset.editDrone;
+        await this.renderDrones();
+      });
+    });
+
+    UI.els.dronesList.querySelectorAll('[data-drone-cancel]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        this.editingDroneId = null;
+        await this.renderDrones();
+      });
+    });
+
+    UI.els.dronesList.querySelectorAll('[data-drone-save]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.droneSave;
+        const profile = {
+          label: document.getElementById(`inline-drone-name-${id}`).value.trim(),
+          style: document.getElementById(`inline-drone-style-${id}`).value,
+          weight: Number(document.getElementById(`inline-drone-weight-${id}`).value),
+          size: Number(document.getElementById(`inline-drone-size-${id}`).value),
+          maxWind: Number(document.getElementById(`inline-drone-maxwind-${id}`).value),
+          maxGusts: Number(document.getElementById(`inline-drone-maxgusts-${id}`).value),
+          color: document.getElementById(`inline-drone-color-${id}`).value,
+          rainTolerance: document.getElementById(`inline-drone-rain-${id}`).value
+        };
+        if (!profile.label) return;
+        ProfileManager.update(id, profile);
+        this.editingDroneId = null;
+        await this.renderAll();
       });
     });
 
