@@ -2529,7 +2529,7 @@ const App = {
       `;
 
       UI.els.detailHourlyPanel.innerHTML = `<h3>${I18n.t('detail.hourly')}</h3><div id="detailHourlyInner" class=\"hourly-inner\"></div>`;
-      UI.renderHourly(document.getElementById('detailHourlyInner'), weather.data, gh, location);
+      UI.renderHourly(document.getElementById('detailHourlyInner'), weather, gh, location);
 
       this.renderNotesPanel(location);
     } catch (error) {
