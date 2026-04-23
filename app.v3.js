@@ -872,39 +872,105 @@ const ScoreEngine = {
   calculate({ wind = 0, gusts = 0, rain = 0, clouds = 0, visibility = 10000, temp = 20, profile }) {
     let score = 100;
     const factors = [];
-
-    if (wind <= profile.maxWind) factors.push({ key: 'wind', label: I18n.t('factor.windOk'), severity: 'ok' });
-    else if (wind <= profile.critWind) { score -= 25; factors.push({ key: 'wind', label: I18n.t('factor.windWarn'), severity: 'warn' }); }
-    else { score -= 45; factors.push({ key: 'wind', label: I18n.t('factor.windCritical'), severity: 'critical' }); }
-
-    if (gusts <= profile.maxGusts) factors.push({ key: 'gusts', label: I18n.t('factor.gustsOk'), severity: 'ok' });
-    else if (gusts <= profile.critGusts) { score -= 15; factors.push({ key: 'gusts', label: I18n.t('factor.gustsWarn'), severity: 'warn' }); }
-    else { score -= 25; factors.push({ key: 'gusts', label: I18n.t('factor.gustsCritical'), severity: 'critical' }); }
-
-    if (profile.rainTolerance === 'none') {
-      if (rain > 0) { score -= 30; factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); }
-    } else if (profile.rainTolerance === 'low') {
-      if (rain > 2) { score -= 30; factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); }
-      else if (rain > 0.5) { score -= 20; factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' }); }
-    } else if (profile.rainTolerance === 'medium') {
-      if (rain > 5) { score -= 25; factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); }
-      else if (rain > 2) { score -= 15; factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' }); }
-    } else if (profile.rainTolerance === 'waterproof') {
-      factors.push({ key: 'rain', label: I18n.t('factor.rainOk'), severity: 'ok' });
+    
+    // === WIND SCORING (Gewichtung: Hoch) ===
+    const windRatio = wind / profile.maxWind;
+    if (windRatio <= 0.7) {
+      factors.push({ key: 'wind', label: I18n.t('factor.windOk'), severity: 'ok' });
+    } else if (windRatio <= 1.0) {
+      const penalty = Math.round(15 * (windRatio - 0.7) / 0.3);
+      score -= penalty;
+      factors.push({ key: 'wind', label: I18n.t('factor.windWarn'), severity: 'warn' });
+    } else if (windRatio <= 1.4) {
+      const penalty = 15 + Math.round(30 * (windRatio - 1.0) / 0.4);
+      score -= penalty;
+      factors.push({ key: 'wind', label: I18n.t('factor.windCritical'), severity: 'critical' });
+    } else {
+      score -= 50; // Absolut unsafe
+      factors.push({ key: 'wind', label: I18n.t('factor.windCritical'), severity: 'critical' });
     }
 
-    if (visibility >= 5000) factors.push({ key: 'visibility', label: I18n.t('factor.visibilityOk'), severity: 'ok' });
-    else if (visibility >= 1500) { score -= 10; factors.push({ key: 'visibility', label: I18n.t('factor.visibilityWarn'), severity: 'warn' }); }
-    else { score -= 20; factors.push({ key: 'visibility', label: I18n.t('factor.visibilityCritical'), severity: 'critical' }); }
+    // === BÖEN SCORING (Gewichtung: Mittel-Hoch) ===
+    const gustRatio = gusts / profile.maxGusts;
+    if (gustRatio <= 0.8) {
+      factors.push({ key: 'gusts', label: I18n.t('factor.gustsOk'), severity: 'ok' });
+    } else if (gustRatio <= 1.0) {
+      const penalty = Math.round(10 * (gustRatio - 0.8) / 0.2);
+      score -= penalty;
+      factors.push({ key: 'gusts', label: I18n.t('factor.gustsWarn'), severity: 'warn' });
+    } else if (gustRatio <= 1.3) {
+      const penalty = 10 + Math.round(25 * (gustRatio - 1.0) / 0.3);
+      score -= penalty;
+      factors.push({ key: 'gusts', label: I18n.t('factor.gustsCritical'), severity: 'critical' });
+    } else {
+      score -= 40;
+      factors.push({ key: 'gusts', label: I18n.t('factor.gustsCritical'), severity: 'critical' });
+    }
 
-    if (temp < -5 || temp > 38) {
+    // === REGEN SCORING (Gewichtung: Hoch bei "none", Mittel bei anderen) ===
+    if (profile.rainTolerance === 'none') {
+      if (rain > 0.2) { 
+        score -= 35; 
+        factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); 
+      } else if (rain > 0) {
+        score -= 15;
+        factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' });
+      }
+    } else if (profile.rainTolerance === 'low') {
+      if (rain > 2.5) { 
+        score -= 30; 
+        factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); 
+      } else if (rain > 1) { 
+        score -= 15; 
+        factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' }); 
+      }
+    } else if (profile.rainTolerance === 'medium') {
+      if (rain > 5) { 
+        score -= 20; 
+        factors.push({ key: 'rain', label: I18n.t('factor.rainCritical'), severity: 'critical' }); 
+      } else if (rain > 2.5) { 
+        score -= 10; 
+        factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' }); 
+      }
+    } else if (profile.rainTolerance === 'waterproof') {
+      if (rain > 10) {
+        score -= 10;
+        factors.push({ key: 'rain', label: I18n.t('factor.rainWarn'), severity: 'warn' });
+      } else {
+        factors.push({ key: 'rain', label: I18n.t('factor.rainOk'), severity: 'ok' });
+      }
+    }
+
+    // === SICHT (Gewichtung: Mittel) ===
+    if (visibility >= 8000) {
+      factors.push({ key: 'visibility', label: I18n.t('factor.visibilityOk'), severity: 'ok' });
+    } else if (visibility >= 3000) {
+      score -= Math.round(8 * (8000 - visibility) / 5000);
+      factors.push({ key: 'visibility', label: I18n.t('factor.visibilityWarn'), severity: 'warn' });
+    } else if (visibility >= 1000) {
+      score -= 8 + Math.round(12 * (3000 - visibility) / 2000);
+      factors.push({ key: 'visibility', label: I18n.t('factor.visibilityCritical'), severity: 'critical' });
+    } else {
+      score -= 25;
+      factors.push({ key: 'visibility', label: I18n.t('factor.visibilityCritical'), severity: 'critical' });
+    }
+
+    // === TEMPERATUR (Gewichtung: Niedrig, nur Warnung) ===
+    if (temp < -10) {
+      score -= 15;
+      factors.push({ key: 'temp', label: I18n.t('factor.tempCritical'), severity: 'critical' });
+    } else if (temp < -5 || temp > 40) {
       score -= 10;
+      factors.push({ key: 'temp', label: I18n.t('factor.tempWarn'), severity: 'warn' });
+    } else if (temp > 35) {
+      score -= 5;
       factors.push({ key: 'temp', label: I18n.t('factor.tempWarn'), severity: 'warn' });
     }
 
+    // === BEWÖLKUNG (Nur Info, kein Score-Abzug) ===
     if (clouds < 20) factors.push({ key: 'clouds', label: I18n.t('factor.cloudsClear'), severity: 'ok' });
     else if (clouds < 60) factors.push({ key: 'clouds', label: I18n.t('factor.cloudsPartly'), severity: 'ok' });
-    else if (clouds < 90) factors.push({ key: 'clouds', label: I18n.t('factor.cloudsHeavy'), severity: 'warn' });
+    else if (clouds < 85) factors.push({ key: 'clouds', label: I18n.t('factor.cloudsHeavy'), severity: 'warn' });
     else factors.push({ key: 'clouds', label: I18n.t('factor.cloudsOvercast'), severity: 'warn' });
 
     score = Util.clamp(score, 0, 100);
