@@ -626,6 +626,15 @@ const Util = {
       reader.onload = () => resolve(reader.result);
       reader.onerror = error => reject(error);
     });
+  },
+  base64ToBlob(base64) {
+    const parts = base64.split(';base64,');
+    const contentType = parts[0].split(':')[1];
+    const raw = window.atob(parts[1]);
+    const rawLength = raw.length;
+    const uInt8Array = new Uint8Array(rawLength);
+    for (let i = 0; i < rawLength; ++i) uInt8Array[i] = raw.charCodeAt(i);
+    return new Blob([uInt8Array], { type: contentType });
   }
 };
 
@@ -1987,8 +1996,25 @@ const App = {
         const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType }] : []);
         const doc = docs[idx];
         if (doc && doc.data) {
-          const win = window.open();
-          win.document.write(`<iframe src="${doc.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+          try {
+            const blob = Util.base64ToBlob(doc.data);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }, 100);
+          } catch (err) {
+            console.error('Mobile view error', err);
+            // Fallback for extreme cases
+            const win = window.open();
+            win.document.write(`<iframe src="${doc.data}" frameborder="0" style="width:100%; height:100%;"></iframe>`);
+          }
         }
       }
 
