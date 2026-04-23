@@ -2145,20 +2145,18 @@ const App = {
       const ghToday = GoldenHour.calculate(sunToday.data.results);
       const ghTomorrow = GoldenHour.calculate(sunTomorrow.data.results);
 
-      const allWindows = [
-        { type: 'morning', start: ghToday.morningStart, end: ghToday.morningEnd, dateLabel: 'Heute' },
-        { type: 'evening', start: ghToday.eveningStart, end: ghToday.eveningEnd, dateLabel: 'Heute' },
-        { type: 'morning', start: ghTomorrow.morningStart, end: ghTomorrow.morningEnd, dateLabel: 'Morgen' },
-        { type: 'evening', start: ghTomorrow.eveningStart, end: ghTomorrow.eveningEnd, dateLabel: 'Morgen' }
-      ];
+      const upcoming = [];
+      // Today
+      if (ghToday.morningEnd > now) upcoming.push({ type: 'morning', start: ghToday.morningStart, end: ghToday.morningEnd, dateLabel: 'Heute' });
+      if (ghToday.eveningEnd > now) upcoming.push({ type: 'evening', start: ghToday.eveningStart, end: ghToday.eveningEnd, dateLabel: 'Heute' });
+      // Tomorrow
+      if (ghTomorrow.morningEnd > now) upcoming.push({ type: 'morning', start: ghTomorrow.morningStart, end: ghTomorrow.morningEnd, dateLabel: 'Morgen' });
+      if (ghTomorrow.eveningEnd > now) upcoming.push({ type: 'evening', start: ghTomorrow.eveningStart, end: ghTomorrow.eveningEnd, dateLabel: 'Morgen' });
 
-      // Filter and sort
-      const nextTwo = allWindows
-        .filter(w => w.end > now)
-        .sort((a, b) => a.start - b.start)
-        .slice(0, 2);
+      const nextTwo = upcoming.sort((a, b) => a.start - b.start).slice(0, 2);
       
-      // Use today's sun data if we are still before evening end, otherwise tomorrow
+      console.log('GoldenHour Debug:', { now: now.toISOString(), upcomingCount: upcoming.length, nextTwo });
+
       const useTomorrow = now > ghToday.eveningEnd;
       const gh = useTomorrow ? ghTomorrow : ghToday;
       const sun = useTomorrow ? sunTomorrow : sunToday;
@@ -2258,9 +2256,16 @@ const App = {
       }
 
       document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
-        const cache = Storage.get(Keys.weatherCache, {});
-        delete cache[location.id];
-        Storage.set(Keys.weatherCache, cache);
+        const wCache = Storage.get(Keys.weatherCache, {});
+        const sCache = Storage.get(Keys.sunCache, {});
+        const bCache = Storage.get(Keys.brightSkyCache, {});
+        delete wCache[location.id];
+        delete sCache[`${location.id}_${Util.dayKey()}`];
+        delete sCache[`${location.id}_${Util.dayKey(new Date(Date.now() + 86400000))}`];
+        delete bCache[location.id];
+        Storage.set(Keys.weatherCache, wCache);
+        Storage.set(Keys.sunCache, sCache);
+        Storage.set(Keys.brightSkyCache, bCache);
         await this.renderDashboard();
       });
 
