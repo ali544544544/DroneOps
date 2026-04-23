@@ -15,6 +15,10 @@ const CloudManager = {
   async init() {
     try {
       if (typeof window.supabase === 'undefined') return;
+      if (!SUPABASE_URL || !SUPABASE_KEY) {
+        console.warn('CloudManager: SUPABASE_URL or SUPABASE_KEY is missing. Cloud features will be disabled.');
+        return;
+      }
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       const { data } = await supabaseClient.auth.getUser();
       this.user = data?.user;
@@ -23,14 +27,20 @@ const CloudManager = {
     } catch (e) { console.warn('CloudManager disabled:', e); }
   },
   async signup(email, password) {
-    if (!supabaseClient) return;
+    if (!supabaseClient) {
+      alert('Cloud-Dienste sind nicht konfiguriert (config.js fehlt oder ist ungültig).');
+      return;
+    }
     const { data, error } = await supabaseClient.auth.signUp({ email, password });
     if (error) throw error;
     UI.toast(I18n.t('toast.verifyEmail'));
     return data;
   },
   async login(email, password) {
-    if (!supabaseClient) return;
+    if (!supabaseClient) {
+      alert('Cloud-Dienste sind nicht konfiguriert (config.js fehlt oder ist ungültig).');
+      return;
+    }
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     this.user = data.user;
