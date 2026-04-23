@@ -6,8 +6,8 @@ const DATA_FILES = {
 };
 
 // --- Cloud Config (Keys moved to config.js) ---
-const SUPABASE_URL = CONFIG.SUPABASE_URL;
-const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
+const SUPABASE_URL = typeof CONFIG !== 'undefined' ? CONFIG.SUPABASE_URL : '';
+const SUPABASE_KEY = typeof CONFIG !== 'undefined' ? CONFIG.SUPABASE_KEY : '';
 let supabaseClient = null;
 
 const CloudManager = {
