@@ -2898,17 +2898,27 @@ const App = {
               ? location.logbook.map(entry => {
                 if (entry.id === this.editingLogId) {
                   return `
-                    <div class="inline-edit-card panel glass" style="margin: 8px 0; padding: 12px; border: 1px solid var(--accent);">
-                      <div class="form-row">
-                        <input type="date" id="inline-log-date-${entry.id}" value="${entry.date}" style="flex:1" />
-                        <select id="inline-log-drone-${entry.id}" style="flex:1">
-                          ${ProfileManager.getAll().map(p => `<option value="${p.id}" ${p.id === entry.drone ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>`).join('')}
-                        </select>
+                    <div class="inline-edit-card panel glass" style="margin: 12px 0; padding: 16px; border: 1px solid var(--accent); animation: slideIn 0.3s ease;">
+                      <h4 style="margin-bottom:12px; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--accent)">${I18n.t('common.change')}</h4>
+                      <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <label class="field">
+                          <span>Datum</span>
+                          <input type="date" id="inline-log-date-${entry.id}" value="${entry.date}" />
+                        </label>
+                        <label class="field">
+                          <span>Drohne</span>
+                          <select id="inline-log-drone-${entry.id}">
+                            ${ProfileManager.getAll().map(p => `<option value="${p.id}" ${p.id === entry.drone ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>`).join('')}
+                          </select>
+                        </label>
                       </div>
-                      <input type="text" id="inline-log-note-${entry.id}" class="mt-8" value="${Util.escapeHtml(entry.note || '')}" style="width:100%" />
-                      <div class="inline-actions mt-8" style="justify-content: flex-end;">
+                      <label class="field mt-8">
+                        <span>${I18n.t('detail.notes')}</span>
+                        <input type="text" id="inline-log-note-${entry.id}" value="${Util.escapeHtml(entry.note || '')}" style="width:100%" />
+                      </label>
+                      <div class="inline-actions mt-12" style="justify-content: flex-end; gap:10px;">
                         <button class="btn btn-secondary btn-small" data-log-cancel="${entry.id}">${I18n.t('common.cancel')}</button>
-                        <button class="btn btn-small" data-log-save="${entry.id}">${I18n.t('common.save')}</button>
+                        <button class="btn btn-small" data-log-save="${entry.id}" style="min-width:80px">💾 ${I18n.t('common.save')}</button>
                       </div>
                     </div>
                   `;
