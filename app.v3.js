@@ -2047,6 +2047,19 @@ const App = {
         this.editingChecklistId = null;
         await this.renderChecklist();
       }
+
+      const checkDelDoc = e.target.closest('[data-check-del-doc]');
+      if (checkDelDoc) {
+        const id = checkDelDoc.dataset.checkId;
+        const idx = parseInt(checkDelDoc.dataset.checkDelDoc);
+        const all = ChecklistManager.getAll();
+        const item = all.find(x => x.id === id);
+        if (item && item.attachments) {
+          item.attachments.splice(idx, 1);
+          ChecklistManager.saveAll(all);
+          await this.renderChecklist();
+        }
+      }
       if (logDelete) {
         const locationId = Storage.get(Keys.activeLocation);
         LocationManager.removeLog(locationId, logDelete.dataset.logDelete);
@@ -2932,20 +2945,50 @@ const App = {
           <div class="check-items">
             ${groupItems.map(item => {
               if (item.id === this.editingChecklistId) {
+                const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType, name: 'Datei' }] : []);
                 return `
-                  <div class="inline-edit-form panel glass" style="margin: 8px 0; padding: 12px; grid-column: 1/-1;">
-                    <div class="form-grid" style="grid-template-columns: 1fr auto;">
-                      <input id="inline-name-${item.id}" type="text" value="${Util.escapeHtml(item.name)}" style="width:100%" />
-                      <input id="inline-count-${item.id}" type="number" value="${item.count}" style="width:60px" />
+                  <div class="inline-edit-card panel glass" style="margin: 12px 0; padding: 16px; border: 1px solid var(--accent); animation: slideIn 0.3s ease;">
+                    <h4 style="margin-bottom:12px; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px; color:var(--accent)">${I18n.t('common.change')}</h4>
+                    
+                    <div class="form-grid" style="grid-template-columns: 1fr 80px; gap: 8px;">
+                      <label class="field">
+                        <span>${I18n.t('checklist.itemName')}</span>
+                        <input id="inline-name-${item.id}" type="text" value="${Util.escapeHtml(item.name)}" />
+                      </label>
+                      <label class="field">
+                        <span>Anz.</span>
+                        <input id="inline-count-${item.id}" type="number" value="${item.count}" />
+                      </label>
                     </div>
-                    <select id="inline-cat-${item.id}" class="mt-8" style="width:100%">
-                      ${ChecklistManager.categories().map(c => `<option value="${c}" ${c === item.category ? 'selected' : ''}>${I18n.t('check.' + c)}</option>`).join('')}
-                    </select>
-                    <textarea id="inline-notes-${item.id}" class="mt-8" style="width:100%; min-height:50px">${Util.escapeHtml(item.notes || '')}</textarea>
-                    <input id="inline-file-${item.id}" type="file" class="mt-8" style="width:100%" multiple />
-                    <div class="inline-actions mt-8">
-                      <button class="btn btn-small" data-check-save="${item.id}">${I18n.t('common.save')}</button>
-                      <button class="btn btn-secondary btn-small" data-check-cancel="${item.id}">${I18n.t('common.cancel')}</button>
+
+                    <label class="field mt-8">
+                      <span>${I18n.t('checklist.category')}</span>
+                      <select id="inline-cat-${item.id}">
+                        ${ChecklistManager.categories().map(c => `<option value="${c}" ${c === item.category ? 'selected' : ''}>${I18n.t('check.' + c)}</option>`).join('')}
+                      </select>
+                    </label>
+
+                    <label class="field mt-8">
+                      <span>${I18n.t('checklist.notes')}</span>
+                      <textarea id="inline-notes-${item.id}" style="min-height:80px">${Util.escapeHtml(item.notes || '')}</textarea>
+                    </label>
+
+                    <div class="mt-12">
+                      <span class="muted" style="font-size:0.8rem; display:block; margin-bottom:4px">${I18n.t('checklist.document')}</span>
+                      <div class="inline-docs-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                        ${docs.map((d, idx) => `
+                          <div class="pill-doc" style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; display:flex; align-items:center; gap:8px; font-size:0.8rem;">
+                            <span>📄 ${Util.escapeHtml(d.name || 'Dokument')}</span>
+                            <button class="btn-icon" data-check-id="${item.id}" data-check-del-doc="${idx}" title="Löschen">✕</button>
+                          </div>
+                        `).join('')}
+                      </div>
+                      <input id="inline-file-${item.id}" type="file" multiple style="font-size:0.8rem" />
+                    </div>
+
+                    <div class="inline-actions mt-16" style="justify-content: flex-end; gap:12px;">
+                      <button class="btn btn-secondary" data-check-cancel="${item.id}">${I18n.t('common.cancel')}</button>
+                      <button class="btn" data-check-save="${item.id}" style="min-width:100px">💾 ${I18n.t('common.save')}</button>
                     </div>
                   </div>
                 `;
