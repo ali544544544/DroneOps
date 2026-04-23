@@ -3025,7 +3025,7 @@ const App = {
           size: Number(document.getElementById(`inline-drone-size-${id}`).value),
           maxWind: Number(document.getElementById(`inline-drone-maxwind-${id}`).value),
           maxGusts: Number(document.getElementById(`inline-drone-maxgusts-${id}`).value),
-          color: document.getElementById(`inline-drone-color-${id}-color`).value,
+          color: document.getElementById(`inline-drone-${id}-color`).value,
           rainTolerance: document.getElementById(`inline-drone-rain-${id}`).value
         };
         if (!profile.label) return;
