@@ -277,6 +277,14 @@
                 <span data-i18n="checklist.category">Kategorie</span>
                 <select id="checklistCategory"></select>
               </label>
+              <label class="field" style="grid-column: span 2;">
+                <span data-i18n="checklist.notes">Notizen / Daten (z.B. Versicherungs-Nr.)</span>
+                <textarea id="checklistNotes" style="width:100%; min-height:60px; border-radius:var(--radius); background:rgba(255,255,255,0.05); border:1px solid var(--border); color:white; padding:8px;"></textarea>
+              </label>
+              <label class="field" style="grid-column: span 2;">
+                <span data-i18n="checklist.document">Dokument / Bild hinzufügen</span>
+                <input id="checklistFile" type="file" accept="image/*,application/pdf" style="width:100%" />
+              </label>
             </div>
             <div class="inline-actions">
               <button class="btn" type="submit" data-i18n="common.save">Speichern</button>

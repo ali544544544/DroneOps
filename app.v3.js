@@ -618,6 +618,14 @@ const Util = {
     });
     if (Math.abs(new Date(closest.timestamp).getTime() - target) > 3600000) return null;
     return closest.precipitation;
+  },
+  fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
   }
 };
 
@@ -1145,6 +1153,8 @@ const UI = {
       dashboardHomeSearchWrap: document.getElementById('dashboardHomeSearchWrap'),
       dashboardHomeSearchInput: document.getElementById('dashboardHomeSearchInput'),
       dashboardHomeSuggestions: document.getElementById('dashboardHomeSuggestions'),
+      checklistNotes: document.getElementById('checklistNotes'),
+      checklistFile: document.getElementById('checklistFile'),
     };
   },
   applyI18n() {
@@ -1906,6 +1916,8 @@ const App = {
       document.getElementById('checklistName').value = '';
       document.getElementById('checklistCount').value = 1;
       document.getElementById('checklistCategory').value = 'akkus';
+      UI.els.checklistNotes.value = '';
+      UI.els.checklistFile.value = '';
     });
 
     document.getElementById('checklistCancelBtn').addEventListener('click', () => {
@@ -1919,7 +1931,26 @@ const App = {
         name: document.getElementById('checklistName').value.trim(),
         count: Number(document.getElementById('checklistCount').value),
         category: document.getElementById('checklistCategory').value,
+        notes: UI.els.checklistNotes.value.trim()
       };
+      
+      const file = UI.els.checklistFile.files[0];
+      if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          alert('Datei zu groß (Max 2MB für Offline-Speicherung).');
+          return;
+        }
+        item.attachment = await Util.fileToBase64(file);
+        item.attachmentType = file.type;
+      } else if (this.editingChecklistId) {
+        // Keep existing attachment if editing
+        const old = ChecklistManager.getAll().find(x => x.id === this.editingChecklistId);
+        if (old) {
+          item.attachment = old.attachment;
+          item.attachmentType = old.attachmentType;
+        }
+      }
+
       if (!item.name) return;
       if (this.editingChecklistId) ChecklistManager.update(this.editingChecklistId, item);
       else ChecklistManager.add(item);
@@ -1945,6 +1976,16 @@ const App = {
       const logDelete = e.target.closest('[data-log-delete]');
       const mapsPin = e.target.closest('[data-open-pin]');
       const mapsRoute = e.target.closest('[data-open-route]');
+      const viewDoc = e.target.closest('[data-check-view]');
+
+      if (viewDoc) {
+        const id = viewDoc.dataset.checkView;
+        const item = ChecklistManager.getAll().find(x => x.id === id);
+        if (item && item.attachment) {
+          const win = window.open();
+          win.document.write(`<iframe src="${item.attachment}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+        }
+      }
 
       if (detailBtn) await this.openLocationDetail(detailBtn.dataset.id);
       if (deleteBtn) {
@@ -1971,6 +2012,8 @@ const App = {
           document.getElementById('checklistName').value = item.name;
           document.getElementById('checklistCount').value = item.count;
           document.getElementById('checklistCategory').value = item.category;
+          UI.els.checklistNotes.value = item.notes || '';
+          UI.els.checklistFile.value = '';
         }
       }
       if (logDelete) {
@@ -2862,8 +2905,10 @@ const App = {
                 <div class="check-item-main">
                   <strong>${Util.escapeHtml(item.name)}</strong>
                   <span class="muted">×${item.count}</span>
+                  ${item.notes ? `<div class="check-item-notes">${Util.escapeHtml(item.notes)}</div>` : ''}
                 </div>
                 <div class="inline-actions">
+                  ${item.attachment ? `<button class="btn btn-secondary btn-small" type="button" data-check-view="${item.id}" title="Dokument ansehen">👁️</button>` : ''}
                   ${!item.isVirtual ? `
                   <button class="btn btn-secondary btn-small" type="button" data-check-edit="${item.id}">✎</button>
                   <button class="btn btn-secondary btn-small" type="button" data-check-delete="${item.id}">🗑️</button>
