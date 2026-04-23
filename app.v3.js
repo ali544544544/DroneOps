@@ -2780,7 +2780,6 @@ const App = {
 
   async renderLocationsList() {
     const locations = LocationManager.getAll();
-    const activeId = Storage.get(Keys.activeLocation);
     
     UI.els.locationList.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -2790,36 +2789,95 @@ const App = {
         </div>
         <button class="btn btn-secondary btn-small" id="openImportBtn">📥 ${I18n.t('list.import')}</button>
       </div>
-      <div class="locations-grid">
-        ${locations.length ? locations.map(loc => `
-          <div class="location-mini-card ${loc.id === activeId ? 'active' : ''}" data-id="${loc.id}">
-            <div style="display:flex; justify-content:space-between; align-items:start">
-              <strong>${Util.escapeHtml(loc.name)}</strong>
-              <div class="inline-actions">
-                <button class="btn btn-icon btn-small" data-delete-id="${loc.id}">✕</button>
-              </div>
-            </div>
-            <div class="muted" style="font-size:0.8rem; margin-top:4px">${loc.lat.toFixed(4)}, ${loc.lon.toFixed(4)}</div>
-          </div>
-        `).join('') : `<p class="muted">${I18n.t('empty.text')}</p>`}
+      <div id="locationListContent">
+        ${locations.length ? '' : `<p class="muted">${I18n.t('empty.text')}</p>`}
       </div>
     `;
 
     document.getElementById('openImportBtn').addEventListener('click', () => UI.renderImportModal());
-    UI.els.locationList.querySelectorAll('[data-id]').forEach(el => {
-      el.addEventListener('click', (e) => {
-        if (!e.target.closest('[data-delete-id]')) this.openLocationDetail(el.dataset.id);
+    if (!locations.length) return;
+
+    const listContent = document.getElementById('locationListContent');
+    listContent.innerHTML = locations.map(location => `
+      <article class="location-card" data-id="${location.id}">
+        <div>
+          <h3>${Util.escapeHtml(location.name)}</h3>
+          <div class="location-meta">
+            <span class="inline-pill">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</span>
+            <span class="inline-pill">🗓️ ${Util.formatDate(location.createdAt, I18n.locale)}</span>
+          </div>
+          <p class="muted">${I18n.t('list.lastVisit')}: ${UI.lastVisit(location)}</p>
+        </div>
+        <div id="location-weather-${location.id}">
+          <span class="metric-chip">…</span>
+        </div>
+        <div id="location-golden-${location.id}">
+          <span class="metric-chip">…</span>
+        </div>
+        <div class="inline-actions">
+          <button class="btn" data-action="detail" data-id="${location.id}">${I18n.t('list.details')}</button>
+          <button class="btn btn-secondary" data-action="delete" data-id="${location.id}">✕</button>
+        </div>
+      </article>
+    `).join('');
+
+    // Event Listeners for actions
+    listContent.querySelectorAll('[data-action="detail"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openLocationDetail(btn.dataset.id);
       });
     });
-    UI.els.locationList.querySelectorAll('[data-delete-id]').forEach(btn => {
+    listContent.querySelectorAll('[data-action="delete"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (confirm(I18n.t('confirm.deleteLocation'))) {
-          LocationManager.remove(btn.dataset.deleteId);
+          LocationManager.remove(btn.dataset.id);
           this.renderLocationsList();
         }
       });
     });
+    listContent.querySelectorAll('.location-card').forEach(card => {
+      card.addEventListener('click', () => this.openLocationDetail(card.dataset.id));
+    });
+
+    await Promise.all(locations.map(async (location) => {
+      try {
+        const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
+        const score = this.scoreForCurrent(weather);
+        const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
+        const gh = GoldenHour.calculate({
+          sunrise: sun.data.results.sunrise,
+          sunset: sun.data.results.sunset,
+          civilDawn: sun.data.results.civil_twilight_begin,
+          civilDusk: sun.data.results.civil_twilight_end
+        });
+
+        const weatherEl = document.getElementById(`location-weather-${location.id}`);
+        const goldenEl = document.getElementById(`location-golden-${location.id}`);
+        if (weatherEl) weatherEl.innerHTML = `
+          <strong>${I18n.t('list.liveWeather')}</strong>
+          <div class="metric-grid">
+            <span class="metric-chip">${meta.icon} ${weather.data.current_weather.temperature}°C</span>
+            <span class="metric-chip">💨 ${weather.data.current_weather.windspeed} m/s</span>
+            <span class="badge ${score.status}">${I18n.t(`status.${score.status}`)} · ${score.score}</span>
+          </div>
+        `;
+        if (goldenEl) goldenEl.innerHTML = `
+          <strong>${I18n.t('list.goldenHour')}</strong>
+          <div class="metric-grid">
+            <span class="metric-chip">🌅 ${Util.formatTime(gh.morningStart, I18n.locale)}–${Util.formatTime(gh.morningEnd, I18n.locale)}</span>
+            <span class="metric-chip">🌇 ${Util.formatTime(gh.eveningStart, I18n.locale)}–${Util.formatTime(gh.eveningEnd, I18n.locale)}</span>
+          </div>
+        `;
+      } catch (err) {
+        console.error(`List Card Error for ${location.name}:`, err);
+        const w = document.getElementById(`location-weather-${location.id}`);
+        const g = document.getElementById(`location-golden-${location.id}`);
+        if (w) w.innerHTML = `<p>${I18n.t('error.dataUnavailable')}</p>`;
+        if (g) g.innerHTML = `<p>${I18n.t('error.dataUnavailable')}</p>`;
+      }
+    }));
   },
 
   async openLocationDetail(locationId) {
