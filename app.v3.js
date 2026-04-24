@@ -222,6 +222,7 @@ const FALLBACK_TRANSLATIONS = {
     'dashboard.subtitle': 'Golden Hour und Flugbedingungen auf einen Blick',
     'dashboard.useGps': 'GPS nutzen',
     'dashboard.mapSelect': 'Karte wählen',
+    'dashboard.locationSelected': 'Standort gewechselt',
     'dashboard.selectLocation': 'Ort wählen',
     'dashboard.current': 'Aktueller Standort & Wetter',
     'dashboard.golden': 'Golden Hour heute',
@@ -1622,6 +1623,63 @@ const App = {
   detailMarker: null,
   pickerMap: null,
   pickerMarker: null,
+  dashboardPickerMap: null,
+
+  openDashboardMapPicker() {
+    document.getElementById('dashboardMapModal').classList.remove('hidden');
+    this.initDashboardMapPicker();
+  },
+
+  initDashboardMapPicker() {
+    const locations = LocationManager.getAll();
+    const container = document.getElementById('dashboardMapPicker');
+    if (!container) return;
+
+    if (this.dashboardPickerMap) {
+      setTimeout(() => this.dashboardPickerMap.invalidateSize(), 100);
+      return;
+    }
+
+    this.dashboardPickerMap = L.map('dashboardMapPicker', { preferCanvas: true }).setView([51.1657, 10.4515], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardPickerMap);
+
+    const bounds = L.latLngBounds();
+    const premiumIcon = L.divIcon({
+      html: `
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#ff4444"/>
+          <circle cx="12" cy="9" r="3" fill="white"/>
+        </svg>
+      `,
+      className: '', iconSize: [30, 30], iconAnchor: [15, 30]
+    });
+
+    locations.forEach(loc => {
+      const marker = L.marker([loc.lat, loc.lon], { icon: premiumIcon }).addTo(this.dashboardPickerMap);
+      marker.bindTooltip(Util.escapeHtml(loc.name), { 
+        direction: 'top', 
+        offset: [0, -25],
+        permanent: true,
+        className: 'map-tooltip-permanent'
+      });
+      marker.on('click', async () => {
+        Storage.set(Keys.activeLocation, loc.id);
+        Storage.set(Keys.distSource, 'home'); // Default to home distance if applicable
+        document.getElementById('dashboardMapModal').classList.add('hidden');
+        await this.renderDashboard();
+        UI.toast(I18n.t('dashboard.locationSelected'));
+      });
+      bounds.extend([loc.lat, loc.lon]);
+    });
+
+    if (locations.length > 0) {
+      this.dashboardPickerMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+    }
+
+    document.getElementById('dashboardMapModalClose').onclick = () => {
+      document.getElementById('dashboardMapModal').classList.add('hidden');
+    };
+  },
 
   renderOverviewMap() {
     const locations = LocationManager.getAll();
@@ -2045,13 +2103,7 @@ const App = {
     });
 
     document.getElementById('dashboardMapSelectBtn').addEventListener('click', () => {
-      Router.showPage('locations');
-      const mapEl = document.getElementById('locationsOverviewMap');
-      if (mapEl) {
-        setTimeout(() => {
-          mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      }
+      this.openDashboardMapPicker();
     });
 
     const pickerSearchInput = document.getElementById('pickerSearchInput');

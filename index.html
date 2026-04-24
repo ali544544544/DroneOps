@@ -112,6 +112,18 @@
           <section class="panel glass panel-wide" id="dashboardHourlyPanel"></section>
           <section class="panel glass panel-wide" id="dashboardLocationCardsPanel"></section>
         </div>
+
+        <!-- Dashboard Map Picker Modal -->
+        <div id="dashboardMapModal" class="modal-overlay hidden">
+          <div class="modal-content panel glass">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h3 data-i18n="dashboard.mapSelect">Karte wählen</h3>
+              <button id="dashboardMapModalClose" class="btn btn-secondary btn-small">✕</button>
+            </div>
+            <div id="dashboardMapPicker" style="height: 500px; width: 100%; border-radius: var(--radius); background: #222;"></div>
+            <p class="muted mt-12" style="font-size:0.9rem">Klicke auf einen Spot, um ihn für das Dashboard auszuwählen.</p>
+          </div>
+        </div>
       </section>
 
       <section id="page-locations" class="page">
