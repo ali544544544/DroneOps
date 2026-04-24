@@ -1798,7 +1798,11 @@ const App = {
       // Fit bounds only if it's the first time or location count changed significantly
       if (locations.length > 0 && (!this.lastLocCount || this.lastLocCount !== locations.length)) {
         this.overviewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
-        this.lastLocCount = locations.length;
+      }
+      
+      // Always invalidate size to handle visibility changes
+      if (this.overviewMap) {
+        setTimeout(() => this.overviewMap.invalidateSize(), 200);
       }
     } catch (err) {
       console.error('Overview Map Error:', err);
@@ -2713,6 +2717,7 @@ const App = {
           // Map already initialized on this specific div
           this.dashboardMap.setView([location.lat, location.lon], 13);
           this.dashboardMarker.setLatLng([location.lat, location.lon]);
+          setTimeout(() => this.dashboardMap.invalidateSize(), 200);
         } else {
           // First time or new div created by innerHTML
           if (this.dashboardMap) { this.dashboardMap.remove(); }
@@ -3115,6 +3120,7 @@ const App = {
           }).addTo(this.detailMap);
         }
         UI.addSunToMap(this.detailMap, location, sun.data.results, gh, posNow);
+        setTimeout(() => this.detailMap.invalidateSize(), 200);
       }
 
       const detailWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
