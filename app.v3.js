@@ -1658,7 +1658,12 @@ const App = {
 
       locations.forEach(loc => {
         const marker = L.marker([loc.lat, loc.lon], { icon: premiumIcon }).addTo(this.overviewMarkers);
-        marker.bindTooltip(Util.escapeHtml(loc.name), { direction: 'top', offset: [0, -25] });
+        marker.bindTooltip(Util.escapeHtml(loc.name), { 
+          direction: 'top', 
+          offset: [0, -25],
+          permanent: true,
+          className: 'map-tooltip-permanent'
+        });
         marker.on('click', () => this.openLocationDetail(loc.id));
         bounds.extend([loc.lat, loc.lon]);
       });
