@@ -377,6 +377,8 @@ const FALLBACK_TRANSLATIONS = {
     "dashboard.title": "Dashboard",
     "dashboard.subtitle": "Golden hour and flight conditions at a glance",
     "dashboard.useGps": "Use GPS Position",
+    "dashboard.mapSelect": "Select on Map",
+    "dashboard.locationSelected": "Location switched",
     "dashboard.selectLocation": "Select Location",
     "dashboard.current": "Current Conditions",
     "dashboard.golden": "Golden Hour",
