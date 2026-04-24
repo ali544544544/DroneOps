@@ -1601,8 +1601,47 @@ const UI = {
 
 const App = {
   editingChecklistId: null,
+  overviewMap: null,
   pickerMap: null,
   pickerMarker: null,
+
+  renderOverviewMap() {
+    const locations = LocationManager.getAll();
+    const container = document.getElementById('locationsOverviewMap');
+    if (!container) return;
+
+    if (this.overviewMap) {
+      this.overviewMap.remove();
+      this.overviewMap = null;
+    }
+
+    if (locations.length === 0) {
+      container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.2)">Keine Spots zum Anzeigen</div>';
+      return;
+    }
+
+    this.overviewMap = L.map('locationsOverviewMap', { preferCanvas: true }).setView([50.7333, 7.1], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.overviewMap);
+
+    const bounds = L.latLngBounds();
+    const icon = L.divIcon({
+      html: `<div style="background:var(--accent);width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px-8px rgba(0,0,0,0.5)"></div>`,
+      className: '',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+
+    locations.forEach(loc => {
+      const marker = L.marker([loc.lat, loc.lon], { icon }).addTo(this.overviewMap);
+      marker.bindTooltip(Util.escapeHtml(loc.name), { direction: 'top', offset: [0, -5] });
+      marker.on('click', () => this.openLocationDetail(loc.id));
+      bounds.extend([loc.lat, loc.lon]);
+    });
+
+    if (locations.length > 0) {
+      this.overviewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+    }
+  },
 
   async toggleMapPicker() {
     const listView = document.getElementById('locationsListView');
@@ -2709,6 +2748,7 @@ const App = {
       </div>
     `;
 
+    this.renderOverviewMap();
     if (!locations.length) return;
 
     const listContent = document.getElementById('locationListContent');
