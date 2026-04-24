@@ -1604,6 +1604,10 @@ const App = {
   overviewMap: null,
   overviewMarkers: null,
   lastLocCount: 0,
+  dashboardMap: null,
+  dashboardMarker: null,
+  detailMap: null,
+  detailMarker: null,
   pickerMap: null,
   pickerMarker: null,
 
@@ -2542,19 +2546,27 @@ const App = {
         <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
 
-      if (this.dashboardMap) { this.dashboardMap.remove(); }
-      this.dashboardMap = L.map('dashboardMap', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
-      
-      const dashIcon = L.divIcon({
-        html: `<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>`,
-        className: '',
-        iconSize: [12, 12]
-      });
-      L.marker([location.lat, location.lon], { icon: dashIcon }).addTo(this.dashboardMap);
-
-      // Sun lines on dashboard map
-      UI.addSunToMap(this.dashboardMap, location, sunToday.data.results, ghToday, posNow);
+      // Optimized Map Handling: Reuse instance if possible
+      const mapContainer = document.getElementById('dashboardMap');
+      if (mapContainer) {
+        if (this.dashboardMap && this.dashboardMap.getContainer() === mapContainer) {
+          // Map already initialized on this specific div
+          this.dashboardMap.setView([location.lat, location.lon], 13);
+          this.dashboardMarker.setLatLng([location.lat, location.lon]);
+        } else {
+          // First time or new div created by innerHTML
+          if (this.dashboardMap) { this.dashboardMap.remove(); }
+          this.dashboardMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 13);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
+          this.dashboardMarker = L.marker([location.lat, location.lon], { 
+            icon: L.divIcon({
+              html: `<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>`,
+              className: '', iconSize: [12, 12]
+            })
+          }).addTo(this.dashboardMap);
+        }
+        UI.addSunToMap(this.dashboardMap, sun.data.results, location.lat, location.lon);
+      }
 
       // Async travel time
       if (location.id !== 'gps') {
@@ -2917,20 +2929,24 @@ const App = {
         </div>
       `;
 
-      if (this.detailMap) { this.detailMap.remove(); }
-      this.detailMap = L.map('detailMap', { zoomControl: false, preferCanvas: true }).setView([location.lat, location.lon], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(this.detailMap);
-      
-      const icon = L.divIcon({
-        html: '<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>',
-        className: '',
-        iconSize: [12, 12]
-      });
-      L.marker([location.lat, location.lon], { icon }).addTo(this.detailMap);
-
-      UI.addSunToMap(this.detailMap, location, sun.data.results, gh, posNow);
+      const mapContainer = document.getElementById('detailMap');
+      if (mapContainer) {
+        if (this.detailMap && this.detailMap.getContainer() === mapContainer) {
+          this.detailMap.setView([location.lat, location.lon], 14);
+          this.detailMarker.setLatLng([location.lat, location.lon]);
+        } else {
+          if (this.detailMap) { this.detailMap.remove(); }
+          this.detailMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 14);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.detailMap);
+          this.detailMarker = L.marker([location.lat, location.lon], { 
+            icon: L.divIcon({
+              html: `<div style="background:var(--accent);width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--accent)"></div>`,
+              className: '', iconSize: [14, 14]
+            })
+          }).addTo(this.detailMap);
+        }
+        UI.addSunToMap(this.detailMap, location, sun.data.results, gh, posNow);
+      }
 
       const detailWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const detailGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
