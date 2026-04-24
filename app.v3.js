@@ -148,6 +148,23 @@ const CloudManager = {
   }
 };
 
+const StatusTracker = {
+  services: {
+    weather: { label: 'Wetter', source: 'unknown', timestamp: null },
+    sun: { label: 'Sonne', source: 'unknown', timestamp: null },
+    routing: { label: 'Anreise', source: 'unknown', timestamp: null }
+  },
+  update(service, source, timestamp) {
+    if (this.services[service]) {
+      this.services[service].source = source;
+      this.services[service].timestamp = timestamp || Date.now();
+      if (typeof UI !== 'undefined' && UI.updateStatusIndicator) {
+        UI.updateStatusIndicator();
+      }
+    }
+  }
+};
+
 class Storage {
   static get(key, fallback = null) {
     try {
@@ -678,11 +695,16 @@ const Util = {
       const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
       const res = await fetch(url);
       const data = await res.json();
-      if (data.code !== 'Ok' || !data.routes?.length) return null;
+      if (data.code !== 'Ok' || !data.routes?.length) {
+        StatusTracker.update('routing', 'error');
+        return null;
+      }
+      StatusTracker.update('routing', 'network');
       const duration = Math.round(data.routes[0].duration / 60);
       return duration;
     } catch (e) {
       console.error('OSRM Error:', e);
+      StatusTracker.update('routing', 'error');
       return null;
     }
   },
@@ -1362,25 +1384,40 @@ const UI = {
     });
     if (this.els.searchInput) this.els.searchInput.placeholder = I18n.lang === 'de' ? 'Hamburg, DE' : 'Hamburg, DE';
   },
-  updateStatusIndicator(source, timestamp) {
+  updateStatusIndicator() {
     const el = this.els.dataStatusIndicator;
     if (!el) return;
     
-    el.classList.remove('live', 'cached', 'error');
+    const services = StatusTracker.services;
+    const statuses = Object.values(services);
     
-    const timeStr = timestamp ? Util.formatTime(timestamp, I18n.locale) : '—';
-    const dateStr = timestamp ? Util.formatDate(timestamp, I18n.locale) : '';
+    const isError = statuses.some(s => s.source === 'error');
+    const isCached = statuses.some(s => s.source === 'cache' || s.source === 'stale-cache' || s.source === 'unknown');
+    const isAllLive = statuses.every(s => s.source === 'network');
 
-    if (source === 'network') {
-      el.classList.add('live');
-      el.title = I18n.t('status.live');
-    } else if (source === 'cache' || source === 'stale-cache') {
-      el.classList.add('cached');
-      el.title = `${I18n.t('status.offlineInfo')} ${dateStr} ${timeStr}`;
-    } else {
+    el.classList.remove('live', 'cached', 'error');
+
+    if (isError) {
       el.classList.add('error');
-      el.title = I18n.t('error.dataUnavailable');
+    } else if (isCached) {
+      el.classList.add('cached');
+    } else if (isAllLive) {
+      el.classList.add('live');
     }
+
+    const tooltip = statuses.map(s => {
+      let statusText = '—';
+      if (s.source === 'network') statusText = '✅ Live';
+      else if (s.source === 'cache' || s.source === 'stale-cache') {
+        const time = s.timestamp ? Util.formatTime(s.timestamp, I18n.locale) : 'unbekannt';
+        statusText = `🟠 Cache (${time})`;
+      } else if (s.source === 'error') statusText = '❌ Fehler';
+      else if (s.source === 'unknown') statusText = '⏳ Warte...';
+      
+      return `${s.label}: ${statusText}`;
+    }).join('\n');
+
+    el.title = tooltip;
   },
   toast(message) {
     console.log('Toast:', message);
@@ -2658,7 +2695,8 @@ const App = {
         SunService.get(location, new Date(now.getTime() + 86400000))
       ]);
       
-      UI.updateStatusIndicator(weather.source, weather.timestamp);
+      StatusTracker.update('weather', weather.source, weather.timestamp);
+      StatusTracker.update('sun', sunToday.source, sunToday.timestamp);
 
       const ghToday = GoldenHour.calculate(sunToday.data.results);
       const ghTomorrow = GoldenHour.calculate(sunTomorrow.data.results);
@@ -2825,7 +2863,9 @@ const App = {
       await this.renderDashboardLocationCards();
     } catch (error) {
       console.error('Dashboard Render Error:', error);
-      UI.updateStatusIndicator('error');
+      StatusTracker.update('weather', 'error');
+      StatusTracker.update('sun', 'error');
+      UI.updateStatusIndicator();
       UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
@@ -3069,7 +3109,8 @@ const App = {
 
     try {
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
-      UI.updateStatusIndicator(weather.source, weather.timestamp);
+      StatusTracker.update('weather', weather.source, weather.timestamp);
+      StatusTracker.update('sun', sun.source, sun.timestamp);
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
@@ -3205,7 +3246,9 @@ const App = {
       this.renderNotesPanel(location);
     } catch (error) {
       console.error(error);
-      UI.updateStatusIndicator('error');
+      StatusTracker.update('weather', 'error');
+      StatusTracker.update('sun', 'error');
+      UI.updateStatusIndicator();
       UI.els.detailFlightPanel.innerHTML = `<h3>${I18n.t('detail.flightStatus')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.detailMapPanel.innerHTML = `<h3>${I18n.t('detail.map')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.detailWeatherPanel.innerHTML = `<h3>${I18n.t('detail.weather')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
