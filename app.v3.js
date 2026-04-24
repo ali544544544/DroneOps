@@ -1602,6 +1602,8 @@ const UI = {
 const App = {
   editingChecklistId: null,
   overviewMap: null,
+  overviewMarkers: null,
+  lastLocCount: 0,
   pickerMap: null,
   pickerMarker: null,
 
@@ -1610,36 +1612,49 @@ const App = {
     const container = document.getElementById('locationsOverviewMap');
     if (!container) return;
 
-    if (this.overviewMap) {
-      this.overviewMap.remove();
-      this.overviewMap = null;
-    }
-
-    if (locations.length === 0) {
-      container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.2)">Keine Spots zum Anzeigen</div>';
-      return;
-    }
-
-    this.overviewMap = L.map('locationsOverviewMap', { preferCanvas: true }).setView([50.7333, 7.1], 10);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.overviewMap);
-
-    const bounds = L.latLngBounds();
-    const icon = L.divIcon({
-      html: `<div style="background:var(--accent);width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px-8px rgba(0,0,0,0.5)"></div>`,
+    // Premium Pin Icon
+    const premiumIcon = L.divIcon({
+      html: `
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="var(--accent)"/>
+          <circle cx="12" cy="9" r="3" fill="white"/>
+        </svg>
+      `,
       className: '',
-      iconSize: [14, 14],
-      iconAnchor: [7, 7]
+      iconSize: [30, 30],
+      iconAnchor: [15, 30]
     });
 
-    locations.forEach(loc => {
-      const marker = L.marker([loc.lat, loc.lon], { icon }).addTo(this.overviewMap);
-      marker.bindTooltip(Util.escapeHtml(loc.name), { direction: 'top', offset: [0, -5] });
-      marker.on('click', () => this.openLocationDetail(loc.id));
-      bounds.extend([loc.lat, loc.lon]);
-    });
+    try {
+      if (!this.overviewMap) {
+        if (locations.length === 0) {
+          container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.2)">Keine Spots zum Anzeigen</div>';
+          return;
+        }
 
-    if (locations.length > 0) {
-      this.overviewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+        this.overviewMap = L.map('locationsOverviewMap', { preferCanvas: true }).setView([50.7333, 7.1], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.overviewMap);
+        this.overviewMarkers = L.layerGroup().addTo(this.overviewMap);
+      }
+
+      // Only clear and redraw markers
+      this.overviewMarkers.clearLayers();
+      const bounds = L.latLngBounds();
+
+      locations.forEach(loc => {
+        const marker = L.marker([loc.lat, loc.lon], { icon: premiumIcon }).addTo(this.overviewMarkers);
+        marker.bindTooltip(Util.escapeHtml(loc.name), { direction: 'top', offset: [0, -25] });
+        marker.on('click', () => this.openLocationDetail(loc.id));
+        bounds.extend([loc.lat, loc.lon]);
+      });
+
+      // Fit bounds only if it's the first time or location count changed significantly
+      if (locations.length > 0 && (!this.lastLocCount || this.lastLocCount !== locations.length)) {
+        this.overviewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+        this.lastLocCount = locations.length;
+      }
+    } catch (err) {
+      console.error('Overview Map Error:', err);
     }
   },
 

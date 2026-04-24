@@ -1786,6 +1786,20 @@ a { color: inherit; text-decoration: none; }
   position: relative;
 }
 
+.leaflet-tooltip {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid var(--border) !important;
+  color: white !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+.leaflet-tooltip-top:before {
+  border-top-color: var(--border) !important;
+}
+
 .locations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
