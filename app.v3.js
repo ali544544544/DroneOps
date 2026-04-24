@@ -1272,6 +1272,7 @@ const UI = {
       dashboardHomeSuggestions: document.getElementById('dashboardHomeSuggestions'),
       checklistNotes: document.getElementById('checklistNotes'),
       checklistFile: document.getElementById('checklistFile'),
+      dataStatusIndicator: document.getElementById('dataStatusIndicator'),
     };
   },
   renderColorPicker(current, idPrefix) {
@@ -1360,6 +1361,26 @@ const UI = {
       node.setAttribute('title', I18n.t(node.dataset.i18nTitle));
     });
     if (this.els.searchInput) this.els.searchInput.placeholder = I18n.lang === 'de' ? 'Hamburg, DE' : 'Hamburg, DE';
+  },
+  updateStatusIndicator(source, timestamp) {
+    const el = this.els.dataStatusIndicator;
+    if (!el) return;
+    
+    el.classList.remove('live', 'cached', 'error');
+    
+    const timeStr = timestamp ? Util.formatTime(timestamp, I18n.locale) : '—';
+    const dateStr = timestamp ? Util.formatDate(timestamp, I18n.locale) : '';
+
+    if (source === 'network') {
+      el.classList.add('live');
+      el.title = I18n.t('status.live');
+    } else if (source === 'cache' || source === 'stale-cache') {
+      el.classList.add('cached');
+      el.title = `${I18n.t('status.offlineInfo')} ${dateStr} ${timeStr}`;
+    } else {
+      el.classList.add('error');
+      el.title = I18n.t('error.dataUnavailable');
+    }
   },
   toast(message) {
     console.log('Toast:', message);
@@ -2637,6 +2658,8 @@ const App = {
         SunService.get(location, new Date(now.getTime() + 86400000))
       ]);
       
+      UI.updateStatusIndicator(weather.source, weather.timestamp);
+
       const ghToday = GoldenHour.calculate(sunToday.data.results);
       const ghTomorrow = GoldenHour.calculate(sunTomorrow.data.results);
 
@@ -2802,6 +2825,7 @@ const App = {
       await this.renderDashboardLocationCards();
     } catch (error) {
       console.error('Dashboard Render Error:', error);
+      UI.updateStatusIndicator('error');
       UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
@@ -3045,6 +3069,7 @@ const App = {
 
     try {
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
+      UI.updateStatusIndicator(weather.source, weather.timestamp);
       const idx = this.currentIndex(weather.data);
       const score = this.scoreForCurrent(weather);
       const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
@@ -3180,6 +3205,7 @@ const App = {
       this.renderNotesPanel(location);
     } catch (error) {
       console.error(error);
+      UI.updateStatusIndicator('error');
       UI.els.detailFlightPanel.innerHTML = `<h3>${I18n.t('detail.flightStatus')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.detailMapPanel.innerHTML = `<h3>${I18n.t('detail.map')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.detailWeatherPanel.innerHTML = `<h3>${I18n.t('detail.weather')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
