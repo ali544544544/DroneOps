@@ -1626,8 +1626,11 @@ const App = {
   dashboardPickerMap: null,
 
   openDashboardMapPicker() {
-    document.getElementById('dashboardMapModal').classList.remove('hidden');
+    document.getElementById('dashboardMapSection').classList.remove('hidden');
     this.initDashboardMapPicker();
+    if (this.dashboardPickerMap) {
+      setTimeout(() => this.dashboardPickerMap.invalidateSize(), 100);
+    }
   },
 
   initDashboardMapPicker() {
@@ -1636,7 +1639,6 @@ const App = {
     if (!container) return;
 
     if (this.dashboardPickerMap) {
-      setTimeout(() => this.dashboardPickerMap.invalidateSize(), 100);
       return;
     }
 
@@ -1665,7 +1667,7 @@ const App = {
       marker.on('click', async () => {
         Storage.set(Keys.activeLocation, loc.id);
         Storage.set(Keys.distSource, 'home'); // Default to home distance if applicable
-        document.getElementById('dashboardMapModal').classList.add('hidden');
+        document.getElementById('dashboardMapSection').classList.add('hidden');
         await this.renderDashboard();
         UI.toast(I18n.t('dashboard.locationSelected'));
       });
@@ -1676,8 +1678,8 @@ const App = {
       this.dashboardPickerMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
     }
 
-    document.getElementById('dashboardMapModalClose').onclick = () => {
-      document.getElementById('dashboardMapModal').classList.add('hidden');
+    document.getElementById('dashboardMapClose').onclick = () => {
+      document.getElementById('dashboardMapSection').classList.add('hidden');
     };
   },
 
