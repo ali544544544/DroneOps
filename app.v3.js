@@ -1631,7 +1631,7 @@ const App = {
     document.getElementById('dashboardMapSection').classList.remove('hidden');
     this.initDashboardMapPicker();
     if (this.dashboardPickerMap) {
-      setTimeout(() => this.dashboardPickerMap.invalidateSize(), 100);
+      setTimeout(() => this.dashboardPickerMap.invalidateSize(), 200);
     }
   },
 
@@ -1711,6 +1711,7 @@ const App = {
         this.overviewMap = L.map('locationsOverviewMap', { preferCanvas: true }).setView([50.7333, 7.1], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.overviewMap);
         this.overviewMarkers = L.layerGroup().addTo(this.overviewMap);
+        setTimeout(() => this.overviewMap.invalidateSize(), 200);
       }
 
       // Only clear and redraw markers
@@ -2656,6 +2657,7 @@ const App = {
               className: '', iconSize: [12, 12]
             })
           }).addTo(this.dashboardMap);
+          setTimeout(() => this.dashboardMap.invalidateSize(), 200);
         }
         UI.addSunToMap(this.dashboardMap, location, sun.data.results, gh, posNow);
       }
