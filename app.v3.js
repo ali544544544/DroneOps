@@ -1272,34 +1272,6 @@ const UI = {
     };
     legend.addTo(map);
   },
-  renderImportModal() {
-    const container = document.getElementById('importModalContainer') || document.body.appendChild(document.createElement('div'));
-    container.id = 'importModalContainer';
-    container.innerHTML = `
-      <div class="modal-overlay" onclick="this.parentElement.innerHTML=''">
-        <div class="modal-content glass panel" onclick="event.stopPropagation()" style="max-width:500px; width:90%; animation: slideIn 0.3s ease;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="margin:0">${I18n.t('import.title')}</h3>
-            <button class="btn-icon" onclick="this.closest('#importModalContainer').innerHTML=''">&times;</button>
-          </div>
-          <p class="muted" style="font-size:0.9rem; margin-bottom:16px">${I18n.t('import.help')}</p>
-          <div class="field">
-            <span>Datei wählen (.kml)</span>
-            <input type="file" id="importFile" accept=".kml" style="width:100%" />
-          </div>
-          <div class="field mt-16">
-            <span>Oder Text einfügen (Name, Lat, Lon)</span>
-            <textarea id="importText" placeholder="${I18n.t('import.placeholder')}" style="width:100%; min-height:120px; font-family:monospace; font-size:0.8rem"></textarea>
-          </div>
-          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
-            <button class="btn btn-secondary" onclick="this.closest('#importModalContainer').innerHTML=''">${I18n.t('common.cancel')}</button>
-            <button class="btn" id="doImportBtn" style="min-width:120px">🚀 ${I18n.t('list.import')}</button>
-          </div>
-        </div>
-      </div>
-    `;
-    document.getElementById('doImportBtn').addEventListener('click', () => App.handleBulkImport());
-  },
   applyI18n() {
     document.documentElement.lang = I18n.lang;
     document.querySelectorAll('[data-i18n]').forEach(node => {
@@ -1631,58 +1603,6 @@ const App = {
   editingChecklistId: null,
   pickerMap: null,
   pickerMarker: null,
-
-  handleBulkImport() {
-    const file = document.getElementById('importFile').files[0];
-    const text = document.getElementById('importText').value;
-    let newSpots = [];
-
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(e.target.result, 'text/xml');
-        xml.querySelectorAll('Placemark').forEach(p => {
-          const name = p.querySelector('name')?.textContent || 'Imported Spot';
-          const coords = p.querySelector('coordinates')?.textContent.split(',');
-          if (coords && coords.length >= 2) newSpots.push({ name, lat: parseFloat(coords[1]), lon: parseFloat(coords[0]) });
-        });
-        this.finishImport(newSpots);
-      };
-      reader.readAsText(file);
-    } else if (text) {
-      const lines = text.split('\n');
-      lines.forEach(line => {
-        if (!line.trim()) return;
-        // Try CSV: Name, Lat, Lon or Name, Lon, Lat
-        const match = line.match(/(.+?)[,;\t]\s*(-?\d+\.\d+)[,;\t]\s*(-?\d+\.\d+)/);
-        if (match) {
-          const name = match[1].trim();
-          const p1 = parseFloat(match[2]);
-          const p2 = parseFloat(match[3]);
-          // Simple heuristic: latitude is usually smaller than longitude in DE, or within -90 to 90
-          if (Math.abs(p1) <= 90 && Math.abs(p2) <= 180) {
-            newSpots.push({ name, lat: p1, lon: p2 });
-          } else if (Math.abs(p2) <= 90 && Math.abs(p1) <= 180) {
-            newSpots.push({ name, lat: p2, lon: p1 });
-          }
-        } else {
-          // Try JSON
-          try {
-            const obj = JSON.parse(line);
-            if (obj.name && obj.lat && obj.lon) newSpots.push(obj);
-          } catch(e) {}
-        }
-      });
-      this.finishImport(newSpots);
-    }
-  },
-  finishImport(spots) {
-    spots.forEach(s => LocationManager.add(s));
-    UI.toast(I18n.t('import.success', { count: spots.length }));
-    document.getElementById('importModalContainer').innerHTML = '';
-    this.renderLocationsList();
-  },
 
   async toggleMapPicker() {
     const listView = document.getElementById('locationsListView');
@@ -2782,19 +2702,13 @@ const App = {
     const locations = LocationManager.getAll();
     
     UI.els.locationList.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <div>
-          <h2>${I18n.t('list.title')}</h2>
-          <p class="muted">${I18n.t('list.subtitle')}</p>
-        </div>
-        <button class="btn btn-secondary btn-small" id="openImportBtn">📥 ${I18n.t('list.import')}</button>
-      </div>
+      <h2>${I18n.t('list.title')}</h2>
+      <p class="muted">${I18n.t('list.subtitle')}</p>
       <div id="locationListContent">
         ${locations.length ? '' : `<p class="muted">${I18n.t('empty.text')}</p>`}
       </div>
     `;
 
-    document.getElementById('openImportBtn').addEventListener('click', () => UI.renderImportModal());
     if (!locations.length) return;
 
     const listContent = document.getElementById('locationListContent');
