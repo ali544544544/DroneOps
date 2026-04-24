@@ -2572,7 +2572,6 @@ const App = {
       `;
 
       // Optimized Map Handling: Reuse instance if possible
-      const mapContainer = document.getElementById('dashboardMap');
       if (mapContainer) {
         if (this.dashboardMap && this.dashboardMap.getContainer() === mapContainer) {
           // Map already initialized on this specific div
@@ -2963,14 +2962,13 @@ const App = {
         <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
       `;
 
-      const mapContainer = document.getElementById('detailMap');
-      if (mapContainer) {
-        if (this.detailMap && this.detailMap.getContainer() === mapContainer) {
+      if (detailMapContainer) {
+        if (this.detailMap && this.detailMap.getContainer() === detailMapContainer) {
           this.detailMap.setView([location.lat, location.lon], 14);
           this.detailMarker.setLatLng([location.lat, location.lon]);
         } else {
           if (this.detailMap) { this.detailMap.remove(); }
-          this.detailMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 14);
+          this.detailMap = L.map(detailMapContainer, { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 14);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.detailMap);
           this.detailMarker = L.marker([location.lat, location.lon], { 
             icon: L.divIcon({
