@@ -2040,6 +2040,7 @@ const App = {
 
     UI.els.dashboardHomeSearchInput.addEventListener('input', (e) => doHomeBaseSearch(e.target.value));
     document.getElementById('gpsAddBtn').addEventListener('click', () => this.addLocationFromGps());
+    document.getElementById('pickerBackBtn').addEventListener('click', () => this.toggleMapPicker());
     UI.els.dashboardLocationSelect.addEventListener('change', async (e) => {
       Storage.set(Keys.dashboardSource, e.target.value || 'gps');
       await this.renderDashboard();
