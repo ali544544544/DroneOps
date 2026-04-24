@@ -2043,6 +2043,16 @@ const App = {
       await this.renderDashboard();
     });
 
+    document.getElementById('dashboardMapSelectBtn').addEventListener('click', () => {
+      Router.showPage('locations');
+      const mapEl = document.getElementById('locationsOverviewMap');
+      if (mapEl) {
+        setTimeout(() => {
+          mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    });
+
     const pickerSearchInput = document.getElementById('pickerSearchInput');
     const pickerSuggestions = document.getElementById('pickerSearchSuggestions');
 
