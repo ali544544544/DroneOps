@@ -1238,6 +1238,16 @@ const UI = {
     `;
   },
   addSunToMap(map, location, sunResults, gh, posNow) {
+    if (map.sunLayer) {
+      map.sunLayer.clearLayers();
+    } else {
+      map.sunLayer = L.layerGroup().addTo(map);
+    }
+
+    if (map.sunLegend) {
+      map.removeControl(map.sunLegend);
+    }
+
     const posSR  = App.getSolarPosition(new Date(sunResults.sunrise), location.lat, location.lon);
     const posSS  = App.getSolarPosition(new Date(sunResults.sunset), location.lat, location.lon);
     const posGHS = App.getSolarPosition(gh.morningStart, location.lat, location.lon);
@@ -1250,7 +1260,7 @@ const UI = {
       const lon2 = location.lon + dist * Math.cos(rad);
       L.polyline([[location.lat, location.lon], [lat2, lon2]], {
         color, weight: 4, dashArray: dash, opacity: 0.8
-      }).addTo(map).bindTooltip(label);
+      }).addTo(map.sunLayer).bindTooltip(label);
     };
 
     drawLine(posSR.azimuth, '#f5bc2b', I18n.t('sun.sunrise'));
@@ -1265,12 +1275,13 @@ const UI = {
       div.innerHTML = `
         <div class="legend-item"><span class="legend-line" style="background:#f5bc2b"></span> ${I18n.t('sun.sunrise')}</div>
         <div class="legend-item"><span class="legend-line" style="background:#ff7a3d"></span> ${I18n.t('sun.sunset')}</div>
-        <div class="legend-item"><span class="legend-line" style="background:#ffcc33;border-top:1px dashed #fff"></span> ${I18n.t('sun.golden')}</div>
-        <div class="legend-item"><span class="legend-line" style="background:#fff;border-top:1px dashed #000"></span> ${I18n.t('sun.current')}</div>
+        <div class="legend-item"><span class="legend-line" style="background:#ffcc33;border-top:1px dashed #fff"></span> ${I18n.t('sun.morning')}</div>
+        <div class="legend-item"><span class="legend-line" style="background:#fff;border-top:1px dashed #000"></span> ${I18n.t('dashboard.current')}</div>
       `;
       return div;
     };
     legend.addTo(map);
+    map.sunLegend = legend;
   },
   applyI18n() {
     document.documentElement.lang = I18n.lang;
@@ -2300,7 +2311,6 @@ const App = {
         this.renderNotesPanel(loc);
       }
       
-      await this.renderLocationsList();
       if (mapsPin) window.open(mapsPin.dataset.openPin, '_blank');
       if (mapsRoute) window.open(mapsRoute.dataset.openRoute, '_blank');
     });
@@ -2512,7 +2522,22 @@ const App = {
       const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
-      UI.els.dashboardCurrentPanel.innerHTML = `
+      let currentInfo = document.getElementById('dash-current-info');
+      let mapContainer = document.getElementById('dashboardMap');
+      let currentStats = document.getElementById('dash-current-stats');
+      
+      if (!currentInfo || !mapContainer || !currentStats) {
+        UI.els.dashboardCurrentPanel.innerHTML = `
+          <div id="dash-current-info"></div>
+          <div id="dashboardMap" class="dashboard-map"></div>
+          <div id="dash-current-stats"></div>
+        `;
+        currentInfo = document.getElementById('dash-current-info');
+        mapContainer = document.getElementById('dashboardMap');
+        currentStats = document.getElementById('dash-current-stats');
+      }
+
+      currentInfo.innerHTML = `
         <div class="score-hero">
           <div>
             <h3>${I18n.t('dashboard.current')}</h3>
@@ -2520,9 +2545,9 @@ const App = {
             <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
           </div>
         </div>
-        
-        <div id="dashboardMap" class="dashboard-map"></div>
+      `;
 
+      currentStats.innerHTML = `
         <div class="weather-row" style="margin-top: 20px;">
           <span style="font-size:2rem">${meta.icon}</span>
           <div>
@@ -2565,7 +2590,7 @@ const App = {
             })
           }).addTo(this.dashboardMap);
         }
-        UI.addSunToMap(this.dashboardMap, sun.data.results, location.lat, location.lon);
+        UI.addSunToMap(this.dashboardMap, location, sun.data.results, gh, posNow);
       }
 
       // Async travel time
@@ -2919,14 +2944,23 @@ const App = {
       const posGHS = this.getSolarPosition(gh.morningStart, location.lat, location.lon);
       const posGHE = this.getSolarPosition(gh.eveningEnd, location.lat, location.lon);
 
-      UI.els.detailMapPanel.innerHTML = `
-        <h3>${I18n.t('detail.map')}</h3>
-        <div id="detailMap" style="height: 300px; margin-top: 12px; z-index: 1;"></div>
-        <div class="info-list" class="mt-12">
-          <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
-          <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
-          <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
-        </div>
+      let detailMapContainer = document.getElementById('detailMap');
+      let detailMapInfo = document.getElementById('detailMapInfo');
+      
+      if (!detailMapContainer || !detailMapInfo) {
+        UI.els.detailMapPanel.innerHTML = `
+          <h3>${I18n.t('detail.map')}</h3>
+          <div id="detailMap" style="height: 300px; margin-top: 12px; z-index: 1;"></div>
+          <div id="detailMapInfo" class="info-list mt-12"></div>
+        `;
+        detailMapContainer = document.getElementById('detailMap');
+        detailMapInfo = document.getElementById('detailMapInfo');
+      }
+
+      detailMapInfo.innerHTML = `
+        <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
+        <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
+        <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
       `;
 
       const mapContainer = document.getElementById('detailMap');
