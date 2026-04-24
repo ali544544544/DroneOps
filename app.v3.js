@@ -1660,9 +1660,7 @@ const App = {
       const marker = L.marker([loc.lat, loc.lon], { icon: premiumIcon }).addTo(this.dashboardPickerMap);
       marker.bindTooltip(Util.escapeHtml(loc.name), { 
         direction: 'top', 
-        offset: [0, -25],
-        permanent: true,
-        className: 'map-tooltip-permanent'
+        offset: [0, -25]
       });
       marker.on('click', async () => {
         Storage.set(Keys.activeLocation, loc.id);
@@ -1721,9 +1719,7 @@ const App = {
         const marker = L.marker([loc.lat, loc.lon], { icon: premiumIcon }).addTo(this.overviewMarkers);
         marker.bindTooltip(Util.escapeHtml(loc.name), { 
           direction: 'top', 
-          offset: [0, -25],
-          permanent: true,
-          className: 'map-tooltip-permanent'
+          offset: [0, -25]
         });
         marker.on('click', () => this.openLocationDetail(loc.id));
         bounds.extend([loc.lat, loc.lon]);
