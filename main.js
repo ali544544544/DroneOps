@@ -275,6 +275,7 @@ const UI = {
     const source = Storage.get(Keys.dashboardSource, '');
     this.els.dashboardLocationSelect.innerHTML = `
       <option value="">—</option>
+      <option value="gps" ${source === 'gps' ? 'selected' : ''}>📡 GPS</option>
       ${locations.map(l => `<option value="${l.id}" ${source === l.id ? 'selected' : ''}>${Util.escapeHtml(l.name)}</option>`).join('')}
     `;
   },
@@ -1068,6 +1069,12 @@ const App = {
 
     document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
       UI.toast(I18n.t('dashboard.refresh'));
+      
+      const source = Storage.get(Keys.dashboardSource, '');
+      if (source === 'gps') {
+        Storage.set('drone_dashboard_gps_cache', null);
+      }
+      
       await this.renderDashboard(true);
     });
 
@@ -1481,7 +1488,22 @@ const App = {
   async resolveDashboardLocation() {
     const source = Storage.get(Keys.dashboardSource, '');
     if (source === 'gps') {
-      const gps = Storage.get('drone_dashboard_gps_cache', null);
+      let gps = Storage.get('drone_dashboard_gps_cache', null);
+      if (!gps) {
+        try {
+          const pos = await Util.getCurrentPosition();
+          gps = {
+            id: 'gps',
+            name: 'GPS Position',
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude
+          };
+          Storage.set('drone_dashboard_gps_cache', gps);
+        } catch (e) {
+          console.warn('GPS fetch failed in resolver', e);
+          return null;
+        }
+      }
       return gps;
     }
     if (source) return LocationManager.getById(source);
