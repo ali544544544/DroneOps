@@ -1601,7 +1601,7 @@ const App = {
         <div class="score-hero">
           <div>
             <h3>${I18n.t('dashboard.current')}</h3>
-            <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(drone.label)}</strong></p>
+            <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
             <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
           </div>
         </div>
@@ -1763,7 +1763,7 @@ const App = {
         <div class="drone-header-main">
           <span style="font-size:1.8rem">🚁</span>
           <div style="display:flex; flex-direction:column">
-            <strong style="font-size:1.25rem; line-height:1.2">${Util.escapeHtml(drone.label)}</strong>
+            <strong style="font-size:1.25rem; line-height:1.2">${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong>
             <span class="muted" style="font-size:0.75rem">${I18n.t('drones.style.' + (drone.style || 'freestyle'))}</span>
           </div>
         </div>
@@ -2272,7 +2272,7 @@ const App = {
             <div class="form-grid">
               <label class="field">
                 <span data-i18n="drones.name">Name</span>
-                <input id="inline-drone-name-${profile.id}" type="text" value="${Util.escapeHtml(profile.label)}" required />
+                <input id="inline-drone-name-${profile.id}" type="text" value="${Util.escapeHtml(ProfileManager.getLabel(profile))}" required />
               </label>
               <label class="field">
                 <span data-i18n="drones.style">Stil</span>
@@ -2420,7 +2420,7 @@ const App = {
     
     const virtualDrones = drones.map(d => ({
       id: 'drone_' + d.id,
-      name: d.label,
+      name: ProfileManager.getLabel(d),
       count: 1,
       category: 'drohnen',
       checked: !!droneState[d.id],
