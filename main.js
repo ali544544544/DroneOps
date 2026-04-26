@@ -22,6 +22,7 @@ const StatusTracker = {
   }
 };
 window.StatusTracker = StatusTracker;
+window.CloudManager = CloudManager;
 
 const FALLBACK_WEATHERCODES = {
   "0": { icon: "☀️", de: "Klarer Himmel", en: "Clear sky" },
