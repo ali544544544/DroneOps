@@ -1639,11 +1639,19 @@ const App = {
           this.dashboardMarker.setLatLng([location.lat, location.lon]);
           setTimeout(() => this.dashboardMap.invalidateSize(), 200);
         } else {
-          // First time or new div created by innerHTML
-          if (this.dashboardMap) { 
-            this.dashboardMap.remove(); 
+          // Robust map initialization
+          if (this.dashboardMap) {
+            try { this.dashboardMap.remove(); } catch (e) {}
             MapManager.destroy('dashboardMap');
+            this.dashboardMap = null;
           }
+          
+          // Ensure the container is clean of any Leaflet artifacts
+          if (mapContainer) {
+            mapContainer.innerHTML = '';
+            if (mapContainer._leaflet_id) delete mapContainer._leaflet_id;
+          }
+
           this.dashboardMap = MapManager.get(mapContainer, { 
             zoomControl: false, 
             attributionControl: false, 
@@ -2547,7 +2555,7 @@ const App = {
     await this.renderLocationsList();
     await this.renderDrones();
     await this.renderChecklist();
-    Router.showPage(Storage.get(Keys.activeTab, 'dashboard'));
+    // Router.showPage removed from here to avoid overwriting user navigation during async load
   },
 
   async refreshVisibleData() {
