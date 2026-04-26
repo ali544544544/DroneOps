@@ -667,7 +667,7 @@ const App = {
       }
       MapManager.invalidate('locationsOverviewMap');
     }
-
+    }
       // Only clear and redraw markers
       this.overviewMarkers.clearLayers();
       const bounds = L.latLngBounds();
@@ -1236,9 +1236,8 @@ const App = {
           } catch (err) {
             console.error('Mobile view error', err);
             const win = window.open();
-            win.document.write(<iframe src="${doc.url || doc.data || ''}" frameborder="0" style="width:100%; height:100%;"></iframe>);
+            win.document.write(`<iframe src="${doc.url || doc.data || ''}" frameborder="0" style="width:100%; height:100%;"></iframe>`);
           }
-        }
         }
       }
 
@@ -1653,6 +1652,7 @@ const App = {
           this.dashboardMap.setView([location.lat, location.lon]);
           MapManager.invalidate(mapContainer);
         }
+        }
         UI.addSunToMap(this.dashboardMap, location, sun.data.results, gh, posNow);
       }
 
@@ -2063,6 +2063,7 @@ const App = {
           }).addTo(this.detailMap);
           this.detailMap.setView([location.lat, location.lon]);
           MapManager.invalidate(detailMapContainer);
+        }
         }
         UI.addSunToMap(this.detailMap, location, sun.data.results, gh, posNow);
         setTimeout(() => this.detailMap.invalidateSize(), 200);
