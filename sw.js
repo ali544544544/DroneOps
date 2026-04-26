@@ -1,9 +1,20 @@
-const CACHE_NAME = 'droneops-v1';
+const CACHE_NAME = 'droneops-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
   './styles.css',
-  './app.v3.js',
+  './main.js',
+  './js/attachments.js',
+  './js/cloud.js',
+  './js/core.js',
+  './js/i18n.js',
+  './js/index.js',
+  './js/managers.js',
+  './js/map.js',
+  './js/score.js',
+  './js/ui.js',
+  './js/util.js',
+  './js/weather.js',
   './config.js',
   './manifest.json',
   './data/translations.json',
