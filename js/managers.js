@@ -61,6 +61,9 @@ export const ChecklistManager = {
       { id: 'c5', name: 'FPV Brille geladen', count: 1, category: 'power' }
     ];
   },
+  categories() {
+    return [...new Set(this.getAll().map(i => i.category))].filter(Boolean);
+  },
   add(item) {
     const list = this.getAll();
     list.push({ ...item, id: 'c_' + Date.now() });
