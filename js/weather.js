@@ -7,10 +7,10 @@ export const BrightSkyService = {
   ttlMs: 15 * 60 * 1000,
   getCache() { return Storage.get(Keys.brightSkyCache, {}); },
   setCache(data) { Storage.set(Keys.brightSkyCache, data); },
-  async get(location) {
+  async get(location, forceRefresh = false) {
     const cache = this.getCache();
     const cached = cache[location.id];
-    if (cached && (Date.now() - cached.timestamp < this.ttlMs)) {
+    if (!forceRefresh && cached && (Date.now() - cached.timestamp < this.ttlMs)) {
       return { ...cached, source: 'cache' };
     }
 
@@ -44,10 +44,10 @@ export const WeatherService = {
   ttlMs: 10 * 60 * 1000,
   getCache() { return Storage.get(Keys.weatherCache, {}); },
   setCache(data) { Storage.set(Keys.weatherCache, data); },
-  async get(location) {
+  async get(location, forceRefresh = false) {
     const cache = this.getCache();
     const cached = cache[location.id];
-    if (cached && (Date.now() - cached.timestamp < this.ttlMs)) {
+    if (!forceRefresh && cached && (Date.now() - cached.timestamp < this.ttlMs)) {
       return { ...cached, source: 'cache' };
     }
 
@@ -67,7 +67,7 @@ export const WeatherService = {
     try {
       const [res, bsRes] = await Promise.all([
         fetch(url.toString()),
-        BrightSkyService.get(location)
+        BrightSkyService.get(location, forceRefresh)
       ]);
       if (!res.ok) throw new Error(`Open-Meteo API Error: ${res.status}`);
       const data = await res.json();
@@ -103,11 +103,11 @@ export const SunService = {
   getCache() { return Storage.get(Keys.sunCache, {}); },
   setCache(data) { Storage.set(Keys.sunCache, data); },
   dayKey(date) { return date.toISOString().split('T')[0]; },
-  async get(location, date = new Date()) {
+  async get(location, date = new Date(), forceRefresh = false) {
     const cache = this.getCache();
     const cacheKey = `${location.id}_${this.dayKey(date)}`;
     const cached = cache[cacheKey];
-    if (cached && (Date.now() - cached.timestamp < this.ttlMs)) {
+    if (!forceRefresh && cached && (Date.now() - cached.timestamp < this.ttlMs)) {
       return { ...cached, source: 'cache' };
     }
 

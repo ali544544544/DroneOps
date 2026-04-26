@@ -1067,24 +1067,8 @@ const App = {
     });
 
     document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
-      const location = await this.resolveDashboardLocation();
-      if (!location) return;
-      
-      const wCache = Storage.get(Keys.weatherCache, {});
-      const sCache = Storage.get(Keys.sunCache, {});
-      const bCache = Storage.get(Keys.brightSkyCache, {});
-      
-      delete wCache[location.id];
-      delete sCache[`${location.id}_${Util.dayKey()}`];
-      delete sCache[`${location.id}_${Util.dayKey(new Date(Date.now() + 86400000))}`];
-      delete bCache[location.id];
-      
-      Storage.set(Keys.weatherCache, wCache);
-      Storage.set(Keys.sunCache, sCache);
-      Storage.set(Keys.brightSkyCache, bCache);
-      
       UI.toast(I18n.t('dashboard.refresh'));
-      await this.renderDashboard();
+      await this.renderDashboard(true);
     });
 
     document.getElementById('dashboardMapSelectBtn').addEventListener('click', () => {
@@ -1527,7 +1511,7 @@ const App = {
     });
   },
 
-  async renderDashboard() {
+  async renderDashboard(forceRefresh = false) {
     UI.renderDashboardLocationSelect();
     const location = await this.resolveDashboardLocation();
     if (!location) {
@@ -1545,9 +1529,9 @@ const App = {
       const drone = ProfileManager.getActive();
       const now = new Date();
       const [weather, sunToday, sunTomorrow] = await Promise.all([
-        WeatherService.get(location),
-        SunService.get(location, now),
-        SunService.get(location, new Date(now.getTime() + 86400000))
+        WeatherService.get(location, forceRefresh),
+        SunService.get(location, now, forceRefresh),
+        SunService.get(location, new Date(now.getTime() + 86400000), forceRefresh)
       ]);
       
       StatusTracker.update('weather', weather.source, weather.timestamp);
