@@ -1516,7 +1516,7 @@ const App = {
     const location = await this.resolveDashboardLocation();
     if (!location) {
       UI.renderDashboardNone();
-      await this.renderDashboardLocationCards();
+      await this.renderDashboardLocationCards(forceRefresh);
       return;
     }
 
@@ -1712,7 +1712,7 @@ const App = {
       
       this.renderDashboardDrone();
       this.renderDashboardChecklist();
-      await this.renderDashboardLocationCards();
+      await this.renderDashboardLocationCards(forceRefresh);
     } catch (error) {
       console.error('Dashboard Render Error:', error);
       StatusTracker.update('weather', 'error');
@@ -1723,7 +1723,7 @@ const App = {
       UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       this.renderDashboardDrone();
       this.renderDashboardChecklist();
-      await this.renderDashboardLocationCards();
+      await this.renderDashboardLocationCards(forceRefresh);
     }
   },
 
@@ -1787,7 +1787,7 @@ const App = {
     `;
   },
 
-  async renderDashboardLocationCards() {
+  async renderDashboardLocationCards(forceRefresh = false) {
     const locations = LocationManager.getAll();
     UI.els.dashboardLocationCardsPanel.innerHTML = `<h3>${I18n.t('dashboard.locationsOverview')}</h3>`;
     if (!locations.length) {
@@ -1795,9 +1795,13 @@ const App = {
       return;
     }
 
+    const now = new Date();
     const cards = await Promise.all(locations.map(async location => {
       try {
-        const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
+        const [weather, sun] = await Promise.all([
+          WeatherService.get(location, forceRefresh),
+          SunService.get(location, now, forceRefresh)
+        ]);
         const score = this.scoreForCurrent(weather);
         const meta = UI.weatherMeta(weather.data.current_weather.weathercode);
         const gh = GoldenHour.calculate({
