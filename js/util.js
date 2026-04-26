@@ -80,12 +80,15 @@ export const Util = {
       const res = await fetch(url);
       const data = await res.json();
       if (data.code !== 'Ok' || !data.routes?.length) {
+        window.StatusTracker?.update('routing', 'error');
         return null;
       }
+      window.StatusTracker?.update('routing', 'network');
       const duration = Math.round(data.routes[0].duration / 60);
       return duration;
     } catch (e) {
       console.error('OSRM Error:', e);
+      window.StatusTracker?.update('routing', 'error');
       return null;
     }
   },
