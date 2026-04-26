@@ -38,7 +38,6 @@ const StatusTracker = {
 };
 window.StatusTracker = StatusTracker;
 window.CloudManager = CloudManager;
-window.UI = UI;
 
 const UI = {
   els: {},
