@@ -1,5 +1,10 @@
 import { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, I18n, CloudManager, ProfileManager, ChecklistManager, LocationManager, MapManager, Util, Nominatim, WeatherService, BrightSkyService, SunService, ScoreEngine, GoldenHour, Toast, Skeleton, Router, AttachmentManager } from './js/index.js';
 
+const DATA_FILES = {
+  profiles: './data/profiles.json',
+  translations: './data/translations.json',
+  weathercodes: './data/weathercodes.json'
+};
 const StatusTracker = {
   services: {
     weather: { label: 'Wetter', source: 'unknown', timestamp: null },
