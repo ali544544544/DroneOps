@@ -1531,8 +1531,15 @@ const App = {
   },
 
   async renderDashboard(forceRefresh = false) {
-    UI.renderDashboardLocationSelect();
     const location = await this.resolveDashboardLocation();
+    
+    // Sync the dropdown UI with the resolved location
+    const currentSource = Storage.get(Keys.dashboardSource, '');
+    if (!currentSource && location) {
+      Storage.set(Keys.dashboardSource, location.id);
+    }
+    UI.renderDashboardLocationSelect();
+
     if (!location) {
       UI.renderDashboardNone();
       await this.renderDashboardLocationCards(forceRefresh);
