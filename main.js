@@ -1,4 +1,4 @@
-import { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, I18n, CloudManager, ProfileManager, ChecklistManager, LocationManager, MapManager, Util, Nominatim, WeatherService, BrightSkyService, SunService, ScoreEngine, GoldenHour, Toast, Skeleton, Router } from './js/index.js';
+import { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, I18n, CloudManager, ProfileManager, ChecklistManager, LocationManager, MapManager, Util, Nominatim, WeatherService, BrightSkyService, SunService, ScoreEngine, GoldenHour, Toast, Skeleton, Router, AttachmentManager } from './js/index.js';
 
 const StatusTracker = {
   services: {
@@ -1175,8 +1175,8 @@ const App = {
             alert(`Datei "${file.name}" zu groß (Max 2MB).`);
             continue;
           }
-          const base64 = await Util.fileToBase64(file);
-          item.attachments.push({ data: base64, type: file.type, name: file.name });
+          const attachment = await AttachmentManager.upload(file);
+          item.attachments.push(attachment);
         }
       } else if (this.editingChecklistId) {
         // Keep existing attachments if editing
@@ -1219,10 +1219,10 @@ const App = {
         const item = ChecklistManager.getAll().find(x => x.id === id);
         const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType }] : []);
         const doc = docs[idx];
-        if (doc && doc.data) {
+        if (doc) {
           try {
-            const blob = Util.base64ToBlob(doc.data);
-            const url = URL.createObjectURL(blob);
+            const url = await AttachmentManager.getFileUrl(doc);
+            if (!url) return;
             const a = document.createElement('a');
             a.href = url;
             a.target = '_blank';
@@ -1231,14 +1231,14 @@ const App = {
             a.click();
             setTimeout(() => {
               document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+              if (url.startsWith('blob:')) URL.revokeObjectURL(url);
             }, 100);
           } catch (err) {
             console.error('Mobile view error', err);
-            // Fallback for extreme cases
             const win = window.open();
-            win.document.write(`<iframe src="${doc.data}" frameborder="0" style="width:100%; height:100%;"></iframe>`);
+            win.document.write(<iframe src="${doc.url || doc.data || ''}" frameborder="0" style="width:100%; height:100%;"></iframe>);
           }
+        }
         }
       }
 
@@ -1284,11 +1284,8 @@ const App = {
               alert(`Datei "${file.name}" zu groß (Max 2MB)`);
               continue;
             }
-            item.attachments.push({
-              data: await Util.fileToBase64(file),
-              type: file.type,
-              name: file.name
-            });
+            const attachment = await AttachmentManager.upload(file);
+            item.attachments.push(attachment);
           }
         }
 
@@ -1315,9 +1312,9 @@ const App = {
           docs.splice(idx, 1);
           item.attachments = docs;
           delete item.attachment;
-          delete item.attachmentType;
-          ChecklistManager.saveAll(all);
-          await this.renderChecklist();
+          const removed = docs.splice(idx, 1)[0];
+          if (removed) AttachmentManager.delete(removed);
+
         }
       }
       if (logDelete) {
@@ -2551,4 +2548,5 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+
 

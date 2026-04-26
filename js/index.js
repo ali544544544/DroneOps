@@ -18,6 +18,7 @@ export { CloudManager } from './cloud.js';
 export { ProfileManager, ChecklistManager, LocationManager } from './managers.js';
 export { MapManager } from './map.js';
 export { Util, Nominatim } from './util.js';
+export { AttachmentManager } from './attachments.js';
 export { WeatherService, BrightSkyService, SunService } from './weather.js';
 export { ScoreEngine, GoldenHour } from './score.js';
 export { Toast, Skeleton, Router } from './ui.js';
