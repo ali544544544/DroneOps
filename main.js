@@ -712,15 +712,22 @@ const App = {
   },
 
   initMapPicker() {
-    if (this.pickerMap) {
-      setTimeout(() => this.pickerMap.invalidateSize(), 100);
-      return;
+    if (!this.pickerMap) {
+      this.pickerMap = MapManager.get('locationsPickerMap');
+      if (this.pickerMap && !this.pickerMap._hasTileLayer) {
+        this.pickerMap.setView([51.1657, 10.4515], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.pickerMap);
+        this.pickerMap._hasTileLayer = true;
+      }
     }
 
-    this.pickerMap = L.map('locationsPickerMap').setView([51.1657, 10.4515], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.pickerMap);
-
-    this.pickerMap.on('click', async (e) => {
+    if (this.pickerMap) {
+      setTimeout(() => this.pickerMap.invalidateSize(), 100);
+      
+      // Remove old click listener if any (prevent duplicates)
+      this.pickerMap.off('click');
+      
+      this.pickerMap.on('click', async (e) => {
       const { lat, lng } = e.latlng;
       if (this.pickerMarker) this.pickerMap.removeLayer(this.pickerMarker);
       this.pickerMarker = L.marker([lat, lng]).addTo(this.pickerMap);
