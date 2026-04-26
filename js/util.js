@@ -42,12 +42,12 @@ export const Nominatim = {
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`);
       return await res.json();
-    } catch { return null; }
+    } catch (e) { return null; }
   },
   async search(query) {
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
       return await res.json();
-    } catch { return []; }
+    } catch (e) { return []; }
   }
 };

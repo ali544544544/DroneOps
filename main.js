@@ -762,7 +762,7 @@ const App = {
       const res = await fetch(path);
       if (!res.ok) return fallback;
       return res.json();
-    } catch {
+    } catch (e) {
       return fallback;
     }
   },

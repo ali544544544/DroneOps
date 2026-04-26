@@ -48,7 +48,7 @@ export const Storage = {
         } catch (e) {}
       }
       return parsed;
-    } catch { return fallback; }
+    } catch (e) { return fallback; }
   },
   set(key, value) {
     try {
