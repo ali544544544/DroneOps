@@ -43,9 +43,15 @@ export const ProfileManager = {
       this.setActive(profiles[0].id);
     }
   },
+  getLabel(p) {
+    if (!p) return '—';
+    if (typeof p.label === 'object') {
+      return p.label[I18n.lang] || p.label['de'] || p.id;
+    }
+    return p.label || p.id;
+  },
   label(id) {
-    const p = this.getById(id);
-    return p?.label || id;
+    return this.getLabel(this.getById(id));
   }
 };
 

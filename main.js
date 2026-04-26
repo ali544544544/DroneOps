@@ -1769,7 +1769,7 @@ const App = {
         
         <div class="field mt-12">
           <select id="dashboardDroneSelect" style="width:100%">
-            ${allProfiles.map(p => `<option value="${p.id}" ${p.id === drone.id ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>`).join('')}
+            ${allProfiles.map(p => `<option value="${p.id}" ${p.id === drone.id ? 'selected' : ''}>${Util.escapeHtml(ProfileManager.getLabel(p))}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -2167,7 +2167,7 @@ const App = {
             <div class="form-row">
               <input type="date" id="logDate" required value="${new Date().toISOString().slice(0, 10)}" />
               <select id="logDrone">
-                ${ProfileManager.getAll().map(p => `<option value="${p.id}">${Util.escapeHtml(p.label)}</option>`).join('')}
+                ${ProfileManager.getAll().map(p => `<option value="${p.id}">${Util.escapeHtml(ProfileManager.getLabel(p))}</option>`).join('')}
               </select>
             </div>
             <input type="text" id="logNote" maxlength="200" placeholder="${I18n.t('detail.logPlaceholder')}" />
@@ -2188,7 +2188,7 @@ const App = {
                         <label class="field">
                           <span>Drohne</span>
                           <select id="inline-log-drone-${entry.id}">
-                            ${ProfileManager.getAll().map(p => `<option value="${p.id}" ${p.id === entry.drone ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>`).join('')}
+                            ${ProfileManager.getAll().map(p => `<option value="${p.id}" ${p.id === entry.drone ? 'selected' : ''}>${Util.escapeHtml(ProfileManager.getLabel(p))}</option>`).join('')}
                           </select>
                         </label>
                       </div>
@@ -2330,7 +2330,7 @@ const App = {
         <article class="drone-card ${profile.id === active.id ? 'active' : ''}" style="--drone-accent: ${droneColor}">
           <div class="score-hero">
             <div class="drone-header-main">
-              <h3>🚀 ${Util.escapeHtml(profile.label)}</h3>
+              <h3>🚀 ${Util.escapeHtml(ProfileManager.getLabel(profile))}</h3>
               ${profile.id === active.id ? `<div class="badge fly">${I18n.t('drones.active')}</div>` : ''}
             </div>
             <div class="inline-actions">
