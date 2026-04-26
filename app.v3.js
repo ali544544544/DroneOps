@@ -756,6 +756,44 @@ const Util = {
   }
 };
 
+const MapManager = {
+  instances: {},
+  get(id, options = {}) {
+    const container = document.getElementById(id);
+    if (!container) return null;
+    
+    // Check if map already exists on this container
+    if (this.instances[id]) {
+      // Re-parent container if necessary (if the DOM was replaced)
+      const map = this.instances[id];
+      if (map.getContainer() !== container) {
+        // This is tricky in Leaflet, usually better to check if container is empty
+        if (container._leaflet_id) {
+           // Container already has a map but it's not the one we track? 
+           // Should not happen if we manage all maps through MapManager.
+        }
+      }
+      return map;
+    }
+    
+    // Create new instance
+    const map = L.map(id, options);
+    this.instances[id] = map;
+    return map;
+  },
+  destroy(id) {
+    if (this.instances[id]) {
+      this.instances[id].remove();
+      delete this.instances[id];
+    }
+  },
+  invalidate(id) {
+    if (this.instances[id]) {
+      setTimeout(() => this.instances[id].invalidateSize(), 100);
+    }
+  }
+};
+
 const I18n = {
   translations: FALLBACK_TRANSLATIONS,
   lang: 'de',
@@ -1465,6 +1503,22 @@ const UI = {
       <option value="${p.id}" ${p.id === active.id ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>
     `).join('');
   },
+  showSkeleton(container, type = 'dashboard') {
+    if (!container) return;
+    if (type === 'dashboard') {
+      container.innerHTML = `
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-card"></div>
+      `;
+    } else if (type === 'hourly') {
+      container.innerHTML = `
+        <div class="hourly-scroll">
+          ${Array(6).fill('<div class="skeleton" style="min-width:120px; height:150px"></div>').join('')}
+        </div>
+      `;
+    }
+  },
   renderDashboardLocationSelect() {
     const locations = LocationManager.getAll();
     const source = Storage.get(Keys.dashboardSource, '');
@@ -1790,8 +1844,13 @@ const App = {
       return;
     }
 
-    this.dashboardPickerMap = L.map('dashboardMapPicker', { preferCanvas: true }).setView([51.1657, 10.4515], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardPickerMap);
+    this.dashboardPickerMap = MapManager.get('dashboardMapPicker', { preferCanvas: true });
+    if (this.dashboardPickerMap && !this.dashboardPickerMap._hasTileLayer) {
+      this.dashboardPickerMap.setView([51.1657, 10.4515], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardPickerMap);
+      this.dashboardPickerMap._hasTileLayer = true;
+    }
+    MapManager.invalidate('dashboardMapPicker');
 
     const bounds = L.latLngBounds();
     const premiumIcon = L.divIcon({
@@ -1854,11 +1913,16 @@ const App = {
           return;
         }
 
-        this.overviewMap = L.map('locationsOverviewMap', { preferCanvas: true }).setView([50.7333, 7.1], 10);
+    if (locations.length) {
+      this.overviewMap = MapManager.get('locationsOverviewMap', { preferCanvas: true });
+      if (this.overviewMap && !this.overviewMap._hasTileLayer) {
+        this.overviewMap.setView([50.7333, 7.1], 10);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.overviewMap);
         this.overviewMarkers = L.layerGroup().addTo(this.overviewMap);
-        setTimeout(() => this.overviewMap.invalidateSize(), 200);
+        this.overviewMap._hasTileLayer = true;
       }
+      MapManager.invalidate('locationsOverviewMap');
+    }
 
       // Only clear and redraw markers
       this.overviewMarkers.clearLayers();
@@ -1901,6 +1965,13 @@ const App = {
       pickerView.classList.remove('hidden');
       listView.classList.add('hidden');
       detailView.classList.add('hidden');
+      this.pickerMap = MapManager.get('locationsPickerMap');
+      if (this.pickerMap && !this.pickerMap._hasTileLayer) {
+        this.pickerMap.setView([51.1657, 10.4515], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.pickerMap);
+        this.pickerMap._hasTileLayer = true;
+      }
+      MapManager.invalidate('locationsPickerMap');
       this.initMapPicker();
     }
   },
@@ -2037,6 +2108,16 @@ const App = {
   },
 
   bindEvents() {
+    window.onerror = (msg, url, line, col, error) => {
+      console.error('Global Error:', msg, url, line, col, error);
+      UI.toast(I18n.t('error.generic') || 'Ein Fehler ist aufgetreten', 'error');
+      return false;
+    };
+    window.onunhandledrejection = (event) => {
+      console.error('Unhandled Rejection:', event.reason);
+      UI.toast(I18n.t('error.generic') || 'Ein Fehler ist aufgetreten', 'error');
+    };
+
     document.getElementById('langDe').addEventListener('click', async () => {
       I18n.setLanguage('de');
       await this.renderAll();
@@ -2707,6 +2788,11 @@ const App = {
       return;
     }
 
+    // Show skeletons
+    UI.showSkeleton(UI.els.dashboardCurrentPanel, 'dashboard');
+    UI.showSkeleton(UI.els.dashboardGoldenPanel, 'dashboard');
+    UI.showSkeleton(UI.els.dashboardHourlyPanel, 'hourly');
+
     try {
       const drone = ProfileManager.getActive();
       const now = new Date();
@@ -2804,15 +2890,27 @@ const App = {
         } else {
           // First time or new div created by innerHTML
           if (this.dashboardMap) { this.dashboardMap.remove(); }
-          this.dashboardMap = L.map(mapContainer, { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 13);
+        this.dashboardMap = MapManager.get(mapContainer, { 
+          zoomControl: false, 
+          attributionControl: false, 
+          preferCanvas: true 
+        });
+        if (this.dashboardMap && !this.dashboardMap._hasTileLayer) {
+          this.dashboardMap.setView([location.lat, location.lon], 13);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
+          this.dashboardMap._hasTileLayer = true;
+        }
+        
+        if (this.dashboardMap) {
+          if (this.dashboardMarker) this.dashboardMap.removeLayer(this.dashboardMarker);
           this.dashboardMarker = L.marker([location.lat, location.lon], { 
             icon: L.divIcon({
               html: `<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>`,
               className: '', iconSize: [12, 12]
             })
           }).addTo(this.dashboardMap);
-          setTimeout(() => this.dashboardMap.invalidateSize(), 200);
+          this.dashboardMap.setView([location.lat, location.lon]);
+          MapManager.invalidate(mapContainer);
         }
         UI.addSunToMap(this.dashboardMap, location, sun.data.results, gh, posNow);
       }
@@ -3128,6 +3226,11 @@ const App = {
       <span id="locationNameSavedHint" class="saved-hint"></span>
     `;
 
+    // Show skeletons
+    UI.showSkeleton(UI.els.detailWeatherPanel, 'dashboard');
+    UI.showSkeleton(UI.els.detailSunPanel, 'dashboard');
+    UI.showSkeleton(UI.els.detailHourlyPanel, 'hourly');
+
     try {
       const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
       StatusTracker.update('weather', weather.source, weather.timestamp);
@@ -3198,14 +3301,27 @@ const App = {
           this.detailMarker.setLatLng([location.lat, location.lon]);
         } else {
           if (this.detailMap) { this.detailMap.remove(); }
-          this.detailMap = L.map(detailMapContainer, { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([location.lat, location.lon], 14);
+        this.detailMap = MapManager.get(detailMapContainer, { 
+          zoomControl: false, 
+          attributionControl: false, 
+          preferCanvas: true 
+        });
+        if (this.detailMap && !this.detailMap._hasTileLayer) {
+          this.detailMap.setView([location.lat, location.lon], 14);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.detailMap);
+          this.detailMap._hasTileLayer = true;
+        }
+        
+        if (this.detailMap) {
+          if (this.detailMarker) this.detailMap.removeLayer(this.detailMarker);
           this.detailMarker = L.marker([location.lat, location.lon], { 
             icon: L.divIcon({
               html: `<div style="background:var(--accent);width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--accent)"></div>`,
               className: '', iconSize: [14, 14]
             })
           }).addTo(this.detailMap);
+          this.detailMap.setView([location.lat, location.lon]);
+          MapManager.invalidate(detailMapContainer);
         }
         UI.addSunToMap(this.detailMap, location, sun.data.results, gh, posNow);
         setTimeout(() => this.detailMap.invalidateSize(), 200);
