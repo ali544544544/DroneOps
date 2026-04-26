@@ -788,14 +788,15 @@ const App = {
     console.log('App: Starting initialization...');
     try {
       const [profiles, translations, weathercodes] = await Promise.all([
-        this.loadJson(DATA_FILES.profiles, FALLBACK_PROFILES),
-        this.loadJson(DATA_FILES.translations, FALLBACK_TRANSLATIONS),
-        this.loadJson(DATA_FILES.weathercodes, DRONE_WEATHER_CODES_FALLBACK),
+        this.loadJson(`${DATA_FILES.profiles}?v=6`, FALLBACK_PROFILES),
+        this.loadJson(`${DATA_FILES.translations}?v=6`, FALLBACK_TRANSLATIONS),
+        this.loadJson(`${DATA_FILES.weathercodes}?v=6`, DRONE_WEATHER_CODES_FALLBACK),
       ]);
       console.log('App: Data files loaded.');
 
       I18n.init(translations);
       ProfileManager.init(profiles);
+      LocationManager.init();
       ChecklistManager.init();
       UI.init(weathercodes);
       UI.applyI18n();

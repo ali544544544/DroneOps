@@ -94,6 +94,14 @@ export const ChecklistManager = {
 };
 
 export const LocationManager = {
+  init(loadedLocations = []) {
+    const existing = Storage.get(Keys.locations, null);
+    if (!existing || !existing.length) {
+      if (loadedLocations && loadedLocations.length) {
+        Storage.set(Keys.locations, loadedLocations);
+      }
+    }
+  },
   getAll() { return Storage.get(Keys.locations, []); },
   saveAll(locations) { Storage.set(Keys.locations, locations); },
   getById(id) { return this.getAll().find(l => l.id === id); },
