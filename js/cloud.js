@@ -104,13 +104,16 @@ export const CloudManager = {
     const userView = document.getElementById('userView');
     const userEmail = document.getElementById('userEmail');
 
+    const accountBtn = document.getElementById('accountBtn');
     if (this.user) {
       if (statusEl) statusEl.classList.add('live');
+      if (accountBtn) accountBtn.classList.add('btn-active');
       if (authView) authView.classList.add('hidden');
       if (userView) userView.classList.remove('hidden');
       if (userEmail) userEmail.textContent = this.user.email;
     } else {
       if (statusEl) statusEl.classList.remove('live');
+      if (accountBtn) accountBtn.classList.remove('btn-active');
       if (authView) authView.classList.remove('hidden');
       if (userView) userView.classList.add('hidden');
     }
