@@ -143,10 +143,10 @@ const UI = {
       map.removeControl(map.sunLegend);
     }
 
-    const posSR  = App.getSolarPosition(new Date(sunResults.sunrise), location.lat, location.lon);
-    const posSS  = App.getSolarPosition(new Date(sunResults.sunset), location.lat, location.lon);
-    const posGHS = App.getSolarPosition(gh.morningStart, location.lat, location.lon);
-    const posGHE = App.getSolarPosition(gh.eveningEnd, location.lat, location.lon);
+    const posSR  = window.App.getSolarPosition(new Date(sunResults.sunrise), location.lat, location.lon);
+    const posSS  = window.App.getSolarPosition(new Date(sunResults.sunset), location.lat, location.lon);
+    const posGHS = window.App.getSolarPosition(gh.morningStart, location.lat, location.lon);
+    const posGHE = window.App.getSolarPosition(gh.eveningEnd, location.lat, location.lon);
 
     const drawLine = (az, color, label, dash = null) => {
       const rad = (az - 90) * (Math.PI / 180);
@@ -773,6 +773,7 @@ const App = {
       return fallback;
     }
   },
+
   getSolarPosition(date, lat, lon) {
     const deg2rad = Math.PI / 180;
     const rad2deg = 180 / Math.PI;
@@ -2555,6 +2556,7 @@ window.addEventListener('unhandledrejection', (e) => {
   }
 });
 
+window.App = App;
 document.addEventListener('DOMContentLoaded', () => App.init());
 
 

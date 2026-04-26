@@ -12,14 +12,8 @@ export const I18n = {
     this.applyToDOM();
   },
 
-  t(key) {
-    const keys = key.split('.');
-    let value = this.translations[this.lang];
-    for (const k of keys) {
-      if (!value || !value[k]) return key;
-      value = value[k];
-    }
-    return value;
+  t(key, fallback = null) {
+    return this.translations?.[this.lang]?.[key] ?? fallback ?? key;
   },
 
   setLanguage(l) {
