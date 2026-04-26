@@ -18,6 +18,38 @@ export const FALLBACK_PROFILES = [
   { id: 'p2', label: 'Mini 3 Pro', style: 'sub250', weight: 249, size: 3, maxWind: 30, critWind: 45, maxGusts: 40, critGusts: 55, color: '#37e781', rainTolerance: 'none' }
 ];
 
+export const FALLBACK_WEATHERCODES = {
+  "0": { icon: "☀️", de: "Klarer Himmel", en: "Clear sky" },
+  "1": { icon: "🌤️", de: "Überwiegend klar", en: "Mainly clear" },
+  "2": { icon: "⛅", de: "Teilweise bewölkt", en: "Partly cloudy" },
+  "3": { icon: "☁️", de: "Bedeckt", en: "Overcast" },
+  "45": { icon: "🌫️", de: "Nebel", en: "Fog" },
+  "48": { icon: "🌫️", de: "Nebel", en: "Fog" },
+  "51": { icon: "🌦️", de: "Nieselregen", en: "Drizzle" },
+  "53": { icon: "🌦️", de: "Nieselregen", en: "Drizzle" },
+  "55": { icon: "🌦️", de: "Nieselregen", en: "Drizzle" },
+  "56": { icon: "🌦️", de: "Nieselregen", en: "Drizzle" },
+  "57": { icon: "🌦️", de: "Nieselregen", en: "Drizzle" },
+  "61": { icon: "🌧️", de: "Regen", en: "Rain" },
+  "63": { icon: "🌧️", de: "Regen", en: "Rain" },
+  "65": { icon: "🌧️", de: "Regen", en: "Rain" },
+  "66": { icon: "🌧️", de: "Regen", en: "Rain" },
+  "67": { icon: "🌧️", de: "Regen", en: "Rain" },
+  "71": { icon: "❄️", de: "Schnee", en: "Snow" },
+  "73": { icon: "❄️", de: "Schnee", en: "Snow" },
+  "75": { icon: "❄️", de: "Schnee", en: "Snow" },
+  "77": { icon: "❄️", de: "Schnee", en: "Snow" },
+  "80": { icon: "🌦️", de: "Regenschauer", en: "Rain showers" },
+  "81": { icon: "🌦️", de: "Regenschauer", en: "Rain showers" },
+  "82": { icon: "🌦️", de: "Regenschauer", en: "Rain showers" },
+  "85": { icon: "🌨️", de: "Schneeschauer", en: "Snow showers" },
+  "86": { icon: "🌨️", de: "Schneeschauer", en: "Snow showers" },
+  "95": { icon: "⛈️", de: "Gewitter", en: "Thunderstorm" },
+  "96": { icon: "⛈️", de: "Gewitter", en: "Thunderstorm" },
+  "99": { icon: "⛈️", de: "Gewitter", en: "Thunderstorm" },
+  "default": { icon: "❓", de: "Unbekannt", en: "Unknown" }
+};
+
 export const FALLBACK_TRANSLATIONS = {
   de: {
     'tab.dashboard': 'Dashboard',

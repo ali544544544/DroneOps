@@ -9,11 +9,15 @@ export const CloudManager = {
 
   async init() {
     if (typeof supabase === 'undefined') {
-      console.warn('Supabase not loaded.');
+      console.warn('Supabase library not loaded.');
       return;
     }
-    // Note: supabaseClient is usually initialized in config.js
-    // We expect it to be globally available as supabaseClient
+    
+    // Initialize client if missing but CONFIG exists
+    if (!window.supabaseClient && typeof CONFIG !== 'undefined') {
+      window.supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+    }
+
     this.client = window.supabaseClient;
     
     if (this.client) {

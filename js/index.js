@@ -12,7 +12,7 @@
  * 3. Remove the old monolith
  */
 
-export { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS } from './core.js';
+export { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, FALLBACK_WEATHERCODES } from './core.js';
 export { I18n } from './i18n.js';
 export { CloudManager } from './cloud.js';
 export { ProfileManager, ChecklistManager, LocationManager } from './managers.js';
