@@ -1,5 +1,20 @@
 import { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, DRONE_WEATHER_CODES_FALLBACK, I18n, CloudManager, ProfileManager, ChecklistManager, LocationManager, MapManager, Util, Nominatim, WeatherService, BrightSkyService, SunService, ScoreEngine, GoldenHour, Toast, Skeleton, Router, AttachmentManager } from './js/index.js';
 
+// Expose modules to global window for legacy event handlers and debugging
+window.Keys = Keys;
+window.Storage = Storage;
+window.I18n = I18n;
+window.CloudManager = CloudManager;
+window.ProfileManager = ProfileManager;
+window.ChecklistManager = ChecklistManager;
+window.LocationManager = LocationManager;
+window.MapManager = MapManager;
+window.Util = Util;
+window.WeatherService = WeatherService;
+window.Toast = Toast;
+window.Router = Router;
+window.AttachmentManager = AttachmentManager;
+
 const DATA_FILES = {
   profiles: './data/profiles.json',
   translations: './data/translations.json',
@@ -23,6 +38,7 @@ const StatusTracker = {
 };
 window.StatusTracker = StatusTracker;
 window.CloudManager = CloudManager;
+window.UI = UI;
 
 const UI = {
   els: {},
@@ -788,11 +804,15 @@ const App = {
     console.log('App: Starting initialization...');
     try {
       const [profiles, translations, weathercodes] = await Promise.all([
-        this.loadJson(`${DATA_FILES.profiles}?v=6`, FALLBACK_PROFILES),
-        this.loadJson(`${DATA_FILES.translations}?v=6`, FALLBACK_TRANSLATIONS),
-        this.loadJson(`${DATA_FILES.weathercodes}?v=6`, DRONE_WEATHER_CODES_FALLBACK),
+        this.loadJson(DATA_FILES.profiles, FALLBACK_PROFILES),
+        this.loadJson(DATA_FILES.translations, FALLBACK_TRANSLATIONS),
+        this.loadJson(DATA_FILES.weathercodes, DRONE_WEATHER_CODES_FALLBACK),
       ]);
-      console.log('App: Data files loaded.');
+      console.log('App: Data files loaded.', { 
+        profiles: !!profiles, 
+        translations: !!translations, 
+        weathercodes: !!weathercodes 
+      });
 
       I18n.init(translations);
       ProfileManager.init(profiles);
@@ -820,12 +840,19 @@ const App = {
       this.bindEvents();
       console.log('App: Events bound.');
 
-      Router.showPage(Storage.get(Keys.activeTab, 'dashboard'));
+      const activeTab = Storage.get(Keys.activeTab, 'dashboard');
+      console.log('App: Showing page:', activeTab);
+      Router.showPage(activeTab);
       await this.renderAll();
       console.log('App: Initial render complete.');
     } catch (error) {
       console.error('App: Critical initialization error:', error);
-      document.body.innerHTML = `<main style="padding:24px;color:white;font-family:sans-serif;background:#111;height:100vh"><h2>App konnte nicht initialisiert werden.</h2><p>${error.message || error}</p><button onclick="location.reload()">Neu laden</button></main>`;
+      document.body.innerHTML = `<main style="padding:24px;color:white;font-family:sans-serif;background:#111;height:100vh">
+        <h2>App konnte nicht initialisiert werden.</h2>
+        <p>${error.message || error}</p>
+        <pre style="font-size:12px;opacity:0.7">${error.stack || ''}</pre>
+        <button onclick="location.reload()">Neu laden</button>
+      </main>`;
     }
   },
 
@@ -2536,6 +2563,15 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 window.App = App;
-document.addEventListener('DOMContentLoaded', () => App.init());
+window.UI = UI;
+window.Router = Router;
+window.Toast = Toast;
+window.I18n = I18n;
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => App.init());
+} else {
+  App.init();
+}
 
 
