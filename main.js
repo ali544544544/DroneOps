@@ -1582,100 +1582,101 @@ const App = {
       const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
-      let currentInfo = document.getElementById('dash-current-info');
-      let mapContainer = document.getElementById('dashboardMap');
-      let currentStats = document.getElementById('dash-current-stats');
       
-      if (!currentInfo || !mapContainer || !currentStats) {
-        UI.els.dashboardCurrentPanel.innerHTML = `
-          <div id="dash-current-info"></div>
-          <div id="dashboardMap" class="dashboard-map"></div>
-          <div id="dash-current-stats"></div>
+      // Isolated Map Rendering
+      try {
+        let currentInfo = document.getElementById('dash-current-info');
+        let mapContainer = document.getElementById('dashboardMap');
+        let currentStats = document.getElementById('dash-current-stats');
+        
+        if (!currentInfo || !mapContainer || !currentStats) {
+          UI.els.dashboardCurrentPanel.innerHTML = `
+            <div id="dash-current-info"></div>
+            <div id="dashboardMap" class="dashboard-map"></div>
+            <div id="dash-current-stats"></div>
+          `;
+          currentInfo = document.getElementById('dash-current-info');
+          mapContainer = document.getElementById('dashboardMap');
+          currentStats = document.getElementById('dash-current-stats');
+        }
+
+        currentInfo.innerHTML = `
+          <div class="score-hero">
+            <div>
+              <h3>${I18n.t('dashboard.current')}</h3>
+              <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
+              <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
+            </div>
+          </div>
         `;
-        currentInfo = document.getElementById('dash-current-info');
-        mapContainer = document.getElementById('dashboardMap');
-        currentStats = document.getElementById('dash-current-stats');
-      }
 
-      currentInfo.innerHTML = `
-        <div class="score-hero">
-          <div>
-            <h3>${I18n.t('dashboard.current')}</h3>
-            <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
-            <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
+        currentStats.innerHTML = `
+          <div class="weather-row" style="margin-top: 20px;">
+            <span style="font-size:2rem">${meta.icon}</span>
+            <div>
+              <strong style="font-size:1.5rem">${weather.data.current_weather.temperature} °C</strong>
+              <span class="muted" style="margin-left:8px">${meta[I18n.lang]}</span>
+            </div>
+            <div class="badge ${score.status}" style="margin-left:auto">${I18n.t(`status.${score.status}`)} · ${score.score}</div>
           </div>
-        </div>
-      `;
-
-      currentStats.innerHTML = `
-        <div class="weather-row" style="margin-top: 20px;">
-          <span style="font-size:2rem">${meta.icon}</span>
-          <div>
-            <strong style="font-size:1.5rem">${weather.data.current_weather.temperature} °C</strong>
-            <span class="muted" style="margin-left:8px">${meta[I18n.lang]}</span>
+          <div class="metric-grid">
+            <div class="kpi"><span>${I18n.t('weather.wind')} 10m</span><strong>${dashWindMs} <small>m/s</small> ${dashWindDir}</strong></div>
+            <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${dashGustsMs} <small>m/s</small></strong></div>
+            <div class="kpi"><span>ND Filter</span><strong>${Util.recommendND(weather.data.current_weather.weathercode, posNow.elevation)}</strong></div>
           </div>
-          <div class="badge ${score.status}" style="margin-left:auto">${I18n.t(`status.${score.status}`)} · ${score.score}</div>
-        </div>
-        <div class="metric-grid">
-          <div class="kpi"><span>${I18n.t('weather.wind')} 10m</span><strong>${dashWindMs} <small>m/s</small> ${dashWindDir}</strong></div>
-          <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${dashGustsMs} <small>m/s</small></strong></div>
-          <div class="kpi"><span>ND Filter</span><strong>${Util.recommendND(weather.data.current_weather.weathercode, posNow.elevation)}</strong></div>
-        </div>
-        <div class="wind-alt-bar">
-          <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
-          <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
-        </div>
-        <div class="tag-list" class="mt-12">
-          ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
-        </div>
-        <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
-      `;
+          <div class="wind-alt-bar">
+            <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
+            <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
+          </div>
+          <div class="tag-list" class="mt-12">
+            ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
+          </div>
+          <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
+        `;
 
-      // Optimized Map Handling: Reuse instance if possible
-      if (mapContainer) {
-        if (this.dashboardMap && this.dashboardMap.getContainer() === mapContainer) {
-          // Map already initialized on this specific div
-          this.dashboardMap.setView([location.lat, location.lon], 13);
-          this.dashboardMarker.setLatLng([location.lat, location.lon]);
-          setTimeout(() => this.dashboardMap.invalidateSize(), 200);
-        } else {
-          // Robust map initialization
-          if (this.dashboardMap) {
-            try { this.dashboardMap.remove(); } catch (e) {}
-            MapManager.destroy('dashboardMap');
-            this.dashboardMap = null;
+        // Optimized Map Handling: Reuse instance if possible
+        if (mapContainer) {
+          if (this.dashboardMap && this.dashboardMap.getContainer() === mapContainer) {
+            // Map already initialized on this specific div
+            this.dashboardMap.setView([location.lat, location.lon], 13);
+            this.dashboardMarker.setLatLng([location.lat, location.lon]);
+            setTimeout(() => this.dashboardMap.invalidateSize(), 200);
+          } else {
+            // Robust map initialization
+            if (this.dashboardMap) {
+              try { this.dashboardMap.remove(); } catch (e) {}
+              MapManager.destroy('dashboardMap');
+              this.dashboardMap = null;
+            }
+            
+            this.dashboardMap = MapManager.get(mapContainer, { 
+              zoomControl: false, 
+              attributionControl: false, 
+              preferCanvas: true 
+            });
+            if (this.dashboardMap && !this.dashboardMap._hasTileLayer) {
+              this.dashboardMap.setView([location.lat, location.lon], 13);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
+              this.dashboardMap._hasTileLayer = true;
+            }
           }
           
-          // Ensure the container is clean of any Leaflet artifacts
-          if (mapContainer) {
-            mapContainer.innerHTML = '';
-            if (mapContainer._leaflet_id) delete mapContainer._leaflet_id;
+          if (this.dashboardMap) {
+            if (this.dashboardMarker) this.dashboardMap.removeLayer(this.dashboardMarker);
+            this.dashboardMarker = L.marker([location.lat, location.lon], { 
+              icon: L.divIcon({
+                html: `<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>`,
+                className: '', iconSize: [12, 12]
+              })
+            }).addTo(this.dashboardMap);
+            this.dashboardMap.setView([location.lat, location.lon]);
+            MapManager.invalidate(mapContainer);
           }
-
-          this.dashboardMap = MapManager.get(mapContainer, { 
-            zoomControl: false, 
-            attributionControl: false, 
-            preferCanvas: true 
-          });
-        if (this.dashboardMap && !this.dashboardMap._hasTileLayer) {
-          this.dashboardMap.setView([location.lat, location.lon], 13);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
-          this.dashboardMap._hasTileLayer = true;
+          UI.addSunToMap(this.dashboardMap, location, sunToday.data.results, ghToday, posNow);
         }
-        
-        if (this.dashboardMap) {
-          if (this.dashboardMarker) this.dashboardMap.removeLayer(this.dashboardMarker);
-          this.dashboardMarker = L.marker([location.lat, location.lon], { 
-            icon: L.divIcon({
-              html: `<div style="background:var(--blue);width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px var(--blue)"></div>`,
-              className: '', iconSize: [12, 12]
-            })
-          }).addTo(this.dashboardMap);
-          this.dashboardMap.setView([location.lat, location.lon]);
-          MapManager.invalidate(mapContainer);
-        }
-        }
-        UI.addSunToMap(this.dashboardMap, location, sun.data.results, gh, posNow);
+      } catch (mapError) {
+        console.error('Isolated Map Error:', mapError);
+        // Map failure shouldn't block weather data
       }
 
       // Async travel time

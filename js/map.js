@@ -17,9 +17,23 @@ export const MapManager = {
     return map;
   },
   destroy(id) {
-    if (this.instances[id]) {
-      this.instances[id].remove();
-      delete this.instances[id];
+    const containerId = typeof id === 'string' ? id : (id.id || 'anonymous_map');
+    const container = typeof id === 'string' ? document.getElementById(id) : id;
+
+    if (this.instances[containerId]) {
+      try {
+        this.instances[containerId].remove();
+      } catch (e) {
+        console.warn('MapManager: Leaflet remove() failed:', e);
+      }
+      delete this.instances[containerId];
+    }
+
+    // Deep clean the container if it exists
+    if (container) {
+      if (container._leaflet_id) delete container._leaflet_id;
+      container.classList.remove('leaflet-container');
+      // container.innerHTML = ''; // Optional: decide if we want to clear the content
     }
   },
   invalidate(id) {
