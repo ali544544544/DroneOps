@@ -234,7 +234,7 @@ const UI = {
   renderProfileSelect() {
     const active = ProfileManager.getActive();
     this.els.profileSelect.innerHTML = ProfileManager.getAll().map(p => `
-      <option value="${p.id}" ${p.id === active.id ? 'selected' : ''}>${Util.escapeHtml(p.label)}</option>
+      <option value="${p.id}" ${p.id === active.id ? 'selected' : ''}>${Util.escapeHtml(ProfileManager.getLabel(p))}</option>
     `).join('');
   },
   showSkeleton(container, type = 'dashboard') {
@@ -941,7 +941,9 @@ const App = {
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        Router.showPage(btn.dataset.tab);
+        const tab = btn.dataset.tab;
+        Router.showPage(tab);
+        Storage.set(Keys.activeTab, tab);
         await this.renderActivePage();
       });
     });
@@ -1638,12 +1640,15 @@ const App = {
           setTimeout(() => this.dashboardMap.invalidateSize(), 200);
         } else {
           // First time or new div created by innerHTML
-          if (this.dashboardMap) { this.dashboardMap.remove(); }
-        this.dashboardMap = MapManager.get(mapContainer, { 
-          zoomControl: false, 
-          attributionControl: false, 
-          preferCanvas: true 
-        });
+          if (this.dashboardMap) { 
+            this.dashboardMap.remove(); 
+            MapManager.destroy('dashboardMap');
+          }
+          this.dashboardMap = MapManager.get(mapContainer, { 
+            zoomControl: false, 
+            attributionControl: false, 
+            preferCanvas: true 
+          });
         if (this.dashboardMap && !this.dashboardMap._hasTileLayer) {
           this.dashboardMap.setView([location.lat, location.lon], 13);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.dashboardMap);
