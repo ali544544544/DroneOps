@@ -45,9 +45,10 @@ const CloudManager = {
     if (error) throw error;
     this.user = data.user;
     
-    // Zuerst lokale Daten hochladen (Sync), dann Cloud-Daten ziehen
-    await this.pushAll(); 
+    // Zuerst Cloud-Daten ziehen, dann lokale Daten hochladen (Sync)
+    // Damit überschreiben wir lokale Defaults mit echten Cloud-Daten
     await this.pullAll();
+    await this.pushAll(); 
     
     this.updateUI();
     UI.toast(I18n.t('toast.loggedIn'));
@@ -117,7 +118,12 @@ const CloudManager = {
     try {
       const { data, error } = await supabaseClient.from('user_data').select('key, value');
       if (!error && data) {
-        data.forEach(item => localStorage.setItem(item.key, JSON.stringify(item.value)));
+        data.forEach(item => {
+          // Wir speichern es als String in localStorage. 
+          // Falls es bereits ein String ist, nicht nochmals stringify (verhindert Double-Quotes)
+          const val = typeof item.value === 'string' ? item.value : JSON.stringify(item.value);
+          localStorage.setItem(item.key, val);
+        });
       }
     } catch (e) { console.error('Cloud Pull Error:', e); }
   },
@@ -169,7 +175,19 @@ class Storage {
   static get(key, fallback = null) {
     try {
       const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
+      if (!raw) return fallback;
+      let parsed = JSON.parse(raw);
+      
+      // Robustheit: Falls wir ein Objekt/Array erwarten, aber einen String erhalten haben 
+      // (passiert bei Double-Stringification in der Cloud), versuchen wir ein zweites Parse.
+      if (fallback !== null && typeof fallback === 'object' && typeof parsed === 'string') {
+        try {
+          const secondParse = JSON.parse(parsed);
+          if (typeof secondParse === 'object') parsed = secondParse;
+        } catch (e) {}
+      }
+      
+      return parsed;
     } catch { return fallback; }
   }
   static set(key, value) {
@@ -758,10 +776,11 @@ const I18n = {
 };
 
 const ProfileManager = {
-  init() {
-    const existing = Storage.get(Keys.profiles, []);
-    if (!existing.length) {
-      Storage.set(Keys.profiles, FALLBACK_PROFILES);
+  init(loadedProfiles = []) {
+    const existing = Storage.get(Keys.profiles, null);
+    if (!existing || !existing.length) {
+      const initial = (loadedProfiles && loadedProfiles.length) ? loadedProfiles : FALLBACK_PROFILES;
+      Storage.set(Keys.profiles, initial);
     }
     const profiles = this.getAll();
     const activeId = Storage.get(Keys.activeProfile, profiles[0]?.id);
@@ -824,7 +843,9 @@ const ChecklistManager = {
   },
   init() {
     const existing = Storage.get(Keys.checklist, null);
-    if (!existing || !Array.isArray(existing) || !existing.length) {
+    // Nur initialisieren, wenn der Key noch gar nicht existiert (null).
+    // Ein leeres Array ([]) ist eine valide (vom User gewollte) Checkliste.
+    if (existing === null) {
       Storage.set(Keys.checklist, this.defaults());
     }
   },
