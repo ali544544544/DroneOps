@@ -18,12 +18,24 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
+      window.addEventListener('load', async () => {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          let unregistered = false;
+          for (let reg of registrations) {
+            await reg.unregister();
+            unregistered = true;
+          }
+          if (unregistered && !sessionStorage.getItem('sw_killed')) {
+            sessionStorage.setItem('sw_killed', 'true');
+            window.location.reload(true);
+            return;
+          }
+          const reg = await navigator.serviceWorker.register('./sw.js');
           console.log('SW registered:', reg.scope);
-        }).catch(err => {
+        } catch (err) {
           console.warn('SW registration failed:', err);
-        });
+        }
       });
     }
   </script>
