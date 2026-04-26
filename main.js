@@ -1,4 +1,4 @@
-import { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, FALLBACK_WEATHERCODES, I18n, CloudManager, ProfileManager, ChecklistManager, LocationManager, MapManager, Util, Nominatim, WeatherService, BrightSkyService, SunService, ScoreEngine, GoldenHour, Toast, Skeleton, Router, AttachmentManager } from './js/index.js';
+import { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, DRONE_WEATHER_CODES_FALLBACK, I18n, CloudManager, ProfileManager, ChecklistManager, LocationManager, MapManager, Util, Nominatim, WeatherService, BrightSkyService, SunService, ScoreEngine, GoldenHour, Toast, Skeleton, Router, AttachmentManager } from './js/index.js';
 
 const DATA_FILES = {
   profiles: './data/profiles.json',
@@ -26,9 +26,9 @@ window.CloudManager = CloudManager;
 
 const UI = {
   els: {},
-  weathercodes: FALLBACK_WEATHERCODES,
+  weathercodes: DRONE_WEATHER_CODES_FALLBACK,
   init(weathercodes) {
-    this.weathercodes = weathercodes || FALLBACK_WEATHERCODES;
+    this.weathercodes = weathercodes || DRONE_WEATHER_CODES_FALLBACK;
     this.els = {
       profileSelect: document.getElementById('profileSelect'),
       liveClock: document.getElementById('liveClock'),
@@ -790,7 +790,7 @@ const App = {
       const [profiles, translations, weathercodes] = await Promise.all([
         this.loadJson(DATA_FILES.profiles, FALLBACK_PROFILES),
         this.loadJson(DATA_FILES.translations, FALLBACK_TRANSLATIONS),
-        this.loadJson(DATA_FILES.weathercodes, FALLBACK_WEATHERCODES),
+        this.loadJson(DATA_FILES.weathercodes, DRONE_WEATHER_CODES_FALLBACK),
       ]);
       console.log('App: Data files loaded.');
 

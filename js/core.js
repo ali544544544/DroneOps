@@ -18,7 +18,7 @@ export const FALLBACK_PROFILES = [
   { id: 'p2', label: 'Mini 3 Pro', style: 'sub250', weight: 249, size: 3, maxWind: 30, critWind: 45, maxGusts: 40, critGusts: 55, color: '#37e781', rainTolerance: 'none' }
 ];
 
-export const FALLBACK_WEATHERCODES = {
+export const DRONE_WEATHER_CODES_FALLBACK = {
   "0": { icon: "☀️", de: "Klarer Himmel", en: "Clear sky" },
   "1": { icon: "🌤️", de: "Überwiegend klar", en: "Mainly clear" },
   "2": { icon: "⛅", de: "Teilweise bewölkt", en: "Partly cloudy" },
