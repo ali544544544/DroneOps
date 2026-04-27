@@ -212,7 +212,7 @@ const UI = {
 
     el.title = tooltip;
   },
-  toast(message) {
+  toast(message, type = 'info') {
     console.log('Toast:', message);
     const container = document.getElementById('toastContainer') || this.els.toastContainer;
     if (!container) {
@@ -220,13 +220,13 @@ const UI = {
       return;
     }
     const node = document.createElement('div');
-    node.className = 'toast';
+    node.className = `toast toast-${type}`;
     node.textContent = message;
     container.appendChild(node);
     setTimeout(() => node.remove(), 3200);
   },
   setClock() {
-    this.els.liveClock.textContent = new Date().toLocaleTimeString(I18n.locale);
+    if (this.els.liveClock) this.els.liveClock.textContent = new Date().toLocaleTimeString(I18n.locale);
   },
   weatherMeta(code) {
     return this.weathercodes[String(code)] || this.weathercodes.default;
@@ -728,31 +728,32 @@ const App = {
       this.pickerMap.off('click');
       
       this.pickerMap.on('click', async (e) => {
-      const { lat, lng } = e.latlng;
-      if (this.pickerMarker) this.pickerMap.removeLayer(this.pickerMarker);
-      this.pickerMarker = L.marker([lat, lng]).addTo(this.pickerMap);
+        const { lat, lng } = e.latlng;
+        if (this.pickerMarker) this.pickerMap.removeLayer(this.pickerMarker);
+        this.pickerMarker = L.marker([lat, lng]).addTo(this.pickerMap);
 
-      let suggestedName = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      try {
-        const reverse = await Nominatim.reverse(lat, lng);
-        if (reverse && reverse.display_name) {
-          suggestedName = reverse.display_name.split(',')[0] || suggestedName;
+        let suggestedName = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        try {
+          const reverse = await Nominatim.reverse(lat, lng);
+          if (reverse && reverse.display_name) {
+            suggestedName = reverse.display_name.split(',')[0] || suggestedName;
+          }
+        } catch (err) { console.warn('Reverse geocode failed', err); }
+
+        const name = prompt(I18n.t('locations.addLocation'), suggestedName);
+        if (name) {
+          LocationManager.add({ name, lat, lon: lng });
+          UI.toast(I18n.t('detail.saved'));
+          this.toggleMapPicker();
+          await this.renderLocationsList();
+          UI.renderDashboardLocationSelect();
         }
-      } catch (err) { console.warn('Reverse geocode failed', err); }
+      });
 
-      const name = prompt(I18n.t('locations.addLocation'), suggestedName);
-      if (name) {
-        LocationManager.add({ name, lat, lon: lng });
-        UI.toast(I18n.t('detail.saved'));
-        this.toggleMapPicker();
-        await this.renderLocationsList();
-        UI.renderDashboardLocationSelect();
-      }
-    });
-
-    Util.getCurrentPosition().then(pos => {
-      this.pickerMap.setView([pos.coords.latitude, pos.coords.longitude], 12);
-    }).catch(() => {});
+      Util.getCurrentPosition().then(pos => {
+        this.pickerMap.setView([pos.coords.latitude, pos.coords.longitude], 12);
+      }).catch(() => {});
+    }
   },
 
   async loadJson(path, fallback) {
@@ -1311,7 +1312,6 @@ const App = {
         const item = all.find(x => x.id === id);
         if (item) {
           const docs = item.attachments || (item.attachment ? [{ data: item.attachment, type: item.attachmentType, name: 'Datei' }] : []);
-          docs.splice(idx, 1);
           item.attachments = docs;
           delete item.attachment;
           const removed = docs.splice(idx, 1)[0];
@@ -1642,10 +1642,10 @@ const App = {
             <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
             <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
           </div>
-          <div class="tag-list" class="mt-12">
+          <div class="tag-list mt-12">
             ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
           </div>
-          <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
+          <p class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
         `;
 
         // Optimized Map Handling: Reuse instance if possible
@@ -2046,10 +2046,10 @@ const App = {
           <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${gustsMs} <small>m/s</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} <small>mm</small></strong></div>
         </div>
-        <div class="tag-list" class="mt-14">
+        <div class="tag-list mt-14">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
-        <p class="muted" class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
+        <p class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
 
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);

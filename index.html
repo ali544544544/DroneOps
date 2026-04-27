@@ -65,14 +65,17 @@
         <div class="clock-box">
           <strong id="liveClock">--:--</strong>
         </div>
-        <label class="field compact">
-          <select id="profileSelect" aria-label="Profil" data-i18n-aria-label="header.profile"></select>
-        </label>
-        <div class="lang-toggle" role="group" aria-label="Language" data-i18n-aria-label="common.language">
-          <button id="langDe" class="btn btn-secondary btn-small">DE</button>
-          <button id="langEn" class="btn btn-secondary btn-small">EN</button>
-          <button id="accountBtn" class="btn btn-secondary btn-small" title="Account" data-i18n-title="common.account">👤</button>
+        <div class="header-actions">
+          <label class="field compact">
+            <select id="profileSelect" aria-label="Profil" data-i18n-aria-label="header.profile"></select>
+          </label>
+          <div class="lang-toggle" role="group" aria-label="Language" data-i18n-aria-label="common.language">
+            <button id="langDe" class="btn btn-secondary btn-small">DE</button>
+            <button id="langEn" class="btn btn-secondary btn-small">EN</button>
+            <button id="accountBtn" class="btn btn-secondary btn-small" title="Account" data-i18n-title="common.account">👤</button>
+          </div>
         </div>
+      </div>
     </header>
  
     <div id="accountPanel" class="panel glass hidden" style="position:fixed; top:80px; right:20px; z-index:2000; width:300px; box-shadow:0 10px 30px rgba(0,0,0,0.5)">

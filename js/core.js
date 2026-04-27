@@ -10,7 +10,9 @@ export const Keys = {
   language: 'drone_language',
   activeProfile: 'drone_active_profile',
   activeTab: 'drone_active_tab',
-  dashboardSource: 'drone_dashboard_source'
+  activeLocation: 'drone_active_location',
+  dashboardSource: 'drone_dashboard_source',
+  distSource: 'drone_dist_source'
 };
 
 export const FALLBACK_PROFILES = [

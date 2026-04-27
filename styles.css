@@ -1070,6 +1070,11 @@ a { color: inherit; text-decoration: none; }
   animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+.toast-info { border-left: 4px solid var(--blue); }
+.toast-success { border-left: 4px solid var(--green); }
+.toast-warn { border-left: 4px solid var(--yellow); }
+.toast-error { border-left: 4px solid var(--red); }
+
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }

@@ -98,6 +98,18 @@ export const CloudManager = {
     return count;
   },
 
+  async resetPassword(email) {
+    if (!this.client) throw new Error('Cloud client not ready');
+    const { error } = await this.client.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+  },
+
+  async updatePassword(newPassword) {
+    if (!this.client) throw new Error('Cloud client not ready');
+    const { error } = await this.client.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  },
+
   updateUI() {
     const statusEl = document.getElementById('dataStatusIndicator');
     const authView = document.getElementById('authView');

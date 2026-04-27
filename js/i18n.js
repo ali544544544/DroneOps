@@ -4,6 +4,11 @@ export const I18n = {
   translations: FALLBACK_TRANSLATIONS,
   lang: 'de',
 
+  get locale() {
+    const localeMap = { de: 'de-DE', en: 'en-GB' };
+    return localeMap[this.lang] || this.lang;
+  },
+
   async init(remoteTranslations = null) {
     this.lang = Storage.get(Keys.language, 'de');
     if (remoteTranslations) {
