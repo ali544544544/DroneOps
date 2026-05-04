@@ -850,7 +850,7 @@ const App = {
       const activeTab = Storage.get(Keys.activeTab, 'dashboard');
       console.log('App: Showing page:', activeTab);
       Router.showPage(activeTab);
-      await this.renderAll();
+      await this.renderAll(true);
       console.log('App: Initial render complete.');
     } catch (error) {
       console.error('App: Critical initialization error:', error);
@@ -2558,7 +2558,7 @@ const App = {
     if (page === 'checklist') await this.renderChecklist();
   },
 
-  async renderAll() {
+  async renderAll(forceRefresh = false) {
     WeatherService.cleanup();
     SunService.cleanup();
     UI.applyI18n();
@@ -2566,7 +2566,7 @@ const App = {
     UI.renderDashboardLocationSelect();
     UI.renderChecklistFormOptions();
     UI.els.droneColorContainer.innerHTML = UI.renderColorPicker('#f5bc2b', 'global-drone');
-    await this.renderDashboard();
+    await this.renderDashboard(forceRefresh);
     await this.renderLocationsList();
     await this.renderDrones();
     await this.renderChecklist();
