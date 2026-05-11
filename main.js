@@ -39,6 +39,180 @@ const StatusTracker = {
 window.StatusTracker = StatusTracker;
 window.CloudManager = CloudManager;
 
+const AirspaceService = {
+  wmsUrl: 'https://uas-betrieb.de/geoservices/dipul/wms',
+  cache: new Map(),
+  layers: [
+    { id: 'dipul:flugplaetze', label: 'Flugplatz', severity: 'nogo' },
+    { id: 'dipul:flughaefen', label: 'Flughafen', severity: 'nogo' },
+    { id: 'dipul:kontrollzonen', label: 'Kontrollzone', severity: 'nogo' },
+    { id: 'dipul:flugbeschraenkungsgebiete', label: 'Flugbeschraenkungsgebiet', severity: 'nogo' },
+    { id: 'dipul:bundesautobahnen', label: 'Bundesautobahn', severity: 'nogo' },
+    { id: 'dipul:bundesstrassen', label: 'Bundesstrasse', severity: 'nogo' },
+    { id: 'dipul:bahnanlagen', label: 'Bahnanlage', severity: 'nogo' },
+    { id: 'dipul:binnenwasserstrassen', label: 'Binnenwasserstrasse', severity: 'nogo' },
+    { id: 'dipul:seewasserstrassen', label: 'Seewasserstrasse', severity: 'nogo' },
+    { id: 'dipul:schifffahrtsanlagen', label: 'Schifffahrtsanlage', severity: 'nogo' },
+    { id: 'dipul:wohngrundstuecke', label: 'Wohngrundstueck', severity: 'nogo' },
+    { id: 'dipul:freibaeder', label: 'Freibad/Badestelle', severity: 'nogo' },
+    { id: 'dipul:industrieanlagen', label: 'Industrieanlage', severity: 'nogo' },
+    { id: 'dipul:kraftwerke', label: 'Kraftwerk', severity: 'nogo' },
+    { id: 'dipul:umspannwerke', label: 'Umspannwerk', severity: 'nogo' },
+    { id: 'dipul:stromleitungen', label: 'Stromleitung', severity: 'nogo' },
+    { id: 'dipul:windkraftanlagen', label: 'Windkraftanlage', severity: 'nogo' },
+    { id: 'dipul:justizvollzugsanstalten', label: 'Justizvollzugsanstalt', severity: 'nogo' },
+    { id: 'dipul:militaerische_anlagen', label: 'Militaerische Anlage', severity: 'nogo' },
+    { id: 'dipul:labore', label: 'BSL-4 Labor', severity: 'nogo' },
+    { id: 'dipul:behoerden', label: 'Behoerde', severity: 'nogo' },
+    { id: 'dipul:diplomatische_vertretungen', label: 'Diplomatische Vertretung', severity: 'nogo' },
+    { id: 'dipul:internationale_organisationen', label: 'Internationale Organisation', severity: 'nogo' },
+    { id: 'dipul:polizei', label: 'Polizei', severity: 'nogo' },
+    { id: 'dipul:sicherheitsbehoerden', label: 'Sicherheitsbehoerde', severity: 'nogo' },
+    { id: 'dipul:krankenhaeuser', label: 'Krankenhaus', severity: 'nogo' },
+    { id: 'dipul:nationalparks', label: 'Nationalpark', severity: 'nogo' },
+    { id: 'dipul:naturschutzgebiete', label: 'Naturschutzgebiet', severity: 'nogo' },
+    { id: 'dipul:ffh-gebiete', label: 'FFH-Gebiet', severity: 'nogo' },
+    { id: 'dipul:vogelschutzgebiete', label: 'Vogelschutzgebiet', severity: 'nogo' },
+    { id: 'dipul:temporaere_betriebseinschraenkungen', label: 'Temporaere Betriebseinschraenkung', severity: 'nogo' },
+    { id: 'dipul:inaktive_temporaere_betriebseinschraenkungen', label: 'Inaktive temporaere Betriebseinschraenkung', severity: 'caution' },
+    { id: 'dipul:modellflugplaetze', label: 'Modellflugplatz', severity: 'caution' }
+  ],
+  isInGermany(location) {
+    return location.lat >= 47.1 && location.lat <= 55.2 && location.lon >= 5.5 && location.lon <= 15.6;
+  },
+  mapUrl(location, radius = 1000) {
+    const zoom = radius > 1500 ? '11.0' : '13.0';
+    return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
+  },
+  requestUrl(url) {
+    const proxy = (typeof CONFIG !== 'undefined' && CONFIG.AIRSPACE_PROXY_URL) ? CONFIG.AIRSPACE_PROXY_URL : '';
+    if (!proxy) return url;
+    return proxy.includes('{url}') ? proxy.replace('{url}', encodeURIComponent(url)) : `${proxy}${encodeURIComponent(url)}`;
+  },
+  cacheKey(location) {
+    return `${location.lat.toFixed(5)},${location.lon.toFixed(5)},${I18n.lang}`;
+  },
+  async check(location) {
+    const key = this.cacheKey(location);
+    if (this.cache.has(key)) return this.cache.get(key);
+
+    if (!this.isInGermany(location)) {
+      const outside = { status: 'outside', severity: 'caution', features: [], source: 'DIPUL' };
+      this.cache.set(key, outside);
+      return outside;
+    }
+
+    const layerIds = this.layers.map(layer => layer.id).join(',');
+    const delta = 0.0025;
+    const params = new URLSearchParams({
+      service: 'WMS',
+      version: '1.1.1',
+      request: 'GetFeatureInfo',
+      layers: layerIds,
+      styles: '',
+      srs: 'EPSG:4326',
+      bbox: [
+        (location.lon - delta).toFixed(7),
+        (location.lat - delta).toFixed(7),
+        (location.lon + delta).toFixed(7),
+        (location.lat + delta).toFixed(7)
+      ].join(','),
+      width: '101',
+      height: '101',
+      x: '50',
+      y: '50',
+      query_layers: layerIds,
+      info_format: 'text/plain',
+      feature_count: '25'
+    });
+
+    try {
+      const res = await fetch(this.requestUrl(`${this.wmsUrl}?${params.toString()}`), { headers: { Accept: 'text/plain,*/*' } });
+      if (!res.ok) throw new Error(`DIPUL WMS ${res.status}`);
+
+      const text = await res.text();
+      const features = this.parseFeatures(text);
+      const hasBlocking = features.some(feature => feature.severity === 'nogo');
+      const result = {
+        status: hasBlocking ? 'restricted' : (features.length ? 'advisory' : 'clear'),
+        severity: hasBlocking ? 'nogo' : (features.length ? 'caution' : 'fly'),
+        features,
+        source: 'DIPUL'
+      };
+      this.cache.set(key, result);
+      return result;
+    } catch (error) {
+      console.warn('DIPUL airspace check failed:', error);
+      const failed = { status: 'error', severity: 'caution', features: [], source: 'DIPUL' };
+      this.cache.set(key, failed);
+      return failed;
+    }
+  },
+  parseFeatures(text) {
+    if (!text) return [];
+    try {
+      const data = JSON.parse(text);
+      if (!Array.isArray(data.features)) return [];
+      return data.features.map(feature => this.normaliseFeature(feature)).filter(Boolean);
+    } catch (error) {
+      return this.parseTextFeatures(text);
+    }
+  },
+  parseTextFeatures(text) {
+    if (!text.includes('FeatureType') && !text.includes('name =')) return [];
+    return text.split(/Results for FeatureType/i).slice(1).map(block => {
+      const idMatch = block.match(/'([^']+)'/);
+      const nameMatch = block.match(/\bname\s*=\s*([^\n\r]+)/i);
+      const typeMatch = block.match(/\btype(?:_code)?\s*=\s*([^\n\r]+)/i);
+      const legalMatch = block.match(/\blegal_ref\s*=\s*([^\n\r]+)/i);
+      return this.normaliseFeature({
+        id: idMatch?.[1] || '',
+        properties: {
+          name: nameMatch?.[1],
+          type: typeMatch?.[1],
+          legal_ref: legalMatch?.[1],
+          lower_limit_altitude: block.match(/\blower_limit_altitude\s*=\s*([^\n\r]+)/i)?.[1],
+          lower_limit_unit: block.match(/\blower_limit_unit\s*=\s*([^\n\r]+)/i)?.[1],
+          lower_limit_alt_ref: block.match(/\blower_limit_alt_ref\s*=\s*([^\n\r]+)/i)?.[1],
+          upper_limit_altitude: block.match(/\bupper_limit_altitude\s*=\s*([^\n\r]+)/i)?.[1],
+          upper_limit_unit: block.match(/\bupper_limit_unit\s*=\s*([^\n\r]+)/i)?.[1],
+          upper_limit_alt_ref: block.match(/\bupper_limit_alt_ref\s*=\s*([^\n\r]+)/i)?.[1]
+        }
+      });
+    }).filter(Boolean);
+  },
+  normaliseFeature(feature) {
+    const props = feature.properties || {};
+    const rawName = Array.isArray(props.name) ? props.name.join(', ') : (props.name || props.NAME || props.bezeichnung || props.type || '');
+    const layer = this.layerForFeature(feature, props);
+    if (!rawName && !layer) return null;
+    return {
+      name: String(rawName || layer?.label || I18n.t('airspace.zone')).trim(),
+      layer: layer?.id || '',
+      layerLabel: layer?.label || props.type || I18n.t('airspace.zone'),
+      severity: layer?.severity || 'nogo',
+      legal: props.legal_ref || props.legalRef || props.rechtsgrundlage || '',
+      lower: this.formatLimit(props, 'lower'),
+      upper: this.formatLimit(props, 'upper')
+    };
+  },
+  layerForFeature(feature, props) {
+    const haystack = `${feature.id || ''} ${feature.type || ''} ${feature.typeName || ''} ${props.type || ''}`.toLowerCase();
+    return this.layers.find(layer => {
+      const key = layer.id.split(':')[1].toLowerCase();
+      return haystack.includes(key) || haystack.includes(key.replace(/e$/, ''));
+    });
+  },
+  formatLimit(props, prefix) {
+    const value = props[`${prefix}_limit_altitude`];
+    const unit = props[`${prefix}_limit_unit`];
+    const ref = props[`${prefix}_limit_reference`] || props[`${prefix}_limit_alt_ref`];
+    if (value === undefined || value === null || value === '') return '';
+    return `${value}${unit ? ` ${unit}` : ''}${ref ? ` ${ref}` : ''}`;
+  }
+};
+window.AirspaceService = AirspaceService;
+
 const UI = {
   els: {},
   weathercodes: DRONE_WEATHER_CODES_FALLBACK,
@@ -230,6 +404,64 @@ const UI = {
   },
   weatherMeta(code) {
     return this.weathercodes[String(code)] || this.weathercodes.default;
+  },
+  airspaceLabel(result) {
+    if (!result) return I18n.t('airspace.checking');
+    if (result.status === 'clear') return I18n.t('airspace.clear');
+    if (result.status === 'advisory') return I18n.t('airspace.advisory');
+    if (result.status === 'restricted') return I18n.t('airspace.restricted');
+    if (result.status === 'outside') return I18n.t('airspace.outside');
+    return I18n.t('airspace.error');
+  },
+  airspaceText(result) {
+    if (!result) return I18n.t('airspace.checkingText');
+    if (result.status === 'clear') return I18n.t('airspace.clearText');
+    if (result.status === 'advisory') return I18n.t('airspace.advisoryText');
+    if (result.status === 'restricted') return I18n.t('airspace.restrictedText');
+    if (result.status === 'outside') return I18n.t('airspace.outsideText');
+    return I18n.t('airspace.errorText');
+  },
+  renderAirspaceBadge(result, location) {
+    const severity = result?.severity || 'caution';
+    const count = result?.features?.length || 0;
+    const mapUrl = AirspaceService.mapUrl(location);
+    return `
+      <strong>${I18n.t('airspace.title')}</strong>
+      <div class="metric-grid">
+        <span class="badge ${severity}">${this.airspaceLabel(result)}${count ? ` · ${count}` : ''}</span>
+        ${AirspaceService.isInGermany(location) ? `<button class="btn btn-secondary btn-small" data-open-pin="${mapUrl}">${I18n.t('airspace.openDipul')}</button>` : ''}
+      </div>
+    `;
+  },
+  renderAirspacePanel(location, result) {
+    const severity = result?.severity || 'caution';
+    const count = result?.features?.length || 0;
+    const featureList = (result?.features || []).slice(0, 8).map(feature => `
+      <li>
+        <strong>${Util.escapeHtml(feature.name)}</strong>
+        <span>${Util.escapeHtml(feature.layerLabel)}</span>
+        ${feature.lower || feature.upper ? `<small>${Util.escapeHtml([feature.lower, feature.upper].filter(Boolean).join(' - '))}</small>` : ''}
+        ${feature.legal ? `<small>${Util.escapeHtml(feature.legal)}</small>` : ''}
+      </li>
+    `).join('');
+
+    return `
+      <div class="airspace-card airspace-${severity}">
+        <div class="airspace-head">
+          <div>
+            <h4>${I18n.t('airspace.title')}</h4>
+            <p>${this.airspaceText(result)}</p>
+          </div>
+          <span class="badge ${severity}">${this.airspaceLabel(result)}${count ? ` · ${count}` : ''}</span>
+        </div>
+        ${featureList ? `<ul class="airspace-zones">${featureList}</ul>` : ''}
+        <div class="airspace-actions">
+          ${AirspaceService.isInGermany(location) ? `<button class="btn" data-open-pin="${AirspaceService.mapUrl(location)}">${I18n.t('airspace.openDipul')}</button>` : ''}
+          <span class="muted">${I18n.t('airspace.source')}</span>
+        </div>
+        <p class="muted airspace-disclaimer">${I18n.t('airspace.disclaimer')}</p>
+      </div>
+    `;
   },
   renderProfileSelect() {
     const active = ProfileManager.getActive();
@@ -1927,6 +2159,10 @@ const App = {
         <div id="location-golden-${location.id}">
           <span class="metric-chip">…</span>
         </div>
+        <div id="location-airspace-${location.id}">
+          <strong>${I18n.t('airspace.title')}</strong>
+          <div class="metric-grid"><span class="metric-chip">${I18n.t('airspace.checking')}</span></div>
+        </div>
         <div class="inline-actions">
           <button class="btn" data-action="detail" data-id="${location.id}">${I18n.t('list.details')}</button>
           <button class="btn btn-secondary" data-action="delete" data-id="${location.id}">✕</button>
@@ -1951,8 +2187,13 @@ const App = {
       });
     });
     listContent.querySelectorAll('.location-card').forEach(card => {
-      card.addEventListener('click', () => this.openLocationDetail(card.dataset.id));
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('button, a, input, select, textarea')) return;
+        this.openLocationDetail(card.dataset.id);
+      });
     });
+
+    this.renderLocationAirspaceBadges(locations);
 
     await Promise.all(locations.map(async (location) => {
       try {
@@ -1991,6 +2232,42 @@ const App = {
         if (g) g.innerHTML = `<p>${I18n.t('error.dataUnavailable')}</p>`;
       }
     }));
+  },
+
+  async renderLocationAirspaceBadges(locations) {
+    await Promise.all(locations.map(async (location) => {
+      const el = document.getElementById(`location-airspace-${location.id}`);
+      if (!el) return;
+      const result = await AirspaceService.check(location);
+      const currentEl = document.getElementById(`location-airspace-${location.id}`);
+      if (currentEl) currentEl.innerHTML = UI.renderAirspaceBadge(result, location);
+    }));
+  },
+
+  async renderDetailAirspace(location) {
+    const panel = document.getElementById('detailAirspacePanel');
+    if (!panel) return;
+    const result = await AirspaceService.check(location);
+    if (Storage.get(Keys.activeLocation) !== location.id) return;
+    const currentPanel = document.getElementById('detailAirspacePanel');
+    if (currentPanel) currentPanel.outerHTML = UI.renderAirspacePanel(location, result);
+  },
+
+  syncDipulOverlay(location) {
+    if (!this.detailMap || typeof L === 'undefined') return;
+    if (this.detailDipulLayer) {
+      this.detailMap.removeLayer(this.detailDipulLayer);
+      this.detailDipulLayer = null;
+    }
+    if (!AirspaceService.isInGermany(location)) return;
+
+    this.detailDipulLayer = L.tileLayer.wms(AirspaceService.wmsUrl, {
+      layers: AirspaceService.layers.map(layer => layer.id).join(','),
+      format: 'image/png',
+      transparent: true,
+      version: '1.1.1',
+      attribution: I18n.t('airspace.source')
+    }).addTo(this.detailMap);
   },
 
   async openLocationDetail(locationId) {
@@ -2049,8 +2326,18 @@ const App = {
         <div class="tag-list mt-14">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
+        <div id="detailAirspacePanel" class="airspace-card airspace-loading mt-14">
+          <div class="airspace-head">
+            <div>
+              <h4>${I18n.t('airspace.title')}</h4>
+              <p>${I18n.t('airspace.checkingText')}</p>
+            </div>
+            <span class="metric-chip">${I18n.t('airspace.checking')}</span>
+          </div>
+        </div>
         <p class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
+      this.renderDetailAirspace(location);
 
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
       const posSR  = this.getSolarPosition(new Date(sun.data.results.sunrise), location.lat, location.lon);
@@ -2075,6 +2362,7 @@ const App = {
         <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
         <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
         <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
+        ${AirspaceService.isInGermany(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">${I18n.t('airspace.openDipul')}</button>` : ''}
       `;
 
       if (detailMapContainer) {
@@ -2106,6 +2394,7 @@ const App = {
           MapManager.invalidate(detailMapContainer);
         }
         }
+        this.syncDipulOverlay(location);
         UI.addSunToMap(this.detailMap, location, sun.data.results, gh, posNow);
         setTimeout(() => this.detailMap.invalidateSize(), 200);
       }

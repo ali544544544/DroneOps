@@ -574,7 +574,7 @@ a { color: inherit; text-decoration: none; }
 
 .location-card {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr auto;
+  grid-template-columns: 1.25fr 0.9fr 0.9fr 0.9fr auto;
   gap: 16px;
   align-items: start;
 }
@@ -630,6 +630,78 @@ a { color: inherit; text-decoration: none; }
 .tag.ok { color: var(--green); }
 .tag.warn { color: var(--yellow); }
 .tag.critical { color: var(--red); }
+
+.airspace-card {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.airspace-card h4 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+.airspace-card p {
+  margin: 0;
+}
+
+.airspace-head,
+.airspace-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.airspace-fly {
+  border-color: rgba(55, 231, 129, 0.28);
+  background: rgba(55, 231, 129, 0.06);
+}
+
+.airspace-caution,
+.airspace-loading {
+  border-color: rgba(245, 188, 43, 0.28);
+  background: rgba(245, 188, 43, 0.06);
+}
+
+.airspace-nogo {
+  border-color: rgba(255, 92, 92, 0.3);
+  background: rgba(255, 92, 92, 0.06);
+}
+
+.airspace-zones {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+
+.airspace-zones li {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.airspace-zones strong,
+.airspace-zones span,
+.airspace-zones small {
+  display: block;
+}
+
+.airspace-zones span,
+.airspace-zones small,
+.airspace-disclaimer {
+  font-size: 0.78rem;
+}
+
+.airspace-disclaimer {
+  margin-top: 10px !important;
+}
 
 .score-hero {
   display: flex;
