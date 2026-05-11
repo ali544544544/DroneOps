@@ -790,6 +790,7 @@ const App = {
   dashboardMarker: null,
   detailMap: null,
   detailMarker: null,
+  detailDipulLayer: null,
   pickerMap: null,
   pickerMarker: null,
   dashboardPickerMap: null,
@@ -1447,6 +1448,7 @@ const App = {
       const logDelete = e.target.closest('[data-log-delete]');
       const mapsPin = e.target.closest('[data-open-pin]');
       const mapsRoute = e.target.closest('[data-open-route]');
+      const dipulToggle = e.target.closest('[data-toggle-dipul]');
       const viewDoc = e.target.closest('[data-check-view]');
 
       if (viewDoc) {
@@ -1589,6 +1591,10 @@ const App = {
       
       if (mapsPin) window.open(mapsPin.dataset.openPin, '_blank');
       if (mapsRoute) window.open(mapsRoute.dataset.openRoute, '_blank');
+      if (dipulToggle) {
+        const location = LocationManager.getActive();
+        this.setDipulOverlayEnabled(!this.isDipulOverlayEnabled(), location);
+      }
     });
 
     document.addEventListener('change', async (e) => {
@@ -2253,13 +2259,31 @@ const App = {
     if (currentPanel) currentPanel.outerHTML = UI.renderAirspacePanel(location, result);
   },
 
+  isDipulOverlayEnabled() {
+    return Storage.get(Keys.dipulOverlay, true) !== false;
+  },
+
+  setDipulOverlayEnabled(enabled, location = null) {
+    Storage.set(Keys.dipulOverlay, enabled);
+    this.syncDipulOverlay(location || LocationManager.getActive());
+    this.updateDipulToggle();
+  },
+
+  updateDipulToggle() {
+    const btn = document.querySelector('[data-toggle-dipul]');
+    if (!btn) return;
+    const enabled = this.isDipulOverlayEnabled();
+    btn.classList.toggle('btn-active', enabled);
+    btn.textContent = enabled ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff');
+  },
+
   syncDipulOverlay(location) {
     if (!this.detailMap || typeof L === 'undefined') return;
     if (this.detailDipulLayer) {
       this.detailMap.removeLayer(this.detailDipulLayer);
       this.detailDipulLayer = null;
     }
-    if (!AirspaceService.isInGermany(location)) return;
+    if (!location || !AirspaceService.isInGermany(location) || !this.isDipulOverlayEnabled()) return;
 
     this.detailDipulLayer = L.tileLayer.wms(AirspaceService.wmsUrl, {
       layers: AirspaceService.layers.map(layer => layer.id).join(','),
@@ -2326,18 +2350,8 @@ const App = {
         <div class="tag-list mt-14">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
-        <div id="detailAirspacePanel" class="airspace-card airspace-loading mt-14">
-          <div class="airspace-head">
-            <div>
-              <h4>${I18n.t('airspace.title')}</h4>
-              <p>${I18n.t('airspace.checkingText')}</p>
-            </div>
-            <span class="metric-chip">${I18n.t('airspace.checking')}</span>
-          </div>
-        </div>
         <p class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
-      this.renderDetailAirspace(location);
 
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
       const posSR  = this.getSolarPosition(new Date(sun.data.results.sunrise), location.lat, location.lon);
@@ -2353,17 +2367,55 @@ const App = {
           <h3>${I18n.t('detail.map')}</h3>
           <div id="detailMap" style="height: 300px; margin-top: 12px; z-index: 1;"></div>
           <div id="detailMapInfo" class="info-list mt-12"></div>
+          <div id="detailAirspacePanel" class="airspace-card airspace-loading mt-14">
+            <div class="airspace-head">
+              <div>
+                <h4>${I18n.t('airspace.title')}</h4>
+                <p>${I18n.t('airspace.checkingText')}</p>
+              </div>
+              <span class="metric-chip">${I18n.t('airspace.checking')}</span>
+            </div>
+          </div>
         `;
         detailMapContainer = document.getElementById('detailMap');
         detailMapInfo = document.getElementById('detailMapInfo');
       }
+      if (!document.getElementById('detailAirspacePanel')) {
+        detailMapInfo.insertAdjacentHTML('afterend', `
+          <div id="detailAirspacePanel" class="airspace-card airspace-loading mt-14">
+            <div class="airspace-head">
+              <div>
+                <h4>${I18n.t('airspace.title')}</h4>
+                <p>${I18n.t('airspace.checkingText')}</p>
+              </div>
+              <span class="metric-chip">${I18n.t('airspace.checking')}</span>
+            </div>
+          </div>
+        `);
+      }
+      const airspacePanel = document.getElementById('detailAirspacePanel');
+      if (airspacePanel) {
+        airspacePanel.className = 'airspace-card airspace-loading mt-14';
+        airspacePanel.innerHTML = `
+          <div class="airspace-head">
+            <div>
+              <h4>${I18n.t('airspace.title')}</h4>
+              <p>${I18n.t('airspace.checkingText')}</p>
+            </div>
+            <span class="metric-chip">${I18n.t('airspace.checking')}</span>
+          </div>
+        `;
+      }
+      this.renderDetailAirspace(location);
 
       detailMapInfo.innerHTML = `
         <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
         <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
         <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
         ${AirspaceService.isInGermany(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">${I18n.t('airspace.openDipul')}</button>` : ''}
+        ${AirspaceService.isInGermany(location) ? `<button class="btn btn-secondary" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
       `;
+      this.updateDipulToggle();
 
       if (detailMapContainer) {
         if (this.detailMap && this.detailMap.getContainer() === detailMapContainer) {

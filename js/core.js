@@ -12,7 +12,8 @@ export const Keys = {
   activeTab: 'drone_active_tab',
   activeLocation: 'drone_active_location',
   dashboardSource: 'drone_dashboard_source',
-  distSource: 'drone_dist_source'
+  distSource: 'drone_dist_source',
+  dipulOverlay: 'drone_dipul_overlay'
 };
 
 export const FALLBACK_PROFILES = [
