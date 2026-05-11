@@ -788,6 +788,7 @@ const App = {
   lastLocCount: 0,
   dashboardMap: null,
   dashboardMarker: null,
+  dashboardDipulLayer: null,
   detailMap: null,
   detailMarker: null,
   detailDipulLayer: null,
@@ -1858,9 +1859,11 @@ const App = {
               <h3>${I18n.t('dashboard.current')}</h3>
               <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
+              ${AirspaceService.isInGermany(location) ? `<div class="info-list mt-8"><button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button></div>` : ''}
             </div>
           </div>
         `;
+        this.updateDipulToggle();
 
         currentStats.innerHTML = `
           <div class="weather-row" style="margin-top: 20px;">
@@ -1924,6 +1927,7 @@ const App = {
             this.dashboardMap.setView([location.lat, location.lon]);
             MapManager.invalidate(mapContainer);
           }
+          this.syncDashboardDipulOverlay(location);
           UI.addSunToMap(this.dashboardMap, location, sunToday.data.results, ghToday, posNow);
         }
       } catch (mapError) {
@@ -2266,15 +2270,16 @@ const App = {
   setDipulOverlayEnabled(enabled, location = null) {
     Storage.set(Keys.dipulOverlay, enabled);
     this.syncDipulOverlay(location || LocationManager.getActive());
+    this.syncDashboardDipulOverlay();
     this.updateDipulToggle();
   },
 
   updateDipulToggle() {
-    const btn = document.querySelector('[data-toggle-dipul]');
-    if (!btn) return;
     const enabled = this.isDipulOverlayEnabled();
-    btn.classList.toggle('btn-active', enabled);
-    btn.textContent = enabled ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff');
+    document.querySelectorAll('[data-toggle-dipul]').forEach(btn => {
+      btn.classList.toggle('btn-active', enabled);
+      btn.textContent = enabled ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff');
+    });
   },
 
   syncDipulOverlay(location) {
@@ -2292,6 +2297,24 @@ const App = {
       version: '1.1.1',
       attribution: I18n.t('airspace.source')
     }).addTo(this.detailMap);
+  },
+
+  async syncDashboardDipulOverlay(location = null) {
+    if (!this.dashboardMap || typeof L === 'undefined') return;
+    if (this.dashboardDipulLayer) {
+      this.dashboardMap.removeLayer(this.dashboardDipulLayer);
+      this.dashboardDipulLayer = null;
+    }
+    const activeLocation = location || await this.resolveDashboardLocation();
+    if (!activeLocation || !AirspaceService.isInGermany(activeLocation) || !this.isDipulOverlayEnabled()) return;
+
+    this.dashboardDipulLayer = L.tileLayer.wms(AirspaceService.wmsUrl, {
+      layers: AirspaceService.layers.map(layer => layer.id).join(','),
+      format: 'image/png',
+      transparent: true,
+      version: '1.1.1',
+      attribution: I18n.t('airspace.source')
+    }).addTo(this.dashboardMap);
   },
 
   async openLocationDetail(locationId) {
