@@ -77,12 +77,44 @@ const AirspaceService = {
     { id: 'dipul:inaktive_temporaere_betriebseinschraenkungen', label: 'Inaktive temporaere Betriebseinschraenkung', severity: 'caution' },
     { id: 'dipul:modellflugplaetze', label: 'Modellflugplatz', severity: 'caution' }
   ],
+  dronezonerUrl: 'https://dronezoner.eu/Dronezoner2026.html',
+  dronezonerLayers: [
+    { key: 'dk-green', label: 'GRON - Naturomrader', severity: 'caution', color: '#37e781', fillOpacity: 0.18, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/NaturOmraader2024v2/FeatureServer/0' },
+    { key: 'dk-blue-area', label: 'BLA - Sikringskritisk omrade', severity: 'nogo', color: '#4d94ff', fillOpacity: 0.2, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/DroneZoner_2025_ny_bekndg/FeatureServer/4' },
+    { key: 'dk-blue-point', label: 'BLA - Sikringskritisk signatur', severity: 'nogo', color: '#4d94ff', fillOpacity: 0.3, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/DroneZoner_2025_ny_bekndg/FeatureServer/5' },
+    { key: 'dk-yellow-notam', label: 'GUL - Restriktionsomrade', severity: 'caution', color: '#f5bc2b', fillOpacity: 0.24, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/disabled_notams/FeatureServer/0' },
+    { key: 'dk-orange-area', label: 'ORANGE - Opmearksomhedsomrade', severity: 'caution', color: '#ff7a3d', fillOpacity: 0.24, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/DroneZoner_2025_ny_bekndg/FeatureServer/2' },
+    { key: 'dk-orange-point', label: 'ORANGE - Opmearksomheds signatur', severity: 'caution', color: '#ff7a3d', fillOpacity: 0.3, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/DroneZoner_2025_ny_bekndg/FeatureServer/3' },
+    { key: 'dk-red-area', label: 'ROD - Flyvesikringskritisk omrade', severity: 'nogo', color: '#ff5c5c', fillOpacity: 0.24, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/DroneZoner_2025_ny_bekndg/FeatureServer/1' },
+    { key: 'dk-red-point', label: 'ROD - Flyvesikringskritisk signatur', severity: 'nogo', color: '#ff5c5c', fillOpacity: 0.3, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/DroneZoner_2025_ny_bekndg/FeatureServer/0' },
+    { key: 'dk-notam-inactive', label: 'NOTAMS - Inaktiv', severity: 'caution', color: '#f5bc2b', fillOpacity: 0.18, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/inactive_notams/FeatureServer/0' },
+    { key: 'dk-notam-awareness', label: 'NOTAMS - Opmearksomhed', severity: 'caution', color: '#ff7a3d', fillOpacity: 0.24, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/awareness_notams/FeatureServer/0' },
+    { key: 'dk-notam-active', label: 'NOTAMS - Aktiv', severity: 'nogo', color: '#ff5c5c', fillOpacity: 0.24, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/active_notams/FeatureServer/0' }
+  ],
   isInGermany(location) {
     return location.lat >= 47.1 && location.lat <= 55.2 && location.lon >= 5.5 && location.lon <= 15.6;
   },
+  isInDenmark(location) {
+    return location.lat >= 52.7 && location.lat <= 59.7 && location.lon >= 3.0 && location.lon <= 17.9;
+  },
+  provider(location) {
+    if (this.isInGermany(location)) return 'dipul';
+    if (this.isInDenmark(location)) return 'dronezoner';
+    return null;
+  },
+  isOverlayAvailable(location) {
+    return !!this.provider(location);
+  },
   mapUrl(location, radius = 1000) {
+    if (this.isInDenmark(location)) return this.dronezonerUrl;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
+  },
+  openMapLabel(location) {
+    return this.isInDenmark(location) ? I18n.t('airspace.openDronezoner') : I18n.t('airspace.openDipul');
+  },
+  sourceLabel(location) {
+    return this.isInDenmark(location) ? I18n.t('airspace.sourceDronezoner') : I18n.t('airspace.source');
   },
   requestUrl(url) {
     const proxy = (typeof CONFIG !== 'undefined' && CONFIG.AIRSPACE_PROXY_URL) ? CONFIG.AIRSPACE_PROXY_URL : '';
@@ -95,6 +127,12 @@ const AirspaceService = {
   async check(location) {
     const key = this.cacheKey(location);
     if (this.cache.has(key)) return this.cache.get(key);
+
+    if (this.isInDenmark(location)) {
+      const dronezoner = { status: 'overlay', severity: 'caution', features: [], source: 'Dronezoner' };
+      this.cache.set(key, dronezoner);
+      return dronezoner;
+    }
 
     if (!this.isInGermany(location)) {
       const outside = { status: 'outside', severity: 'caution', features: [], source: 'DIPUL' };
@@ -410,6 +448,7 @@ const UI = {
     if (result.status === 'clear') return I18n.t('airspace.clear');
     if (result.status === 'advisory') return I18n.t('airspace.advisory');
     if (result.status === 'restricted') return I18n.t('airspace.restricted');
+    if (result.status === 'overlay') return I18n.t('airspace.overlayOnly');
     if (result.status === 'outside') return I18n.t('airspace.outside');
     return I18n.t('airspace.error');
   },
@@ -418,6 +457,7 @@ const UI = {
     if (result.status === 'clear') return I18n.t('airspace.clearText');
     if (result.status === 'advisory') return I18n.t('airspace.advisoryText');
     if (result.status === 'restricted') return I18n.t('airspace.restrictedText');
+    if (result.status === 'overlay') return I18n.t('airspace.overlayOnlyText');
     if (result.status === 'outside') return I18n.t('airspace.outsideText');
     return I18n.t('airspace.errorText');
   },
@@ -429,7 +469,7 @@ const UI = {
       <strong>${I18n.t('airspace.title')}</strong>
       <div class="metric-grid">
         <span class="badge ${severity}">${this.airspaceLabel(result)}${count ? ` · ${count}` : ''}</span>
-        ${AirspaceService.isInGermany(location) ? `<button class="btn btn-secondary btn-small" data-open-pin="${mapUrl}">${I18n.t('airspace.openDipul')}</button>` : ''}
+        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary btn-small" data-open-pin="${mapUrl}">${AirspaceService.openMapLabel(location)}</button>` : ''}
       </div>
     `;
   },
@@ -456,8 +496,8 @@ const UI = {
         </div>
         ${featureList ? `<ul class="airspace-zones">${featureList}</ul>` : ''}
         <div class="airspace-actions">
-          ${AirspaceService.isInGermany(location) ? `<button class="btn" data-open-pin="${AirspaceService.mapUrl(location)}">${I18n.t('airspace.openDipul')}</button>` : ''}
-          <span class="muted">${I18n.t('airspace.source')}</span>
+          ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
+          <span class="muted">${AirspaceService.sourceLabel(location)}</span>
         </div>
         <p class="muted airspace-disclaimer">${I18n.t('airspace.disclaimer')}</p>
       </div>
@@ -1859,7 +1899,7 @@ const App = {
               <h3>${I18n.t('dashboard.current')}</h3>
               <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
-              ${AirspaceService.isInGermany(location) ? `<div class="info-list mt-8"><button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button></div>` : ''}
+              ${AirspaceService.isOverlayAvailable(location) ? `<div class="info-list mt-8"><button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button></div>` : ''}
             </div>
           </div>
         `;
@@ -2283,38 +2323,92 @@ const App = {
   },
 
   syncDipulOverlay(location) {
-    if (!this.detailMap || typeof L === 'undefined') return;
-    if (this.detailDipulLayer) {
-      this.detailMap.removeLayer(this.detailDipulLayer);
-      this.detailDipulLayer = null;
-    }
-    if (!location || !AirspaceService.isInGermany(location) || !this.isDipulOverlayEnabled()) return;
-
-    this.detailDipulLayer = L.tileLayer.wms(AirspaceService.wmsUrl, {
-      layers: AirspaceService.layers.map(layer => layer.id).join(','),
-      format: 'image/png',
-      transparent: true,
-      version: '1.1.1',
-      attribution: I18n.t('airspace.source')
-    }).addTo(this.detailMap);
+    this.syncAirspaceOverlay(this.detailMap, 'detailDipulLayer', location);
   },
 
   async syncDashboardDipulOverlay(location = null) {
-    if (!this.dashboardMap || typeof L === 'undefined') return;
-    if (this.dashboardDipulLayer) {
-      this.dashboardMap.removeLayer(this.dashboardDipulLayer);
-      this.dashboardDipulLayer = null;
-    }
     const activeLocation = location || await this.resolveDashboardLocation();
-    if (!activeLocation || !AirspaceService.isInGermany(activeLocation) || !this.isDipulOverlayEnabled()) return;
+    this.syncAirspaceOverlay(this.dashboardMap, 'dashboardDipulLayer', activeLocation);
+  },
 
-    this.dashboardDipulLayer = L.tileLayer.wms(AirspaceService.wmsUrl, {
-      layers: AirspaceService.layers.map(layer => layer.id).join(','),
-      format: 'image/png',
-      transparent: true,
-      version: '1.1.1',
-      attribution: I18n.t('airspace.source')
-    }).addTo(this.dashboardMap);
+  syncAirspaceOverlay(map, layerProp, location) {
+    if (!map || typeof L === 'undefined') return;
+    if (this[layerProp]) {
+      map.removeLayer(this[layerProp]);
+      this[layerProp] = null;
+    }
+    const provider = location ? AirspaceService.provider(location) : null;
+    if (!provider || !this.isDipulOverlayEnabled()) return;
+
+    if (provider === 'dipul') {
+      this[layerProp] = L.tileLayer.wms(AirspaceService.wmsUrl, {
+        layers: AirspaceService.layers.map(layer => layer.id).join(','),
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        attribution: I18n.t('airspace.source')
+      }).addTo(map);
+      return;
+    }
+
+    const group = L.layerGroup().addTo(map);
+    this[layerProp] = group;
+    this.populateDronezonerOverlay(map, group, layerProp);
+  },
+
+  async populateDronezonerOverlay(map, group, layerProp) {
+    const bounds = map.getBounds();
+    const geometry = [
+      bounds.getWest().toFixed(6),
+      bounds.getSouth().toFixed(6),
+      bounds.getEast().toFixed(6),
+      bounds.getNorth().toFixed(6)
+    ].join(',');
+
+    await Promise.all(AirspaceService.dronezonerLayers.map(async layer => {
+      const params = new URLSearchParams({
+        f: 'geojson',
+        where: '1=1',
+        geometry,
+        geometryType: 'esriGeometryEnvelope',
+        inSR: '4326',
+        spatialRel: 'esriSpatialRelIntersects',
+        outFields: 'typeId,title,name,Type,Paragraf,Buffer_Zone,NOTAMtxt,LimitFod,LimitMeter',
+        returnGeometry: 'true',
+        outSR: '4326',
+        resultRecordCount: '500'
+      });
+
+      try {
+        const res = await fetch(`${layer.url}/query?${params.toString()}`);
+        if (!res.ok) throw new Error(`Dronezoner ${res.status}`);
+        const data = await res.json();
+        if (this[layerProp] !== group || !data.features?.length) return;
+        L.geoJSON(data, {
+          style: () => ({
+            color: layer.color,
+            weight: 2,
+            opacity: 0.9,
+            fillColor: layer.color,
+            fillOpacity: layer.fillOpacity
+          }),
+          pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
+            radius: 6,
+            color: layer.color,
+            weight: 2,
+            fillColor: layer.color,
+            fillOpacity: 0.85
+          }),
+          onEachFeature: (feature, leafletLayer) => {
+            const props = feature.properties || {};
+            const name = props.title || props.typeId || props.name || layer.label;
+            leafletLayer.bindTooltip(Util.escapeHtml(`${layer.label}: ${name}`));
+          }
+        }).addTo(group);
+      } catch (error) {
+        console.warn('Dronezoner overlay failed:', layer.label, error);
+      }
+    }));
   },
 
   async openLocationDetail(locationId) {
@@ -2435,8 +2529,8 @@ const App = {
         <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
         <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
         <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
-        ${AirspaceService.isInGermany(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">${I18n.t('airspace.openDipul')}</button>` : ''}
-        ${AirspaceService.isInGermany(location) ? `<button class="btn btn-secondary" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
+        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
+        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
       `;
       this.updateDipulToggle();
 
