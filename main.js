@@ -94,6 +94,47 @@ const AirspaceService = {
   dronespaceUrl: 'https://utm.dronespace.at/avm/',
   dronespaceUasUrl: 'https://utm.dronespace.at/avm/utm/uas.geojson',
   droneSafetyMapUrl: 'https://dronesafetymap.com/',
+  officialDataCache: new Map(),
+  officialLayerSources: {
+    fr: {
+      type: 'wms',
+      label: 'Geoportail',
+      source: 'Geoportail / DGAC',
+      url: 'https://data.geopf.fr/wms-r',
+      layers: 'TRANSPORTS.DRONES.RESTRICTIONS'
+    },
+    ie: {
+      type: 'geojson',
+      label: 'IAA',
+      source: 'Irish Aviation Authority',
+      url: 'https://www.iaa.ie/docs/default-source/default-document-library/uas/20260422_uas_zones_ireland_v2.geojson?download=true&sfvrsn=f9d5eff3_90',
+      color: '#f05f4f'
+    },
+    nl: {
+      type: 'ogc',
+      label: 'GoDrone / PDOK',
+      source: 'LVNL / PDOK',
+      color: '#f05f4f',
+      collections: [
+        'luchtvaartgebieden',
+        'landingsite'
+      ],
+      url: 'https://api.pdok.nl/lvnl/drone-no-flyzones/ogc/v1'
+    },
+    pt: {
+      type: 'ed269',
+      label: 'ANAC',
+      source: 'ANAC Portugal',
+      url: 'https://dnt.anac.pt/json/UASZoneVersion%2022042026083205.json',
+      color: '#f05f4f'
+    }
+  },
+  officialWebOverlays: {
+    be: { label: 'Droneguide', source: 'skeyes / Droneguide', url: 'https://map.droneguide.be/' },
+    gb: { label: 'UK UAS Map', source: 'Google My Maps', url: 'https://www.google.com/maps/d/embed?mid=1BktWMPYNuh6N5_IPngyq8jW80nAWXI8d' },
+    is: { label: 'Dronar', source: 'Kortasja / Iceland', url: 'https://kort.gis.is/mapview/?app=dronar' },
+    se: { label: 'Dronechart', source: 'LFV Dronechart', url: 'https://daim.lfv.se/echarts/dronechart/?x=1837369.50551&y=8503631.90948&z=6&r=0&l=100011111111#' }
+  },
   officialMapLinks: {
     be: 'https://map.droneguide.be/',
     bg: 'https://www.caa.bg/bg/category/633/7062',
@@ -105,8 +146,8 @@ const AirspaceService = {
     fr: 'https://www.geoportail.gouv.fr/donnees/restrictions-uas-categorie-ouverte-et-aeromodelisme',
     gr: 'https://dagr.hasp.gov.gr/',
     hu: 'https://mydronespace.hu/',
-    is: 'https://island.is/en/drone-operation',
-    ie: 'https://www.iaa.ie/general-aviation/drones',
+    is: 'https://kort.gis.is/mapview/?app=dronar',
+    ie: 'https://www.iaa.ie/general-aviation/drones/uas-geographic-zones',
     it: 'https://www.d-flight.it/new_portal/services/mappe/',
     lv: 'https://www.airspace.lv/drones',
     li: 'https://map.geo.admin.ch/#/map?topic=aviation&layers=ch.bazl.einschraenkungen-drohnen',
@@ -116,13 +157,13 @@ const AirspaceService = {
     nl: 'https://map.godrone.nl/',
     no: 'https://www.luftfartstilsynet.no/en/drones/',
     pl: 'https://dronemap.pansa.pl/',
-    pt: 'https://dnt.anac.pt/',
+    pt: 'https://dnt.anac.pt/mapa.html',
     ro: 'https://flightplan.romatsa.ro/init/drones',
     sk: 'https://gis.lps.sk/',
     si: 'https://caa-slovenia.maps.arcgis.com/',
     es: 'https://drones.enaire.es/',
-    se: 'https://daim.lfv.se/echarts/dronechart/',
-    gb: 'https://nats-uk.ead-it.com/cms-nats/opencms/en/uas-restriction-zones/'
+    se: 'https://daim.lfv.se/echarts/dronechart/?x=1837369.50551&y=8503631.90948&z=6&r=0&l=100011111111#',
+    gb: 'https://www.google.com/maps/d/u/0/viewer?mid=1BktWMPYNuh6N5_IPngyq8jW80nAWXI8d&femb=1&ll=55.10020820377963%2C-3.3907421047665043&z=6'
   },
   dronespaceCache: new Map(),
   swissMapUrl: 'https://map.geo.admin.ch/#/map',
@@ -173,6 +214,23 @@ const AirspaceService = {
     const country = String(location.country || location.address?.country || '').toLowerCase();
     return country;
   },
+  overlayCountryCode(location) {
+    const countryCode = this.countryCode(location);
+    if (countryCode === 'uk') return 'gb';
+    if (countryCode) return countryCode;
+    if (this.isInFrance(location)) return 'fr';
+    if (this.isInUnitedKingdom(location)) return 'gb';
+    const boxes = [
+      { code: 'is', minLat: 63.1, maxLat: 66.8, minLon: -25.0, maxLon: -13.0 },
+      { code: 'ie', minLat: 51.2, maxLat: 55.6, minLon: -10.9, maxLon: -5.2 },
+      { code: 'pt', minLat: 36.7, maxLat: 42.4, minLon: -9.7, maxLon: -6.0 },
+      { code: 'nl', minLat: 50.7, maxLat: 53.8, minLon: 3.1, maxLon: 7.4 },
+      { code: 'be', minLat: 49.4, maxLat: 51.6, minLon: 2.4, maxLon: 6.5 },
+      { code: 'se', minLat: 55.0, maxLat: 69.3, minLon: 10.5, maxLon: 24.5 }
+    ];
+    const match = boxes.find(box => location.lat >= box.minLat && location.lat <= box.maxLat && location.lon >= box.minLon && location.lon <= box.maxLon);
+    return match?.code || '';
+  },
   isInItaly(location) {
     const countryCode = this.countryCode(location);
     const country = this.countryName(location);
@@ -202,7 +260,13 @@ const AirspaceService = {
     return this.isInItaly(location) || this.isInFrance(location) || this.isInSpain(location) || this.isInUnitedKingdom(location);
   },
   officialMapUrl(location) {
-    return this.officialMapLinks[this.countryCode(location)] || '';
+    return this.officialMapLinks[this.overlayCountryCode(location)] || '';
+  },
+  officialLayerSource(location) {
+    return this.officialLayerSources[this.overlayCountryCode(location)] || null;
+  },
+  officialWebOverlay(location) {
+    return this.officialWebOverlays[this.overlayCountryCode(location)] || null;
   },
   isPointInPolygon(location, polygon) {
     const x = location.lon;
@@ -223,6 +287,8 @@ const AirspaceService = {
     if (this.isInAustria(location)) return 'dronespace';
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
+    if (this.officialLayerSource(location)) return 'officialdata';
+    if (this.officialWebOverlay(location)) return 'officialweb';
     if (this.officialMapUrl(location)) return 'officialmap';
     return 'dronesafetymap';
   },
@@ -230,7 +296,7 @@ const AirspaceService = {
     return !!this.provider(location);
   },
   hasInteractiveOverlay(location) {
-    return ['dipul', 'dronespace', 'dronezoner', 'swissgeo'].includes(this.provider(location));
+    return ['dipul', 'dronespace', 'dronezoner', 'swissgeo', 'officialdata', 'officialweb'].includes(this.provider(location));
   },
   mapUrl(location, radius = 1000) {
     if (this.isInDenmark(location)) return this.dronezonerUrl;
@@ -247,6 +313,7 @@ const AirspaceService = {
       return `${this.swissMapUrl}?${params.toString()}`;
     }
     if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
+    if (this.provider(location) === 'officialdata' || this.provider(location) === 'officialweb') return this.officialMapUrl(location);
     if (this.provider(location) === 'officialmap') return this.officialMapUrl(location);
     if (this.provider(location) === 'dronesafetymap') return this.droneSafetyMapUrl;
     const zoom = radius > 1500 ? '11.0' : '13.0';
@@ -256,6 +323,7 @@ const AirspaceService = {
     if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.openSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
+    if (this.provider(location) === 'officialdata' || this.provider(location) === 'officialweb') return I18n.t('airspace.openOfficialMap');
     if (this.provider(location) === 'officialmap') return I18n.t('airspace.openOfficialMap');
     if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.openDroneSafetyMap');
     return I18n.t('airspace.openDipul');
@@ -264,6 +332,8 @@ const AirspaceService = {
     if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.sourceSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
+    if (this.provider(location) === 'officialdata') return `Source geodata: ${this.officialLayerSource(location)?.source || 'national UAS map'}`;
+    if (this.provider(location) === 'officialweb') return `Source geodata: ${this.officialWebOverlay(location)?.source || 'national UAS map'}`;
     if (this.provider(location) === 'officialmap') return I18n.t('airspace.sourceOfficialMap');
     if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.sourceDroneSafetyMap');
     return I18n.t('airspace.source');
@@ -320,6 +390,20 @@ const AirspaceService = {
       const droneSafetyMap = { status: 'overlay', severity: 'caution', features: [], source: 'Drone Safety Map' };
       this.cache.set(key, droneSafetyMap);
       return droneSafetyMap;
+    }
+
+    if (this.provider(location) === 'officialdata') {
+      const source = this.officialLayerSource(location);
+      const officialData = { status: 'overlay', severity: 'caution', features: [], source: source?.source || 'Official national UAS map' };
+      this.cache.set(key, officialData);
+      return officialData;
+    }
+
+    if (this.provider(location) === 'officialweb') {
+      const source = this.officialWebOverlay(location);
+      const officialWeb = { status: 'overlay', severity: 'caution', features: [], source: source?.source || 'Official national UAS map' };
+      this.cache.set(key, officialWeb);
+      return officialWeb;
     }
 
     if (this.provider(location) === 'officialmap') {
@@ -2778,7 +2862,7 @@ const App = {
     }
     const provider = location ? AirspaceService.provider(location) : null;
     if (!provider || !this.isDipulOverlayEnabled()) return;
-    if (!['dipul', 'dronespace', 'dronezoner', 'swissgeo'].includes(provider)) return;
+    if (!['dipul', 'dronespace', 'dronezoner', 'swissgeo', 'officialdata', 'officialweb'].includes(provider)) return;
 
     if (provider === 'dipul') {
       this[layerProp] = L.tileLayer.wms(AirspaceService.wmsUrl, {
@@ -2803,6 +2887,28 @@ const App = {
       return;
     }
 
+    if (provider === 'officialdata') {
+      const source = AirspaceService.officialLayerSource(location);
+      if (!source) return;
+      if (source.type === 'wms') {
+        this[layerProp] = L.tileLayer.wms(source.url, {
+          layers: source.layers,
+          styles: '',
+          format: 'image/png',
+          transparent: true,
+          version: '1.3.0',
+          attribution: `Source geodata: ${source.source}`
+        }).addTo(map);
+        return;
+      }
+    }
+
+    if (provider === 'officialweb') {
+      const source = AirspaceService.officialWebOverlay(location);
+      if (source) this[layerProp] = this.createExternalAirspaceLayer(source).addTo(map);
+      return;
+    }
+
     if (!map.getPane('airspaceGeojsonPane')) {
       map.createPane('airspaceGeojsonPane');
       map.getPane('airspaceGeojsonPane').style.zIndex = 430;
@@ -2816,11 +2922,184 @@ const App = {
         return;
       }
       if (provider === 'dronezoner') this.populateDronezonerOverlay(map, group, layerProp);
+      if (provider === 'officialdata') this.populateOfficialDataOverlay(map, group, layerProp, AirspaceService.officialLayerSource(location));
     }, 350);
     this[handlerProp] = refresh;
     this[mapProp] = map;
     map.on('moveend zoomend', refresh);
     setTimeout(refresh, 150);
+  },
+
+  createExternalAirspaceLayer(source) {
+    const ExternalAirspaceLayer = L.Layer.extend({
+      initialize(layerSource) {
+        this.layerSource = layerSource;
+      },
+      onAdd(map) {
+        if (!map.getPane('airspaceExternalPane')) {
+          map.createPane('airspaceExternalPane');
+          map.getPane('airspaceExternalPane').style.zIndex = 425;
+        }
+        this.container = L.DomUtil.create('div', '', map.getPane('airspaceExternalPane'));
+        this.container.setAttribute('aria-label', this.layerSource.label || 'Official UAS map');
+        Object.assign(this.container.style, {
+          position: 'absolute',
+          inset: '0',
+          width: '100%',
+          height: '100%',
+          opacity: '0.68',
+          pointerEvents: 'none',
+          mixBlendMode: 'multiply',
+          background: 'rgba(255,255,255,0.01)'
+        });
+        const iframe = L.DomUtil.create('iframe', '', this.container);
+        iframe.src = this.layerSource.url;
+        iframe.loading = 'lazy';
+        iframe.referrerPolicy = 'no-referrer-when-downgrade';
+        iframe.title = this.layerSource.label || 'Official UAS map';
+        Object.assign(iframe.style, {
+          border: '0',
+          width: '100%',
+          height: '100%',
+          display: 'block'
+        });
+      },
+      onRemove() {
+        if (this.container?.parentNode) this.container.parentNode.removeChild(this.container);
+        this.container = null;
+      }
+    });
+    return new ExternalAirspaceLayer(source);
+  },
+
+  async populateOfficialDataOverlay(map, group, layerProp, source) {
+    if (this[layerProp] !== group || !source) return;
+    group.clearLayers();
+    if (source.type === 'ogc') {
+      await this.populateOgcOverlay(map, group, layerProp, source);
+      return;
+    }
+
+    try {
+      let data = AirspaceService.officialDataCache.get(source.url);
+      if (!data) {
+        const res = await fetch(AirspaceService.requestUrl(source.url), { headers: { Accept: 'application/json,application/geo+json,*/*' } });
+        if (!res.ok) throw new Error(`${source.label} ${res.status}`);
+        data = await res.json();
+        AirspaceService.officialDataCache.set(source.url, data);
+      }
+      if (this[layerProp] !== group) return;
+      if (source.type === 'ed269') {
+        this.addEd269Overlay(map, group, data, source);
+        return;
+      }
+      this.addGeoJsonOverlay(group, data, source);
+    } catch (error) {
+      console.warn('Official UAS overlay failed:', source.label, error);
+    }
+  },
+
+  async populateOgcOverlay(map, group, layerProp, source) {
+    const bounds = this.paddedAirspaceBounds(map);
+    const bbox = [
+      bounds.getWest().toFixed(6),
+      bounds.getSouth().toFixed(6),
+      bounds.getEast().toFixed(6),
+      bounds.getNorth().toFixed(6)
+    ].join(',');
+
+    await Promise.all((source.collections || []).map(async collection => {
+      const url = `${source.url}/collections/${collection}/items?bbox=${bbox}&limit=500&f=json`;
+      try {
+        const res = await fetch(AirspaceService.requestUrl(url), { headers: { Accept: 'application/geo+json,application/json,*/*' } });
+        if (!res.ok) throw new Error(`${source.label} ${collection} ${res.status}`);
+        const data = await res.json();
+        if (this[layerProp] !== group || !data.features?.length) return;
+        this.addGeoJsonOverlay(group, data, source);
+      } catch (error) {
+        console.warn('Official OGC overlay failed:', source.label, collection, error);
+      }
+    }));
+  },
+
+  addGeoJsonOverlay(group, data, source) {
+    if (!data?.features?.length) return;
+    L.geoJSON(data, {
+      pane: 'airspaceGeojsonPane',
+      style: feature => this.officialOverlayStyle(feature, source),
+      pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+        pane: 'airspaceGeojsonPane',
+        radius: 6,
+        ...this.officialOverlayStyle(feature, source),
+        fillOpacity: 0.85
+      }),
+      onEachFeature: (feature, leafletLayer) => {
+        const props = feature.properties || {};
+        const name = props.name || props.Naam || props.naam || props.title || props.identifier || props.id || source.label;
+        leafletLayer.bindTooltip(Util.escapeHtml(String(name)));
+      }
+    }).addTo(group);
+  },
+
+  addEd269Overlay(map, group, data, source) {
+    const bounds = map.getBounds().pad(0.4);
+    (data?.features || []).forEach(feature => {
+      (feature.geometry || []).forEach(geometry => {
+        const projection = geometry.horizontalProjection || {};
+        const color = this.ed269Color(feature, source);
+        const name = feature.name || feature.identifier || source.label;
+        if (projection.type === 'Circle' && Array.isArray(projection.center)) {
+          const latlng = [projection.center[1], projection.center[0]];
+          if (!bounds.contains(latlng)) return;
+          L.circle(latlng, {
+            pane: 'airspaceGeojsonPane',
+            radius: Number(projection.radius) || 0,
+            color,
+            weight: 2,
+            opacity: 0.9,
+            fillColor: color,
+            fillOpacity: 0.18
+          }).bindTooltip(Util.escapeHtml(String(name))).addTo(group);
+          return;
+        }
+        const coordinates = projection.coordinates || projection.outerBoundary || projection.points || [];
+        if (Array.isArray(coordinates) && coordinates.length) {
+          const latlngs = coordinates.map(point => Array.isArray(point) ? [point[1], point[0]] : null).filter(Boolean);
+          if (latlngs.length < 3) return;
+          L.polygon(latlngs, {
+            pane: 'airspaceGeojsonPane',
+            color,
+            weight: 2,
+            opacity: 0.9,
+            fillColor: color,
+            fillOpacity: 0.18
+          }).bindTooltip(Util.escapeHtml(String(name))).addTo(group);
+        }
+      });
+    });
+  },
+
+  officialOverlayStyle(feature, source) {
+    const props = feature?.properties || {};
+    const raw = String(props.restriction || props.Restriction || props.zone_type || props.type || props.Type || '').toLowerCase();
+    const isRestricted = raw.includes('prohibit') || raw.includes('restricted') || raw.includes('verbod') || raw.includes('ctr');
+    const color = isRestricted ? '#ef4444' : (source.color || '#f59e0b');
+    return {
+      color,
+      weight: 2,
+      opacity: 0.9,
+      fillColor: color,
+      fillOpacity: isRestricted ? 0.22 : 0.16
+    };
+  },
+
+  ed269Color(feature, source) {
+    const rawColor = feature?.extendedProperties?.color;
+    if (/^[0-9a-f]{6}$/i.test(rawColor || '')) return `#${rawColor}`;
+    const restriction = String(feature?.restriction || '').toLowerCase();
+    if (restriction.includes('prohibit')) return '#ef4444';
+    if (restriction.includes('author')) return '#f59e0b';
+    return source.color || '#f59e0b';
   },
 
   async populateDronezonerOverlay(map, group, layerProp) {
