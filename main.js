@@ -296,7 +296,7 @@ const AirspaceService = {
     return !!this.provider(location);
   },
   hasInteractiveOverlay(location) {
-    return ['dipul', 'dronespace', 'dronezoner', 'swissgeo', 'officialdata', 'officialweb'].includes(this.provider(location));
+    return ['dipul', 'dronespace', 'dronezoner', 'swissgeo', 'officialdata'].includes(this.provider(location));
   },
   mapUrl(location, radius = 1000) {
     if (this.isInDenmark(location)) return this.dronezonerUrl;
@@ -2373,6 +2373,16 @@ const App = {
           currentStats = document.getElementById('dash-current-stats');
         }
 
+        const dashboardOverlayToggle = AirspaceService.hasInteractiveOverlay(location)
+          ? `<button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>`
+          : '';
+        const dashboardAirspaceLink = AirspaceService.isOverlayAvailable(location)
+          ? `<button class="btn btn-secondary btn-small" data-open-pin="${Util.escapeHtml(AirspaceService.mapUrl(location))}">${AirspaceService.openMapLabel(location)}</button>`
+          : '';
+        const dashboardAirspaceActions = dashboardOverlayToggle || dashboardAirspaceLink
+          ? `<div class="info-list mt-8">${dashboardOverlayToggle}${dashboardAirspaceLink}</div>`
+          : '';
+
         currentInfo.innerHTML = `
           <div class="score-hero">
             <div>
@@ -2380,7 +2390,7 @@ const App = {
               <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
               ${UI.renderSpotSuitabilityTags(location)}
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
-              ${AirspaceService.hasInteractiveOverlay(location) ? `<div class="info-list mt-8"><button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button></div>` : ''}
+              ${dashboardAirspaceActions}
             </div>
           </div>
         `;
@@ -2862,7 +2872,7 @@ const App = {
     }
     const provider = location ? AirspaceService.provider(location) : null;
     if (!provider || !this.isDipulOverlayEnabled()) return;
-    if (!['dipul', 'dronespace', 'dronezoner', 'swissgeo', 'officialdata', 'officialweb'].includes(provider)) return;
+    if (!['dipul', 'dronespace', 'dronezoner', 'swissgeo', 'officialdata'].includes(provider)) return;
 
     if (provider === 'dipul') {
       this[layerProp] = L.tileLayer.wms(AirspaceService.wmsUrl, {
@@ -2903,12 +2913,6 @@ const App = {
       }
     }
 
-    if (provider === 'officialweb') {
-      const source = AirspaceService.officialWebOverlay(location);
-      if (source) this[layerProp] = this.createExternalAirspaceLayer(source).addTo(map);
-      return;
-    }
-
     if (!map.getPane('airspaceGeojsonPane')) {
       map.createPane('airspaceGeojsonPane');
       map.getPane('airspaceGeojsonPane').style.zIndex = 430;
@@ -2928,48 +2932,6 @@ const App = {
     this[mapProp] = map;
     map.on('moveend zoomend', refresh);
     setTimeout(refresh, 150);
-  },
-
-  createExternalAirspaceLayer(source) {
-    const ExternalAirspaceLayer = L.Layer.extend({
-      initialize(layerSource) {
-        this.layerSource = layerSource;
-      },
-      onAdd(map) {
-        if (!map.getPane('airspaceExternalPane')) {
-          map.createPane('airspaceExternalPane');
-          map.getPane('airspaceExternalPane').style.zIndex = 425;
-        }
-        this.container = L.DomUtil.create('div', '', map.getPane('airspaceExternalPane'));
-        this.container.setAttribute('aria-label', this.layerSource.label || 'Official UAS map');
-        Object.assign(this.container.style, {
-          position: 'absolute',
-          inset: '0',
-          width: '100%',
-          height: '100%',
-          opacity: '0.68',
-          pointerEvents: 'none',
-          mixBlendMode: 'multiply',
-          background: 'rgba(255,255,255,0.01)'
-        });
-        const iframe = L.DomUtil.create('iframe', '', this.container);
-        iframe.src = this.layerSource.url;
-        iframe.loading = 'lazy';
-        iframe.referrerPolicy = 'no-referrer-when-downgrade';
-        iframe.title = this.layerSource.label || 'Official UAS map';
-        Object.assign(iframe.style, {
-          border: '0',
-          width: '100%',
-          height: '100%',
-          display: 'block'
-        });
-      },
-      onRemove() {
-        if (this.container?.parentNode) this.container.parentNode.removeChild(this.container);
-        this.container = null;
-      }
-    });
-    return new ExternalAirspaceLayer(source);
   },
 
   async populateOfficialDataOverlay(map, group, layerProp, source) {
