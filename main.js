@@ -1008,6 +1008,7 @@ const App = {
   overviewMap: null,
   overviewMarkers: null,
   lastLocCount: 0,
+  countryBackfillRunning: false,
   locationFilters: { name: '', country: '', suitability: [] },
   dashboardMap: null,
   dashboardMarker: null,
@@ -1194,9 +1195,15 @@ const App = {
         if (this.pickerMarker) this.pickerMap.removeLayer(this.pickerMarker);
         this.pickerMarker = L.marker([lat, lng]).addTo(this.pickerMap);
 
+        let reverse = null;
+        let country = '';
+        let countryCode = '';
         let suggestedName = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
         try {
-          const reverse = await Nominatim.reverse(lat, lng);
+          const result = await this.countryForCoordinates(lat, lng);
+          reverse = result.reverse;
+          country = result.country;
+          countryCode = result.countryCode;
           if (reverse && reverse.display_name) {
             suggestedName = reverse.display_name.split(',')[0] || suggestedName;
           }
@@ -1204,7 +1211,7 @@ const App = {
 
         const name = prompt(I18n.t('locations.addLocation'), suggestedName);
         if (name) {
-          LocationManager.add({ name, lat, lon: lng, country: reverse?.address?.country || '' });
+          LocationManager.add({ name, lat, lon: lng, country, countryCode });
           UI.toast(I18n.t('detail.saved'));
           this.toggleMapPicker();
           await this.renderLocationsList();
@@ -1259,14 +1266,55 @@ const App = {
     const phi = lat * deg2rad;
     const sinAlt = Math.sin(phi) * Math.sin(declination) + Math.cos(phi) * Math.cos(declination) * Math.cos(h);
     const altitude = Math.asin(sinAlt);
-    
+
     // Azimuth (from North clockwise)
     const azimuth = Math.atan2(Math.sin(h), Math.cos(h) * Math.sin(phi) - Math.tan(declination) * Math.cos(phi)) * rad2deg + 180;
-    
-    return { 
-      azimuth: azimuth % 360, 
-      elevation: altitude * rad2deg 
+
+    return {
+      azimuth: azimuth % 360,
+      elevation: altitude * rad2deg
     };
+  },
+
+  countryFromReverse(reverse) {
+    const address = reverse?.address || {};
+    return {
+      country: address.country || '',
+      countryCode: address.country_code || ''
+    };
+  },
+
+  async countryForCoordinates(lat, lon) {
+    const reverse = await Nominatim.reverse(lat, lon, I18n.lang);
+    return {
+      reverse,
+      ...this.countryFromReverse(reverse)
+    };
+  },
+
+  async ensureLocationCountries() {
+    if (this.countryBackfillRunning) return;
+    const missing = LocationManager.getAll().filter(location => !location.country && !location.countryCode);
+    if (!missing.length) return;
+    this.countryBackfillRunning = true;
+    let changed = false;
+    try {
+      for (const location of missing) {
+        const { country, countryCode } = await this.countryForCoordinates(location.lat, location.lon);
+        if (country || countryCode) {
+          LocationManager.update(location.id, { country, countryCode });
+          changed = true;
+        }
+      }
+    } catch (err) {
+      console.warn('Country backfill failed:', err);
+    } finally {
+      this.countryBackfillRunning = false;
+    }
+    if (changed) {
+      UI.renderDashboardLocationSelect();
+      if (Storage.get(Keys.activeTab, 'dashboard') === 'locations') await this.renderLocationsList();
+    }
   },
 
   async init() {
@@ -1313,6 +1361,7 @@ const App = {
       console.log('App: Showing page:', activeTab);
       Router.showPage(activeTab);
       await this.renderAll(true);
+      this.ensureLocationCountries();
       console.log('App: Initial render complete.');
     } catch (error) {
       console.error('App: Critical initialization error:', error);
@@ -1433,7 +1482,7 @@ const App = {
         return;
       }
       try {
-        const results = await Nominatim.search(value.trim());
+        const results = await Nominatim.search(value.trim(), I18n.lang);
         if (!results.length) {
           UI.toast(I18n.t('toast.notFound'));
           return;
@@ -1447,11 +1496,15 @@ const App = {
 
         UI.els.searchSuggestions.querySelectorAll('.suggestion-item').forEach(btn => {
           btn.addEventListener('click', async () => {
+            const lat = Number(btn.dataset.lat);
+            const lon = Number(btn.dataset.lon);
+            const { country, countryCode } = await this.countryForCoordinates(lat, lon);
             const location = LocationManager.add({
               name: btn.dataset.name,
-              lat: Number(btn.dataset.lat),
-              lon: Number(btn.dataset.lon),
-              country: btn.dataset.country || '',
+              lat,
+              lon,
+              country,
+              countryCode,
             });
             UI.els.searchInput.value = '';
             UI.els.searchSuggestions.innerHTML = '';
@@ -1491,7 +1544,7 @@ const App = {
         hideCountrySuggestions();
         return;
       }
-      const countries = await Nominatim.searchCountries(query);
+      const countries = await Nominatim.searchCountries(query, I18n.lang);
       if (!countries.length) {
         hideCountrySuggestions();
         return;
@@ -1536,7 +1589,7 @@ const App = {
         return;
       }
       try {
-        const results = await Nominatim.search(value.trim());
+        const results = await Nominatim.search(value.trim(), I18n.lang);
         if (!results.length) return;
         
         UI.els.dashboardHomeSuggestions.innerHTML = results.map(item => `
@@ -1618,7 +1671,7 @@ const App = {
         return;
       }
       try {
-        const results = await Nominatim.search(q);
+        const results = await Nominatim.search(q, I18n.lang);
         if (results.length > 0) {
           pickerSuggestions.innerHTML = results.map(r => `
             <div class="suggestion-item" data-lat="${r.lat}" data-lon="${r.lon}">${Util.escapeHtml(r.display_name)}</div>
@@ -1647,7 +1700,7 @@ const App = {
       const q = pickerSearchInput.value.trim();
       if (!q) return;
       try {
-        const results = await Nominatim.search(q);
+        const results = await Nominatim.search(q, I18n.lang);
         if (results.length > 0) {
           const { lat, lon } = results[0];
           this.pickerMap.setView([lat, lon], 14);
@@ -2000,9 +2053,10 @@ const App = {
     navigator.geolocation.getCurrentPosition(async (pos) => {
       try {
         const { latitude, longitude } = pos.coords;
-        const reverse = await Nominatim.reverse(latitude, longitude);
+        const reverse = await Nominatim.reverse(latitude, longitude, I18n.lang);
         const name = reverse.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-        const location = LocationManager.add({ name, lat: latitude, lon: longitude, country: reverse?.address?.country || '' });
+        const { country, countryCode } = this.countryFromReverse(reverse);
+        const location = LocationManager.add({ name, lat: latitude, lon: longitude, country, countryCode });
         if (location) {
           UI.renderDashboardLocationSelect();
           await this.renderLocationsList();
@@ -2548,9 +2602,9 @@ const App = {
   locationCountryText(location) {
     const parts = [
       location.country,
+      location.countryCode,
       location.address?.country,
       location.address?.country_code,
-      String(location.name || '').split(',').slice(-1)[0]
     ];
     return parts.filter(Boolean).join(' ').toLowerCase();
   },

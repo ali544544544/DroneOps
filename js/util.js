@@ -124,32 +124,50 @@ export const Util = {
 };
 
 export const Nominatim = {
-  async reverse(lat, lon) {
+  localeParam(locale = 'de') {
+    return locale && String(locale).startsWith('en') ? 'en' : 'de';
+  },
+  async reverse(lat, lon, locale = 'de') {
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`);
+      const params = new URLSearchParams({
+        format: 'json',
+        lat,
+        lon,
+        addressdetails: '1',
+        'accept-language': this.localeParam(locale)
+      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`);
       return await res.json();
     } catch (e) { return null; }
   },
-  async search(query) {
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}&limit=5`);
-      return await res.json();
-    } catch (e) { return []; }
-  },
-  async searchCountries(query) {
+  async search(query, locale = 'de') {
     try {
       const params = new URLSearchParams({
         format: 'json',
         addressdetails: '1',
-        featureType: 'country',
         q: query,
-        limit: '8'
+        limit: '5',
+        'accept-language': this.localeParam(locale)
+      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+      return await res.json();
+    } catch (e) { return []; }
+  },
+  async searchCountries(query, locale = 'de') {
+    try {
+      const params = new URLSearchParams({
+        format: 'json',
+        addressdetails: '1',
+        featuretype: 'country',
+        q: query,
+        limit: '8',
+        'accept-language': this.localeParam(locale)
       });
       const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
       const results = await res.json();
       const seen = new Set();
       return results
-        .filter(item => item.addresstype === 'country' || (item.class === 'boundary' && Number(item.place_rank) <= 4))
+        .filter(item => item.addresstype === 'country' || (item.class === 'boundary' && String(item.type).includes('administrative') && Number(item.place_rank) <= 4))
         .map(item => ({
           name: item.address?.country || String(item.display_name || '').split(',')[0].trim(),
           countryCode: item.address?.country_code || '',
