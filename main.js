@@ -93,6 +93,7 @@ const AirspaceService = {
   ],
   dronespaceUrl: 'https://utm.dronespace.at/avm/',
   dronespaceUasUrl: 'https://utm.dronespace.at/avm/utm/uas.geojson',
+  dflightUrl: 'https://www.d-flight.it/new_portal/services/mappe/',
   dronespaceCache: new Map(),
   swissMapUrl: 'https://map.geo.admin.ch/#/map',
   swissWmsUrl: 'https://wms.geo.admin.ch/',
@@ -111,6 +112,15 @@ const AirspaceService = {
     [15.95, 46.75], [14.75, 46.43], [13.4, 46.5], [12.1, 46.65],
     [10.6, 46.85], [9.53, 47.27]
   ],
+  italyPolygon: [
+    [6.6, 45.1], [7.0, 45.9], [8.6, 46.5], [10.4, 46.9],
+    [12.4, 46.7], [13.7, 46.5], [13.9, 45.8], [13.6, 45.2],
+    [14.6, 44.2], [15.8, 41.9], [18.4, 40.1], [18.6, 39.0],
+    [17.2, 38.4], [16.0, 37.9], [15.6, 38.4], [15.1, 38.2],
+    [13.2, 37.5], [12.4, 38.0], [12.9, 38.7], [12.1, 39.4],
+    [10.9, 41.1], [10.3, 43.0], [9.4, 44.1], [8.4, 44.3],
+    [7.5, 44.0], [6.8, 44.3], [6.6, 45.1]
+  ],
   isInGermany(location) {
     return location.lat >= 47.1 && location.lat <= 55.2 && location.lon >= 5.5 && location.lon <= 15.6;
   },
@@ -124,6 +134,13 @@ const AirspaceService = {
   isInAustria(location) {
     return location.lat >= 46.2 && location.lat <= 49.1 && location.lon >= 9.3 && location.lon <= 17.3
       && this.isPointInPolygon(location, this.austriaPolygon);
+  },
+  isInItaly(location) {
+    const countryCode = String(location.countryCode || location.address?.country_code || '').toLowerCase();
+    const country = String(location.country || location.address?.country || '').toLowerCase();
+    if (countryCode === 'it' || country === 'italia' || country === 'italy') return true;
+    return location.lat >= 35.4 && location.lat <= 47.2 && location.lon >= 6.3 && location.lon <= 18.9
+      && this.isPointInPolygon(location, this.italyPolygon);
   },
   isPointInPolygon(location, polygon) {
     const x = location.lon;
@@ -142,12 +159,16 @@ const AirspaceService = {
   provider(location) {
     if (this.isInSwitzerland(location)) return 'swissgeo';
     if (this.isInAustria(location)) return 'dronespace';
+    if (this.isInItaly(location)) return 'dflight';
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
     return null;
   },
   isOverlayAvailable(location) {
     return !!this.provider(location);
+  },
+  hasInteractiveOverlay(location) {
+    return ['dipul', 'dronespace', 'dronezoner'].includes(this.provider(location));
   },
   mapUrl(location, radius = 1000) {
     if (this.isInDenmark(location)) return this.dronezonerUrl;
@@ -164,6 +185,7 @@ const AirspaceService = {
       return `${this.swissMapUrl}?${params.toString()}`;
     }
     if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
+    if (this.isInItaly(location)) return this.dflightUrl;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
   },
@@ -171,12 +193,14 @@ const AirspaceService = {
     if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.openSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
+    if (this.isInItaly(location)) return I18n.t('airspace.openDflight');
     return I18n.t('airspace.openDipul');
   },
   sourceLabel(location) {
     if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.sourceSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
+    if (this.isInItaly(location)) return I18n.t('airspace.sourceDflight');
     return I18n.t('airspace.source');
   },
   wgs84ToLv95(location) {
@@ -225,6 +249,12 @@ const AirspaceService = {
       const dronespace = { status: 'overlay', severity: 'caution', features: [], source: 'Dronespace' };
       this.cache.set(key, dronespace);
       return dronespace;
+    }
+
+    if (this.isInItaly(location)) {
+      const dflight = { status: 'overlay', severity: 'caution', features: [], source: 'd-flight' };
+      this.cache.set(key, dflight);
+      return dflight;
     }
 
     if (!this.isInGermany(location)) {
@@ -2201,7 +2231,7 @@ const App = {
               <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
               ${UI.renderSpotSuitabilityTags(location)}
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
-              ${AirspaceService.isOverlayAvailable(location) ? `<div class="info-list mt-8"><button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button></div>` : ''}
+              ${AirspaceService.hasInteractiveOverlay(location) ? `<div class="info-list mt-8"><button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button></div>` : ''}
             </div>
           </div>
         `;
@@ -2683,6 +2713,7 @@ const App = {
     }
     const provider = location ? AirspaceService.provider(location) : null;
     if (!provider || !this.isDipulOverlayEnabled()) return;
+    if (!['dipul', 'dronespace', 'dronezoner'].includes(provider)) return;
 
     if (provider === 'dipul') {
       this[layerProp] = L.tileLayer.wms(AirspaceService.wmsUrl, {
@@ -2719,7 +2750,7 @@ const App = {
         this.populateDronespaceOverlay(map, group, layerProp);
         return;
       }
-      this.populateDronezonerOverlay(map, group, layerProp);
+      if (provider === 'dronezoner') this.populateDronezonerOverlay(map, group, layerProp);
     }, 350);
     this[handlerProp] = refresh;
     this[mapProp] = map;
@@ -2988,7 +3019,7 @@ const App = {
         <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
         <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
         ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
-        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
+        ${AirspaceService.hasInteractiveOverlay(location) ? `<button class="btn btn-secondary" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
       `;
       this.updateDipulToggle();
 
