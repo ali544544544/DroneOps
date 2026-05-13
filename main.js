@@ -2391,7 +2391,7 @@ const App = {
         geometryType: 'esriGeometryEnvelope',
         inSR: '4326',
         spatialRel: 'esriSpatialRelIntersects',
-        outFields: 'typeId,title,name,Type,Paragraf,Buffer_Zone,NOTAMtxt,LimitFod,LimitMeter',
+        outFields: '*',
         returnGeometry: 'true',
         outSR: '4326',
         resultRecordCount: '500'
@@ -2401,6 +2401,7 @@ const App = {
         const res = await fetch(`${layer.url}/query?${params.toString()}`);
         if (!res.ok) throw new Error(`Dronezoner ${res.status}`);
         const data = await res.json();
+        if (data.error) throw new Error(data.error.message || 'Dronezoner query failed');
         if (this[layerProp] !== group || !data.features?.length) return;
         L.geoJSON(data, {
           pane: 'dronezonerPane',
