@@ -196,7 +196,7 @@ const AirspaceService = {
     return !!this.provider(location);
   },
   hasInteractiveOverlay(location) {
-    return ['dipul', 'dronespace', 'dronezoner'].includes(this.provider(location));
+    return ['dipul', 'dronespace', 'dronezoner', 'swissgeo'].includes(this.provider(location));
   },
   mapUrl(location, radius = 1000) {
     if (this.isInDenmark(location)) return this.dronezonerUrl;
@@ -2735,7 +2735,7 @@ const App = {
     }
     const provider = location ? AirspaceService.provider(location) : null;
     if (!provider || !this.isDipulOverlayEnabled()) return;
-    if (!['dipul', 'dronespace', 'dronezoner'].includes(provider)) return;
+    if (!['dipul', 'dronespace', 'dronezoner', 'swissgeo'].includes(provider)) return;
 
     if (provider === 'dipul') {
       this[layerProp] = L.tileLayer.wms(AirspaceService.wmsUrl, {
