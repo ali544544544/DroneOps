@@ -188,10 +188,9 @@ const AirspaceService = {
   provider(location) {
     if (this.isInSwitzerland(location)) return 'swissgeo';
     if (this.isInAustria(location)) return 'dronespace';
-    if (this.isInDroneSafetyMapCountry(location)) return 'dronesafetymap';
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
-    return null;
+    return 'dronesafetymap';
   },
   isOverlayAvailable(location) {
     return !!this.provider(location);
@@ -214,7 +213,7 @@ const AirspaceService = {
       return `${this.swissMapUrl}?${params.toString()}`;
     }
     if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
-    if (this.isInDroneSafetyMapCountry(location)) return this.droneSafetyMapUrl;
+    if (this.provider(location) === 'dronesafetymap') return this.droneSafetyMapUrl;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
   },
@@ -222,14 +221,14 @@ const AirspaceService = {
     if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.openSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
-    if (this.isInDroneSafetyMapCountry(location)) return I18n.t('airspace.openDroneSafetyMap');
+    if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.openDroneSafetyMap');
     return I18n.t('airspace.openDipul');
   },
   sourceLabel(location) {
     if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.sourceSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
-    if (this.isInDroneSafetyMapCountry(location)) return I18n.t('airspace.sourceDroneSafetyMap');
+    if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.sourceDroneSafetyMap');
     return I18n.t('airspace.source');
   },
   wgs84ToLv95(location) {
@@ -280,16 +279,10 @@ const AirspaceService = {
       return dronespace;
     }
 
-    if (this.isInDroneSafetyMapCountry(location)) {
+    if (this.provider(location) === 'dronesafetymap') {
       const droneSafetyMap = { status: 'overlay', severity: 'caution', features: [], source: 'Drone Safety Map' };
       this.cache.set(key, droneSafetyMap);
       return droneSafetyMap;
-    }
-
-    if (!this.isInGermany(location)) {
-      const outside = { status: 'outside', severity: 'caution', features: [], source: 'DIPUL' };
-      this.cache.set(key, outside);
-      return outside;
     }
 
     const layerIds = this.layers.map(layer => layer.id).join(',');
