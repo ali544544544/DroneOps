@@ -622,6 +622,43 @@ const UI = {
       </div>
     `;
   },
+  spotSuitabilityOptions() {
+    return [
+      { id: 'freestyle', label: I18n.t('spotStyle.freestyle') },
+      { id: 'cinematic', label: I18n.t('spotStyle.cinematic') },
+      { id: 'longrange', label: I18n.t('spotStyle.longrange') },
+      { id: 'whoop', label: I18n.t('spotStyle.tinywhoop') }
+    ];
+  },
+  normaliseSpotSuitability(location) {
+    const allowed = new Set(this.spotSuitabilityOptions().map(option => option.id));
+    return Array.isArray(location?.suitability)
+      ? location.suitability.filter(id => allowed.has(id))
+      : [];
+  },
+  renderSpotSuitabilityTags(location, emptyText = '') {
+    const selected = this.normaliseSpotSuitability(location);
+    if (!selected.length) return emptyText ? `<span class="muted">${emptyText}</span>` : '';
+    const labels = new Map(this.spotSuitabilityOptions().map(option => [option.id, option.label]));
+    return `
+      <div class="spot-suitability-tags">
+        ${selected.map(id => `<span class="inline-pill">${Util.escapeHtml(labels.get(id) || id)}</span>`).join('')}
+      </div>
+    `;
+  },
+  renderSpotSuitabilityPicker(location) {
+    const selected = new Set(this.normaliseSpotSuitability(location));
+    return `
+      <div class="suitability-picker">
+        ${this.spotSuitabilityOptions().map(option => `
+          <label class="suitability-option">
+            <input type="checkbox" value="${option.id}" data-spot-suitability ${selected.has(option.id) ? 'checked' : ''} />
+            <span>${Util.escapeHtml(option.label)}</span>
+          </label>
+        `).join('')}
+      </div>
+    `;
+  },
   renderProfileSelect() {
     const active = ProfileManager.getActive();
     this.els.profileSelect.innerHTML = ProfileManager.getAll().map(p => `
@@ -2261,6 +2298,7 @@ const App = {
           <article class="dashboard-mini-card" data-dashboard-location="${location.id}">
             <strong>📍 ${Util.escapeHtml(location.name)}</strong>
             <div>${meta.icon} ${weather.data.current_weather.temperature}°C</div>
+            ${UI.renderSpotSuitabilityTags(location)}
             <div>Score: ${score.score}</div>
             <div class="badge ${score.status}">${I18n.t(`status.${score.status}`)}</div>
             <div style="margin-top:8px">🌅 ${Util.formatTime(gh.morningStart, I18n.locale)}–${Util.formatTime(gh.morningEnd, I18n.locale)}</div>
@@ -2320,6 +2358,7 @@ const App = {
             <span class="inline-pill">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</span>
             <span class="inline-pill">🗓️ ${Util.formatDate(location.createdAt, I18n.locale)}</span>
           </div>
+          ${UI.renderSpotSuitabilityTags(location)}
           <p class="muted">${I18n.t('list.lastVisit')}: ${UI.lastVisit(location)}</p>
         </div>
         <div id="location-weather-${location.id}">
@@ -2856,6 +2895,11 @@ const App = {
       <div class="notes-grid">
         <div>
           <label class="field">
+            <span>${I18n.t('detail.suitability')}</span>
+            ${UI.renderSpotSuitabilityPicker(location)}
+          </label>
+          <div id="suitabilitySavedHint" class="muted"></div>
+          <label class="field">
             <span>${I18n.t('detail.notes')}</span>
             <textarea id="notesArea" placeholder="${I18n.t('detail.notesPlaceholder')}">${Util.escapeHtml(location.notes || '')}</textarea>
           </label>
@@ -2943,6 +2987,20 @@ const App = {
       UI.renderDashboardLocationSelect();
     }, 1000);
     nameInput.addEventListener('input', saveName);
+
+    const saveSuitability = () => {
+      const suitability = Array.from(document.querySelectorAll('[data-spot-suitability]:checked')).map(input => input.value);
+      LocationManager.update(location.id, { suitability });
+      location.suitability = suitability;
+      const hint = document.getElementById('suitabilitySavedHint');
+      if (hint) {
+        hint.textContent = I18n.t('detail.saved');
+        setTimeout(() => { if (hint) hint.textContent = ''; }, 1500);
+      }
+    };
+    document.querySelectorAll('[data-spot-suitability]').forEach(input => {
+      input.addEventListener('change', saveSuitability);
+    });
 
     document.getElementById('logbookForm').addEventListener('submit', async (e) => {
       e.preventDefault();

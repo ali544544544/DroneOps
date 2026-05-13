@@ -123,6 +123,7 @@ export const LocationManager = {
     const next = [{
       id: Util.uuid(),
       notes: '',
+      suitability: [],
       logbook: [],
       createdAt: new Date().toISOString(),
       ...location
