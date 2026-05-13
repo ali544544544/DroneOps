@@ -2199,6 +2199,7 @@ const App = {
             <div>
               <h3>${I18n.t('dashboard.current')}</h3>
               <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
+              ${UI.renderSpotSuitabilityTags(location)}
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
               ${AirspaceService.isOverlayAvailable(location) ? `<div class="info-list mt-8"><button class="btn btn-secondary btn-small" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button></div>` : ''}
             </div>
