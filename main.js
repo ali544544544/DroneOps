@@ -94,6 +94,13 @@ const AirspaceService = {
   dronespaceUrl: 'https://utm.dronespace.at/avm/',
   dronespaceUasUrl: 'https://utm.dronespace.at/avm/utm/uas.geojson',
   dronespaceCache: new Map(),
+  austriaPolygon: [
+    [9.53, 47.27], [10.2, 47.27], [10.45, 47.55], [11.0, 47.4],
+    [11.75, 47.58], [12.75, 48.1], [13.4, 48.55], [14.75, 48.75],
+    [15.0, 49.02], [16.95, 48.75], [17.16, 48.0], [16.55, 47.35],
+    [15.95, 46.75], [14.75, 46.43], [13.4, 46.5], [12.1, 46.65],
+    [10.6, 46.85], [9.53, 47.27]
+  ],
   isInGermany(location) {
     return location.lat >= 47.1 && location.lat <= 55.2 && location.lon >= 5.5 && location.lon <= 15.6;
   },
@@ -101,12 +108,27 @@ const AirspaceService = {
     return location.lat >= 52.7 && location.lat <= 59.7 && location.lon >= 3.0 && location.lon <= 17.9;
   },
   isInAustria(location) {
-    return location.lat >= 46.2 && location.lat <= 49.1 && location.lon >= 9.3 && location.lon <= 17.3;
+    return location.lat >= 46.2 && location.lat <= 49.1 && location.lon >= 9.3 && location.lon <= 17.3
+      && this.isPointInPolygon(location, this.austriaPolygon);
+  },
+  isPointInPolygon(location, polygon) {
+    const x = location.lon;
+    const y = location.lat;
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i][0];
+      const yi = polygon[i][1];
+      const xj = polygon[j][0];
+      const yj = polygon[j][1];
+      const intersects = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+      if (intersects) inside = !inside;
+    }
+    return inside;
   },
   provider(location) {
+    if (this.isInAustria(location)) return 'dronespace';
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
-    if (this.isInAustria(location)) return 'dronespace';
     return null;
   },
   isOverlayAvailable(location) {
