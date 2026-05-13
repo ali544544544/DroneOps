@@ -1,4 +1,4 @@
-const CACHE_NAME = 'droneops-v21';
+const CACHE_NAME = 'droneops-v22';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -35,6 +35,7 @@ const API_DOMAINS = [
   'services-eu1.arcgis.com',
   'tiledimageservices-eu1.arcgis.com',
   'utm.dronespace.at',
+  'wms.geo.admin.ch',
 ];
 
 // ── Install: Cache core assets ──────────────────────────────────────────────

@@ -94,6 +94,16 @@ const AirspaceService = {
   dronespaceUrl: 'https://utm.dronespace.at/avm/',
   dronespaceUasUrl: 'https://utm.dronespace.at/avm/utm/uas.geojson',
   dronespaceCache: new Map(),
+  swissMapUrl: 'https://map.geo.admin.ch/#/map',
+  swissWmsUrl: 'https://wms.geo.admin.ch/',
+  swissLayer: 'ch.bazl.einschraenkungen-drohnen',
+  switzerlandPolygon: [
+    [5.96, 46.13], [6.15, 46.45], [6.06, 46.86], [6.43, 47.15],
+    [7.0, 47.5], [7.58, 47.6], [8.45, 47.8], [9.55, 47.54],
+    [10.49, 47.0], [10.13, 46.54], [9.75, 46.31], [9.3, 46.2],
+    [9.05, 45.83], [8.4, 46.0], [7.55, 45.85], [6.75, 46.0],
+    [6.16, 46.1], [5.96, 46.13]
+  ],
   austriaPolygon: [
     [9.53, 47.27], [10.2, 47.27], [10.45, 47.55], [11.0, 47.4],
     [11.75, 47.58], [12.75, 48.1], [13.4, 48.55], [14.75, 48.75],
@@ -106,6 +116,10 @@ const AirspaceService = {
   },
   isInDenmark(location) {
     return location.lat >= 52.7 && location.lat <= 59.7 && location.lon >= 3.0 && location.lon <= 17.9;
+  },
+  isInSwitzerland(location) {
+    return location.lat >= 45.75 && location.lat <= 47.85 && location.lon >= 5.75 && location.lon <= 10.7
+      && this.isPointInPolygon(location, this.switzerlandPolygon);
   },
   isInAustria(location) {
     return location.lat >= 46.2 && location.lat <= 49.1 && location.lon >= 9.3 && location.lon <= 17.3
@@ -126,6 +140,7 @@ const AirspaceService = {
     return inside;
   },
   provider(location) {
+    if (this.isInSwitzerland(location)) return 'swissgeo';
     if (this.isInAustria(location)) return 'dronespace';
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
@@ -136,19 +151,51 @@ const AirspaceService = {
   },
   mapUrl(location, radius = 1000) {
     if (this.isInDenmark(location)) return this.dronezonerUrl;
+    if (this.isInSwitzerland(location)) {
+      const center = this.wgs84ToLv95(location);
+      const params = new URLSearchParams({
+        lang: I18n.lang === 'en' ? 'en' : 'de',
+        center: `${center.easting.toFixed(2)},${center.northing.toFixed(2)}`,
+        z: '7',
+        topic: 'aviation',
+        layers: this.swissLayer,
+        bgLayer: 'ch.swisstopo.pixelkarte-grau'
+      });
+      return `${this.swissMapUrl}?${params.toString()}`;
+    }
     if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
   },
   openMapLabel(location) {
     if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
+    if (this.isInSwitzerland(location)) return I18n.t('airspace.openSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
     return I18n.t('airspace.openDipul');
   },
   sourceLabel(location) {
     if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
+    if (this.isInSwitzerland(location)) return I18n.t('airspace.sourceSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
     return I18n.t('airspace.source');
+  },
+  wgs84ToLv95(location) {
+    const latSeconds = location.lat * 3600;
+    const lonSeconds = location.lon * 3600;
+    const latAux = (latSeconds - 169028.66) / 10000;
+    const lonAux = (lonSeconds - 26782.5) / 10000;
+    const easting = 2600072.37
+      + (211455.93 * lonAux)
+      - (10938.51 * lonAux * latAux)
+      - (0.36 * lonAux * latAux * latAux)
+      - (44.54 * lonAux * lonAux * lonAux);
+    const northing = 1200147.07
+      + (308807.95 * latAux)
+      + (3745.25 * lonAux * lonAux)
+      + (76.63 * latAux * latAux)
+      - (194.56 * lonAux * lonAux * latAux)
+      + (119.79 * latAux * latAux * latAux);
+    return { easting, northing };
   },
   requestUrl(url) {
     const proxy = (typeof CONFIG !== 'undefined' && CONFIG.AIRSPACE_PROXY_URL) ? CONFIG.AIRSPACE_PROXY_URL : '';
@@ -166,6 +213,12 @@ const AirspaceService = {
       const dronezoner = { status: 'overlay', severity: 'caution', features: [], source: 'Dronezoner' };
       this.cache.set(key, dronezoner);
       return dronezoner;
+    }
+
+    if (this.isInSwitzerland(location)) {
+      const swissgeo = { status: 'overlay', severity: 'caution', features: [], source: 'Swiss GeoAdmin' };
+      this.cache.set(key, swissgeo);
+      return swissgeo;
     }
 
     if (this.isInAustria(location)) {
@@ -2420,6 +2473,18 @@ const App = {
         transparent: true,
         version: '1.1.1',
         attribution: I18n.t('airspace.source')
+      }).addTo(map);
+      return;
+    }
+
+    if (provider === 'swissgeo') {
+      this[layerProp] = L.tileLayer.wms(AirspaceService.swissWmsUrl, {
+        layers: AirspaceService.swissLayer,
+        styles: 'default',
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        attribution: I18n.t('airspace.sourceSwissGeoAdmin')
       }).addTo(map);
       return;
     }
