@@ -93,7 +93,7 @@ const AirspaceService = {
   ],
   dronespaceUrl: 'https://utm.dronespace.at/avm/',
   dronespaceUasUrl: 'https://utm.dronespace.at/avm/utm/uas.geojson',
-  dflightUrl: 'https://www.d-flight.it/new_portal/services/mappe/',
+  droneSafetyMapUrl: 'https://dronesafetymap.com/',
   dronespaceCache: new Map(),
   swissMapUrl: 'https://map.geo.admin.ch/#/map',
   swissWmsUrl: 'https://wms.geo.admin.ch/',
@@ -135,12 +135,41 @@ const AirspaceService = {
     return location.lat >= 46.2 && location.lat <= 49.1 && location.lon >= 9.3 && location.lon <= 17.3
       && this.isPointInPolygon(location, this.austriaPolygon);
   },
-  isInItaly(location) {
+  countryCode(location) {
     const countryCode = String(location.countryCode || location.address?.country_code || '').toLowerCase();
+    return countryCode;
+  },
+  countryName(location) {
     const country = String(location.country || location.address?.country || '').toLowerCase();
+    return country;
+  },
+  isInItaly(location) {
+    const countryCode = this.countryCode(location);
+    const country = this.countryName(location);
     if (countryCode === 'it' || country === 'italia' || country === 'italy') return true;
     return location.lat >= 35.4 && location.lat <= 47.2 && location.lon >= 6.3 && location.lon <= 18.9
       && this.isPointInPolygon(location, this.italyPolygon);
+  },
+  isInFrance(location) {
+    const countryCode = this.countryCode(location);
+    const country = this.countryName(location);
+    if (countryCode === 'fr' || country === 'frankreich' || country === 'france') return true;
+    return location.lat >= 41.0 && location.lat <= 51.3 && location.lon >= -5.4 && location.lon <= 9.7;
+  },
+  isInSpain(location) {
+    const countryCode = this.countryCode(location);
+    const country = this.countryName(location);
+    if (countryCode === 'es' || country === 'spanien' || country === 'spain' || country === 'españa') return true;
+    return location.lat >= 35.8 && location.lat <= 43.9 && location.lon >= -9.5 && location.lon <= 4.4;
+  },
+  isInUnitedKingdom(location) {
+    const countryCode = this.countryCode(location);
+    const country = this.countryName(location);
+    if (countryCode === 'gb' || country === 'vereinigtes königreich' || country === 'united kingdom' || country === 'great britain') return true;
+    return location.lat >= 49.8 && location.lat <= 60.9 && location.lon >= -8.7 && location.lon <= 2.1;
+  },
+  isInDroneSafetyMapCountry(location) {
+    return this.isInItaly(location) || this.isInFrance(location) || this.isInSpain(location) || this.isInUnitedKingdom(location);
   },
   isPointInPolygon(location, polygon) {
     const x = location.lon;
@@ -159,7 +188,7 @@ const AirspaceService = {
   provider(location) {
     if (this.isInSwitzerland(location)) return 'swissgeo';
     if (this.isInAustria(location)) return 'dronespace';
-    if (this.isInItaly(location)) return 'dflight';
+    if (this.isInDroneSafetyMapCountry(location)) return 'dronesafetymap';
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
     return null;
@@ -185,7 +214,7 @@ const AirspaceService = {
       return `${this.swissMapUrl}?${params.toString()}`;
     }
     if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
-    if (this.isInItaly(location)) return this.dflightUrl;
+    if (this.isInDroneSafetyMapCountry(location)) return this.droneSafetyMapUrl;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
   },
@@ -193,14 +222,14 @@ const AirspaceService = {
     if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.openSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
-    if (this.isInItaly(location)) return I18n.t('airspace.openDflight');
+    if (this.isInDroneSafetyMapCountry(location)) return I18n.t('airspace.openDroneSafetyMap');
     return I18n.t('airspace.openDipul');
   },
   sourceLabel(location) {
     if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.sourceSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
-    if (this.isInItaly(location)) return I18n.t('airspace.sourceDflight');
+    if (this.isInDroneSafetyMapCountry(location)) return I18n.t('airspace.sourceDroneSafetyMap');
     return I18n.t('airspace.source');
   },
   wgs84ToLv95(location) {
@@ -251,10 +280,10 @@ const AirspaceService = {
       return dronespace;
     }
 
-    if (this.isInItaly(location)) {
-      const dflight = { status: 'overlay', severity: 'caution', features: [], source: 'd-flight' };
-      this.cache.set(key, dflight);
-      return dflight;
+    if (this.isInDroneSafetyMapCountry(location)) {
+      const droneSafetyMap = { status: 'overlay', severity: 'caution', features: [], source: 'Drone Safety Map' };
+      this.cache.set(key, droneSafetyMap);
+      return droneSafetyMap;
     }
 
     if (!this.isInGermany(location)) {
