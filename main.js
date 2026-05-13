@@ -384,6 +384,7 @@ const UI = {
       searchSuggestions: document.getElementById('searchSuggestions'),
       locationNameFilterInput: document.getElementById('locationNameFilterInput'),
       locationCountryFilterInput: document.getElementById('locationCountryFilterInput'),
+      locationCountrySuggestions: document.getElementById('locationCountrySuggestions'),
       locationSuitabilityFilters: document.getElementById('locationSuitabilityFilters'),
       locationFilterSummary: document.getElementById('locationFilterSummary'),
       locationFilterResetBtn: document.getElementById('locationFilterResetBtn'),
@@ -641,6 +642,10 @@ const UI = {
       { id: 'indoor', label: I18n.t('spotStyle.indoor') }
     ];
   },
+  spotSearchOptions() {
+    const searchable = new Set(['freestyle', 'cinematic', 'longrange', 'racing']);
+    return this.spotSuitabilityOptions().filter(option => searchable.has(option.id));
+  },
   normaliseSpotSuitability(location) {
     const allowed = new Set(this.spotSuitabilityOptions().map(option => option.id));
     return Array.isArray(location?.suitability)
@@ -673,7 +678,7 @@ const UI = {
   renderLocationFilterOptions(active = []) {
     if (!this.els.locationSuitabilityFilters) return;
     const selected = new Set(active);
-    this.els.locationSuitabilityFilters.innerHTML = this.spotSuitabilityOptions().map(option => `
+    this.els.locationSuitabilityFilters.innerHTML = this.spotSearchOptions().map(option => `
       <label class="suitability-option">
         <input type="checkbox" value="${option.id}" data-location-filter-suitability ${selected.has(option.id) ? 'checked' : ''} />
         <span>${Util.escapeHtml(option.label)}</span>
@@ -1467,14 +1472,48 @@ const App = {
     UI.els.searchInput.addEventListener('input', (e) => doSearch(e.target.value));
 
     UI.renderLocationFilterOptions(this.locationFilters.suitability);
+    const hideCountrySuggestions = () => {
+      if (!UI.els.locationCountrySuggestions) return;
+      UI.els.locationCountrySuggestions.innerHTML = '';
+      UI.els.locationCountrySuggestions.classList.add('hidden');
+    };
     const applyLocationFilters = Util.debounce(async () => {
       this.locationFilters.name = UI.els.locationNameFilterInput?.value || '';
       this.locationFilters.country = UI.els.locationCountryFilterInput?.value || '';
       this.locationFilters.suitability = Array.from(document.querySelectorAll('[data-location-filter-suitability]:checked')).map(input => input.value);
       await this.renderLocationsList();
     }, 150);
+    const doCountryFilterSearch = Util.debounce(async (value) => {
+      this.locationFilters.country = value || '';
+      await this.renderLocationsList();
+      const query = value.trim();
+      if (query.length < 2 || !UI.els.locationCountrySuggestions) {
+        hideCountrySuggestions();
+        return;
+      }
+      const countries = await Nominatim.searchCountries(query);
+      if (!countries.length) {
+        hideCountrySuggestions();
+        return;
+      }
+      UI.els.locationCountrySuggestions.innerHTML = countries.map(country => `
+        <button class="suggestion-item" type="button" data-country-filter="${Util.escapeHtml(country.name)}" title="${Util.escapeHtml(country.displayName)}">
+          ${Util.escapeHtml(country.name)}
+        </button>
+      `).join('');
+      UI.els.locationCountrySuggestions.classList.remove('hidden');
+      UI.els.locationCountrySuggestions.querySelectorAll('[data-country-filter]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const country = btn.dataset.countryFilter || '';
+          if (UI.els.locationCountryFilterInput) UI.els.locationCountryFilterInput.value = country;
+          this.locationFilters.country = country;
+          hideCountrySuggestions();
+          await this.renderLocationsList();
+        });
+      });
+    }, 250);
     UI.els.locationNameFilterInput?.addEventListener('input', applyLocationFilters);
-    UI.els.locationCountryFilterInput?.addEventListener('input', applyLocationFilters);
+    UI.els.locationCountryFilterInput?.addEventListener('input', (e) => doCountryFilterSearch(e.target.value));
     document.querySelectorAll('[data-location-filter-suitability]').forEach(input => {
       input.addEventListener('change', applyLocationFilters);
     });
@@ -1482,6 +1521,7 @@ const App = {
       this.locationFilters = { name: '', country: '', suitability: [] };
       if (UI.els.locationNameFilterInput) UI.els.locationNameFilterInput.value = '';
       if (UI.els.locationCountryFilterInput) UI.els.locationCountryFilterInput.value = '';
+      hideCountrySuggestions();
       UI.renderLocationFilterOptions([]);
       document.querySelectorAll('[data-location-filter-suitability]').forEach(input => {
         input.addEventListener('change', applyLocationFilters);

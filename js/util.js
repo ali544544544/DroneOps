@@ -135,5 +135,32 @@ export const Nominatim = {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}&limit=5`);
       return await res.json();
     } catch (e) { return []; }
+  },
+  async searchCountries(query) {
+    try {
+      const params = new URLSearchParams({
+        format: 'json',
+        addressdetails: '1',
+        featureType: 'country',
+        q: query,
+        limit: '8'
+      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+      const results = await res.json();
+      const seen = new Set();
+      return results
+        .filter(item => item.addresstype === 'country' || (item.class === 'boundary' && Number(item.place_rank) <= 4))
+        .map(item => ({
+          name: item.address?.country || String(item.display_name || '').split(',')[0].trim(),
+          countryCode: item.address?.country_code || '',
+          displayName: item.display_name || item.address?.country || ''
+        }))
+        .filter(item => {
+          const key = item.name.toLowerCase();
+          if (!item.name || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    } catch (e) { return []; }
   }
 };
