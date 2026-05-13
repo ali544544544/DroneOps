@@ -1,4 +1,4 @@
-const CACHE_NAME = 'droneops-v17';
+const CACHE_NAME = 'droneops-v18';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -32,6 +32,8 @@ const API_DOMAINS = [
   'api.sunrise-sunset.org',
   'nominatim.openstreetmap.org',
   'api.brightsky.dev',
+  'services-eu1.arcgis.com',
+  'tiledimageservices-eu1.arcgis.com',
 ];
 
 // ── Install: Cache core assets ──────────────────────────────────────────────
