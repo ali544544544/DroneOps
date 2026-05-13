@@ -91,15 +91,22 @@ const AirspaceService = {
     { key: 'dk-notam-awareness', label: 'NOTAMS - Opmearksomhed', severity: 'caution', color: '#ff7a3d', fillOpacity: 0.24, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/awareness_notams/FeatureServer/0' },
     { key: 'dk-notam-active', label: 'NOTAMS - Aktiv', severity: 'nogo', color: '#ff5c5c', fillOpacity: 0.24, url: 'https://services-eu1.arcgis.com/Zvx25KS6sGRl9LIx/arcgis/rest/services/active_notams/FeatureServer/0' }
   ],
+  dronespaceUrl: 'https://utm.dronespace.at/avm/',
+  dronespaceUasUrl: 'https://utm.dronespace.at/avm/utm/uas.geojson',
+  dronespaceCache: new Map(),
   isInGermany(location) {
     return location.lat >= 47.1 && location.lat <= 55.2 && location.lon >= 5.5 && location.lon <= 15.6;
   },
   isInDenmark(location) {
     return location.lat >= 52.7 && location.lat <= 59.7 && location.lon >= 3.0 && location.lon <= 17.9;
   },
+  isInAustria(location) {
+    return location.lat >= 46.2 && location.lat <= 49.1 && location.lon >= 9.3 && location.lon <= 17.3;
+  },
   provider(location) {
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
+    if (this.isInAustria(location)) return 'dronespace';
     return null;
   },
   isOverlayAvailable(location) {
@@ -107,14 +114,19 @@ const AirspaceService = {
   },
   mapUrl(location, radius = 1000) {
     if (this.isInDenmark(location)) return this.dronezonerUrl;
+    if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
   },
   openMapLabel(location) {
-    return this.isInDenmark(location) ? I18n.t('airspace.openDronezoner') : I18n.t('airspace.openDipul');
+    if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
+    if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
+    return I18n.t('airspace.openDipul');
   },
   sourceLabel(location) {
-    return this.isInDenmark(location) ? I18n.t('airspace.sourceDronezoner') : I18n.t('airspace.source');
+    if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
+    if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
+    return I18n.t('airspace.source');
   },
   requestUrl(url) {
     const proxy = (typeof CONFIG !== 'undefined' && CONFIG.AIRSPACE_PROXY_URL) ? CONFIG.AIRSPACE_PROXY_URL : '';
@@ -132,6 +144,12 @@ const AirspaceService = {
       const dronezoner = { status: 'overlay', severity: 'caution', features: [], source: 'Dronezoner' };
       this.cache.set(key, dronezoner);
       return dronezoner;
+    }
+
+    if (this.isInAustria(location)) {
+      const dronespace = { status: 'overlay', severity: 'caution', features: [], source: 'Dronespace' };
+      this.cache.set(key, dronespace);
+      return dronespace;
     }
 
     if (!this.isInGermany(location)) {
@@ -247,6 +265,32 @@ const AirspaceService = {
     const ref = props[`${prefix}_limit_reference`] || props[`${prefix}_limit_alt_ref`];
     if (value === undefined || value === null || value === '') return '';
     return `${value}${unit ? ` ${unit}` : ''}${ref ? ` ${ref}` : ''}`;
+  },
+  dronespaceStyle(feature) {
+    const restriction = String(feature?.properties?.restriction || '').toUpperCase();
+    const styles = {
+      PROHIBITED: { color: '#ff4d4d', fillOpacity: 0.26 },
+      REQ_AUTHORISATION: { color: '#ff8a3d', fillOpacity: 0.24 },
+      CONDITIONAL: { color: '#f5bc2b', fillOpacity: 0.22 },
+      NO_RESTRICTION: { color: '#37b779', fillOpacity: 0.12 }
+    };
+    const style = styles[restriction] || { color: '#4d94ff', fillOpacity: 0.18 };
+    return {
+      color: style.color,
+      weight: 2,
+      opacity: 0.9,
+      fillColor: style.color,
+      fillOpacity: style.fillOpacity
+    };
+  },
+  dronespaceTooltip(feature) {
+    const props = feature?.properties || {};
+    const messages = Array.isArray(props.extendedProperties?.localizedMessages) ? props.extendedProperties.localizedMessages : [];
+    const localized = messages.find(item => item.language === (I18n.lang === 'en' ? 'en' : 'de-AT'))?.message;
+    const message = localized || props.message || props.reason || '';
+    const cleanMessage = String(message).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    const vertical = [props.lower, props.upper].filter(Boolean).join(' - ');
+    return [props.name, props.restriction, vertical, cleanMessage].filter(Boolean).join(' | ');
   }
 };
 window.AirspaceService = AirspaceService;
@@ -2358,14 +2402,20 @@ const App = {
       return;
     }
 
-    if (!map.getPane('dronezonerPane')) {
-      map.createPane('dronezonerPane');
-      map.getPane('dronezonerPane').style.zIndex = 430;
+    if (!map.getPane('airspaceGeojsonPane')) {
+      map.createPane('airspaceGeojsonPane');
+      map.getPane('airspaceGeojsonPane').style.zIndex = 430;
     }
 
     const group = L.layerGroup().addTo(map);
     this[layerProp] = group;
-    const refresh = Util.debounce(() => this.populateDronezonerOverlay(map, group, layerProp), 350);
+    const refresh = Util.debounce(() => {
+      if (provider === 'dronespace') {
+        this.populateDronespaceOverlay(map, group, layerProp);
+        return;
+      }
+      this.populateDronezonerOverlay(map, group, layerProp);
+    }, 350);
     this[handlerProp] = refresh;
     this[mapProp] = map;
     map.on('moveend zoomend', refresh);
@@ -2404,7 +2454,7 @@ const App = {
         if (data.error) throw new Error(data.error.message || 'Dronezoner query failed');
         if (this[layerProp] !== group || !data.features?.length) return;
         L.geoJSON(data, {
-          pane: 'dronezonerPane',
+          pane: 'airspaceGeojsonPane',
           style: () => ({
             color: layer.color,
             weight: 2,
@@ -2413,7 +2463,7 @@ const App = {
             fillOpacity: layer.fillOpacity
           }),
           pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
-            pane: 'dronezonerPane',
+            pane: 'airspaceGeojsonPane',
             radius: 6,
             color: layer.color,
             weight: 2,
@@ -2432,7 +2482,50 @@ const App = {
     }));
   },
 
+  async populateDronespaceOverlay(map, group, layerProp) {
+    if (this[layerProp] !== group) return;
+    group.clearLayers();
+    const bounds = this.paddedAirspaceBounds(map);
+    const boundsKey = [
+      Math.floor(bounds.getWest()),
+      Math.floor(bounds.getSouth()),
+      Math.ceil(bounds.getEast()),
+      Math.ceil(bounds.getNorth())
+    ].join(',');
+
+    try {
+      let data = AirspaceService.dronespaceCache.get(boundsKey);
+      if (!data) {
+        const params = new URLSearchParams({ bounds: boundsKey });
+        const res = await fetch(AirspaceService.requestUrl(`${AirspaceService.dronespaceUasUrl}?${params.toString()}`));
+        if (!res.ok) throw new Error(`Dronespace ${res.status}`);
+        data = await res.json();
+        AirspaceService.dronespaceCache.set(boundsKey, data);
+      }
+      if (this[layerProp] !== group || !data.features?.length) return;
+      L.geoJSON(data, {
+        pane: 'airspaceGeojsonPane',
+        style: feature => AirspaceService.dronespaceStyle(feature),
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+          pane: 'airspaceGeojsonPane',
+          radius: 6,
+          ...AirspaceService.dronespaceStyle(feature),
+          fillOpacity: 0.85
+        }),
+        onEachFeature: (feature, leafletLayer) => {
+          leafletLayer.bindTooltip(Util.escapeHtml(AirspaceService.dronespaceTooltip(feature) || I18n.t('airspace.zone')));
+        }
+      }).addTo(group);
+    } catch (error) {
+      console.warn('Dronespace overlay failed:', error);
+    }
+  },
+
   paddedDronezonerBounds(map) {
+    return this.paddedAirspaceBounds(map);
+  },
+
+  paddedAirspaceBounds(map) {
     const bounds = map.getBounds().pad(0.7);
     const center = map.getCenter();
     const minSpan = 0.08;

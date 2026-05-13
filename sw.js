@@ -1,4 +1,4 @@
-const CACHE_NAME = 'droneops-v19';
+const CACHE_NAME = 'droneops-v20';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -34,6 +34,7 @@ const API_DOMAINS = [
   'api.brightsky.dev',
   'services-eu1.arcgis.com',
   'tiledimageservices-eu1.arcgis.com',
+  'utm.dronespace.at',
 ];
 
 // ── Install: Cache core assets ──────────────────────────────────────────────
