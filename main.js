@@ -2333,6 +2333,13 @@ const App = {
 
   syncAirspaceOverlay(map, layerProp, location) {
     if (!map || typeof L === 'undefined') return;
+    const handlerProp = `${layerProp}Handler`;
+    const mapProp = `${layerProp}Map`;
+    if (this[handlerProp] && this[mapProp]) {
+      this[mapProp].off('moveend zoomend', this[handlerProp]);
+      this[handlerProp] = null;
+      this[mapProp] = null;
+    }
     if (this[layerProp]) {
       map.removeLayer(this[layerProp]);
       this[layerProp] = null;
@@ -2351,13 +2358,24 @@ const App = {
       return;
     }
 
+    if (!map.getPane('dronezonerPane')) {
+      map.createPane('dronezonerPane');
+      map.getPane('dronezonerPane').style.zIndex = 430;
+    }
+
     const group = L.layerGroup().addTo(map);
     this[layerProp] = group;
-    this.populateDronezonerOverlay(map, group, layerProp);
+    const refresh = Util.debounce(() => this.populateDronezonerOverlay(map, group, layerProp), 350);
+    this[handlerProp] = refresh;
+    this[mapProp] = map;
+    map.on('moveend zoomend', refresh);
+    setTimeout(refresh, 150);
   },
 
   async populateDronezonerOverlay(map, group, layerProp) {
-    const bounds = map.getBounds();
+    if (this[layerProp] !== group) return;
+    group.clearLayers();
+    const bounds = this.paddedDronezonerBounds(map);
     const geometry = [
       bounds.getWest().toFixed(6),
       bounds.getSouth().toFixed(6),
@@ -2385,6 +2403,7 @@ const App = {
         const data = await res.json();
         if (this[layerProp] !== group || !data.features?.length) return;
         L.geoJSON(data, {
+          pane: 'dronezonerPane',
           style: () => ({
             color: layer.color,
             weight: 2,
@@ -2393,6 +2412,7 @@ const App = {
             fillOpacity: layer.fillOpacity
           }),
           pointToLayer: (_feature, latlng) => L.circleMarker(latlng, {
+            pane: 'dronezonerPane',
             radius: 6,
             color: layer.color,
             weight: 2,
@@ -2409,6 +2429,19 @@ const App = {
         console.warn('Dronezoner overlay failed:', layer.label, error);
       }
     }));
+  },
+
+  paddedDronezonerBounds(map) {
+    const bounds = map.getBounds().pad(0.7);
+    const center = map.getCenter();
+    const minSpan = 0.08;
+    const latSpan = Math.max(bounds.getNorth() - bounds.getSouth(), minSpan);
+    const lonSpan = Math.max(bounds.getEast() - bounds.getWest(), minSpan);
+
+    return L.latLngBounds(
+      [center.lat - latSpan / 2, center.lng - lonSpan / 2],
+      [center.lat + latSpan / 2, center.lng + lonSpan / 2]
+    );
   },
 
   async openLocationDetail(locationId) {
