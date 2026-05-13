@@ -132,7 +132,7 @@ export const Nominatim = {
   },
   async search(query) {
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(query)}&limit=5`);
       return await res.json();
     } catch (e) { return []; }
   }

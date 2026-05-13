@@ -182,6 +182,27 @@
             <div id="searchSuggestions" class="suggestions hidden"></div>
           </section>
 
+          <section class="panel glass location-filter-panel">
+            <div class="location-filter-grid">
+              <label class="field">
+                <span data-i18n="locations.filterName">Nach Name filtern</span>
+                <input id="locationNameFilterInput" type="text" autocomplete="off" placeholder="Spotname..." data-i18n-placeholder="locations.filterNamePlaceholder" />
+              </label>
+              <label class="field">
+                <span data-i18n="locations.filterCountry">Nach Land filtern</span>
+                <input id="locationCountryFilterInput" type="text" autocomplete="off" placeholder="Deutschland..." data-i18n-placeholder="locations.filterCountryPlaceholder" />
+              </label>
+              <div class="field">
+                <span data-i18n="locations.filterStyle">Nach Flugstil filtern</span>
+                <div id="locationSuitabilityFilters" class="suitability-picker"></div>
+              </div>
+            </div>
+            <div class="location-filter-footer">
+              <span id="locationFilterSummary" class="muted"></span>
+              <button id="locationFilterResetBtn" class="btn btn-secondary btn-small" type="button" data-i18n="locations.filterReset">Filter zurücksetzen</button>
+            </div>
+          </section>
+
           <section class="panel glass" style="padding: 0; overflow: hidden; height: 400px; margin-bottom: 24px;">
             <div id="locationsOverviewMap" style="height: 100%; width: 100%; background: #1a1a1a;"></div>
           </section>

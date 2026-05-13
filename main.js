@@ -382,6 +382,11 @@ const UI = {
       locationList: document.getElementById('locationList'),
       searchInput: document.getElementById('locationSearchInput'),
       searchSuggestions: document.getElementById('searchSuggestions'),
+      locationNameFilterInput: document.getElementById('locationNameFilterInput'),
+      locationCountryFilterInput: document.getElementById('locationCountryFilterInput'),
+      locationSuitabilityFilters: document.getElementById('locationSuitabilityFilters'),
+      locationFilterSummary: document.getElementById('locationFilterSummary'),
+      locationFilterResetBtn: document.getElementById('locationFilterResetBtn'),
       detailTitle: document.getElementById('detailTitle'),
       detailFlightPanel: document.getElementById('detailFlightPanel'),
       detailMapPanel: document.getElementById('detailMapPanel'),
@@ -627,7 +632,13 @@ const UI = {
       { id: 'freestyle', label: I18n.t('spotStyle.freestyle') },
       { id: 'cinematic', label: I18n.t('spotStyle.cinematic') },
       { id: 'longrange', label: I18n.t('spotStyle.longrange') },
-      { id: 'whoop', label: I18n.t('spotStyle.tinywhoop') }
+      { id: 'whoop', label: I18n.t('spotStyle.tinywhoop') },
+      { id: 'racing', label: I18n.t('spotStyle.racing') },
+      { id: 'cruising', label: I18n.t('spotStyle.cruising') },
+      { id: 'proximity', label: I18n.t('spotStyle.proximity') },
+      { id: 'training', label: I18n.t('spotStyle.training') },
+      { id: 'chase', label: I18n.t('spotStyle.chase') },
+      { id: 'indoor', label: I18n.t('spotStyle.indoor') }
     ];
   },
   normaliseSpotSuitability(location) {
@@ -658,6 +669,16 @@ const UI = {
         `).join('')}
       </div>
     `;
+  },
+  renderLocationFilterOptions(active = []) {
+    if (!this.els.locationSuitabilityFilters) return;
+    const selected = new Set(active);
+    this.els.locationSuitabilityFilters.innerHTML = this.spotSuitabilityOptions().map(option => `
+      <label class="suitability-option">
+        <input type="checkbox" value="${option.id}" data-location-filter-suitability ${selected.has(option.id) ? 'checked' : ''} />
+        <span>${Util.escapeHtml(option.label)}</span>
+      </label>
+    `).join('');
   },
   renderProfileSelect() {
     const active = ProfileManager.getActive();
@@ -982,6 +1003,7 @@ const App = {
   overviewMap: null,
   overviewMarkers: null,
   lastLocCount: 0,
+  locationFilters: { name: '', country: '', suitability: [] },
   dashboardMap: null,
   dashboardMarker: null,
   dashboardDipulLayer: null,
@@ -1053,8 +1075,7 @@ const App = {
     };
   },
 
-  renderOverviewMap() {
-    const locations = LocationManager.getAll();
+  renderOverviewMap(locations = LocationManager.getAll()) {
     const container = document.getElementById('locationsOverviewMap');
     if (!container) return;
 
@@ -1073,12 +1094,12 @@ const App = {
 
     try {
       if (!this.overviewMap) {
-        if (locations.length === 0) {
+        if (LocationManager.getAll().length === 0) {
           container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.2)">Keine Spots zum Anzeigen</div>';
           return;
         }
 
-    if (locations.length) {
+    if (LocationManager.getAll().length) {
       this.overviewMap = MapManager.get('locationsOverviewMap', { preferCanvas: true });
       if (this.overviewMap && !this.overviewMap._hasTileLayer) {
         this.overviewMap.setView([50.7333, 7.1], 10);
@@ -1090,7 +1111,13 @@ const App = {
     }
     }
       // Only clear and redraw markers
+      if (!this.overviewMarkers) return;
       this.overviewMarkers.clearLayers();
+      if (!locations.length) {
+        this.lastLocCount = 0;
+        if (this.overviewMap) setTimeout(() => this.overviewMap.invalidateSize(), 200);
+        return;
+      }
       const bounds = L.latLngBounds();
 
       locations.forEach(loc => {
@@ -1172,7 +1199,7 @@ const App = {
 
         const name = prompt(I18n.t('locations.addLocation'), suggestedName);
         if (name) {
-          LocationManager.add({ name, lat, lon: lng });
+          LocationManager.add({ name, lat, lon: lng, country: reverse?.address?.country || '' });
           UI.toast(I18n.t('detail.saved'));
           this.toggleMapPicker();
           await this.renderLocationsList();
@@ -1407,7 +1434,7 @@ const App = {
           return;
         }
         UI.els.searchSuggestions.innerHTML = results.map(item => `
-          <button class="suggestion-item" data-lat="${item.lat}" data-lon="${item.lon}" data-name="${Util.escapeHtml(item.display_name)}">
+          <button class="suggestion-item" data-lat="${item.lat}" data-lon="${item.lon}" data-name="${Util.escapeHtml(item.display_name)}" data-country="${Util.escapeHtml(item.address?.country || '')}">
             ${Util.escapeHtml(item.display_name)}
           </button>
         `).join('');
@@ -1419,6 +1446,7 @@ const App = {
               name: btn.dataset.name,
               lat: Number(btn.dataset.lat),
               lon: Number(btn.dataset.lon),
+              country: btn.dataset.country || '',
             });
             UI.els.searchInput.value = '';
             UI.els.searchSuggestions.innerHTML = '';
@@ -1437,6 +1465,29 @@ const App = {
     }, 500);
 
     UI.els.searchInput.addEventListener('input', (e) => doSearch(e.target.value));
+
+    UI.renderLocationFilterOptions(this.locationFilters.suitability);
+    const applyLocationFilters = Util.debounce(async () => {
+      this.locationFilters.name = UI.els.locationNameFilterInput?.value || '';
+      this.locationFilters.country = UI.els.locationCountryFilterInput?.value || '';
+      this.locationFilters.suitability = Array.from(document.querySelectorAll('[data-location-filter-suitability]:checked')).map(input => input.value);
+      await this.renderLocationsList();
+    }, 150);
+    UI.els.locationNameFilterInput?.addEventListener('input', applyLocationFilters);
+    UI.els.locationCountryFilterInput?.addEventListener('input', applyLocationFilters);
+    document.querySelectorAll('[data-location-filter-suitability]').forEach(input => {
+      input.addEventListener('change', applyLocationFilters);
+    });
+    UI.els.locationFilterResetBtn?.addEventListener('click', async () => {
+      this.locationFilters = { name: '', country: '', suitability: [] };
+      if (UI.els.locationNameFilterInput) UI.els.locationNameFilterInput.value = '';
+      if (UI.els.locationCountryFilterInput) UI.els.locationCountryFilterInput.value = '';
+      UI.renderLocationFilterOptions([]);
+      document.querySelectorAll('[data-location-filter-suitability]').forEach(input => {
+        input.addEventListener('change', applyLocationFilters);
+      });
+      await this.renderLocationsList();
+    });
 
     const doHomeBaseSearch = Util.debounce(async (value) => {
       if (!value || value.trim().length < 2) {
@@ -1911,7 +1962,7 @@ const App = {
         const { latitude, longitude } = pos.coords;
         const reverse = await Nominatim.reverse(latitude, longitude);
         const name = reverse.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-        const location = LocationManager.add({ name, lat: latitude, lon: longitude });
+        const location = LocationManager.add({ name, lat: latitude, lon: longitude, country: reverse?.address?.country || '' });
         if (location) {
           UI.renderDashboardLocationSelect();
           await this.renderLocationsList();
@@ -2336,17 +2387,19 @@ const App = {
 
 
   async renderLocationsList() {
-    const locations = LocationManager.getAll();
-    
+    const allLocations = LocationManager.getAll();
+    const locations = this.filteredLocations(allLocations);
+    this.updateLocationFilterSummary(allLocations.length, locations.length);
+
     UI.els.locationList.innerHTML = `
       <h2>${I18n.t('list.title')}</h2>
       <p class="muted">${I18n.t('list.subtitle')}</p>
       <div id="locationListContent">
-        ${locations.length ? '' : `<p class="muted">${I18n.t('empty.text')}</p>`}
+        ${locations.length ? '' : `<p class="muted">${allLocations.length ? I18n.t('locations.filterNoResults') : I18n.t('empty.text')}</p>`}
       </div>
     `;
 
-    this.renderOverviewMap();
+    this.renderOverviewMap(locations);
     if (!locations.length) return;
 
     const listContent = document.getElementById('locationListContent');
@@ -2450,6 +2503,37 @@ const App = {
       const currentEl = document.getElementById(`location-airspace-${location.id}`);
       if (currentEl) currentEl.innerHTML = UI.renderAirspaceBadge(result, location);
     }));
+  },
+
+  locationCountryText(location) {
+    const parts = [
+      location.country,
+      location.address?.country,
+      location.address?.country_code,
+      String(location.name || '').split(',').slice(-1)[0]
+    ];
+    return parts.filter(Boolean).join(' ').toLowerCase();
+  },
+
+  filteredLocations(locations = LocationManager.getAll()) {
+    const nameQuery = this.locationFilters.name.trim().toLowerCase();
+    const countryQuery = this.locationFilters.country.trim().toLowerCase();
+    const styles = this.locationFilters.suitability;
+
+    return locations.filter(location => {
+      const selectedStyles = UI.normaliseSpotSuitability(location);
+      const matchesName = !nameQuery || String(location.name || '').toLowerCase().includes(nameQuery);
+      const matchesCountry = !countryQuery || this.locationCountryText(location).includes(countryQuery);
+      const matchesStyle = !styles.length || styles.some(style => selectedStyles.includes(style));
+      return matchesName && matchesCountry && matchesStyle;
+    });
+  },
+
+  updateLocationFilterSummary(total, shown) {
+    if (!UI.els.locationFilterSummary) return;
+    UI.els.locationFilterSummary.textContent = I18n.t('locations.filterSummary')
+      .replace('{shown}', shown)
+      .replace('{total}', total);
   },
 
   async renderDetailAirspace(location) {
@@ -2671,6 +2755,24 @@ const App = {
     await this.renderLocationDetail(locationId);
   },
 
+  bindSpotSuitabilityEditor(location) {
+    const saveSuitability = async () => {
+      const suitability = Array.from(document.querySelectorAll('[data-spot-suitability]:checked')).map(input => input.value);
+      LocationManager.update(location.id, { suitability });
+      location.suitability = suitability;
+      const hint = document.getElementById('suitabilitySavedHint');
+      if (hint) {
+        hint.textContent = I18n.t('detail.saved');
+        setTimeout(() => { if (hint) hint.textContent = ''; }, 1500);
+      }
+      await this.renderLocationsList();
+      await this.renderDashboardLocationCards();
+    };
+    document.querySelectorAll('[data-spot-suitability]').forEach(input => {
+      input.addEventListener('change', saveSuitability);
+    });
+  },
+
   async renderLocationDetail(locationId) {
     const location = LocationManager.getById(locationId);
     if (!location) return;
@@ -2717,11 +2819,19 @@ const App = {
           <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${gustsMs} <small>m/s</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.rain')}</span><strong>${weather.data.hourly.precipitation[idx]} <small>mm</small></strong></div>
         </div>
+        <div class="flight-suitability mt-14">
+          <label class="field">
+            <span>${I18n.t('detail.suitability')}</span>
+            ${UI.renderSpotSuitabilityPicker(location)}
+          </label>
+          <div id="suitabilitySavedHint" class="muted"></div>
+        </div>
         <div class="tag-list mt-14">
           ${score.factors.map(f => `<span class="tag ${f.severity}">${Util.escapeHtml(f.label)}</span>`).join('')}
         </div>
         <p class="mt-12 muted">${I18n.t('detail.updated')}: ${Util.formatTime(new Date(), I18n.locale)}</p>
       `;
+      this.bindSpotSuitabilityEditor(location);
 
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
       const posSR  = this.getSolarPosition(new Date(sun.data.results.sunrise), location.lat, location.lon);
@@ -2880,7 +2990,18 @@ const App = {
       StatusTracker.update('weather', 'error');
       StatusTracker.update('sun', 'error');
       UI.updateStatusIndicator();
-      UI.els.detailFlightPanel.innerHTML = `<h3>${I18n.t('detail.flightStatus')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.detailFlightPanel.innerHTML = `
+        <h3>${I18n.t('detail.flightStatus')}</h3>
+        <p>${I18n.t('error.dataUnavailable')}</p>
+        <div class="flight-suitability mt-14">
+          <label class="field">
+            <span>${I18n.t('detail.suitability')}</span>
+            ${UI.renderSpotSuitabilityPicker(location)}
+          </label>
+          <div id="suitabilitySavedHint" class="muted"></div>
+        </div>
+      `;
+      this.bindSpotSuitabilityEditor(location);
       UI.els.detailMapPanel.innerHTML = `<h3>${I18n.t('detail.map')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.detailWeatherPanel.innerHTML = `<h3>${I18n.t('detail.weather')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
       UI.els.detailSunPanel.innerHTML = `<h3>${I18n.t('detail.sun')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
@@ -2894,11 +3015,6 @@ const App = {
       <h3>${I18n.t('detail.notesLogbook')}</h3>
       <div class="notes-grid">
         <div>
-          <label class="field">
-            <span>${I18n.t('detail.suitability')}</span>
-            ${UI.renderSpotSuitabilityPicker(location)}
-          </label>
-          <div id="suitabilitySavedHint" class="muted"></div>
           <label class="field">
             <span>${I18n.t('detail.notes')}</span>
             <textarea id="notesArea" placeholder="${I18n.t('detail.notesPlaceholder')}">${Util.escapeHtml(location.notes || '')}</textarea>
@@ -2985,22 +3101,9 @@ const App = {
       nameSavedHint.textContent = I18n.t('detail.saved');
       setTimeout(() => { if (nameSavedHint) nameSavedHint.textContent = ''; }, 1500);
       UI.renderDashboardLocationSelect();
+      this.renderLocationsList();
     }, 1000);
     nameInput.addEventListener('input', saveName);
-
-    const saveSuitability = () => {
-      const suitability = Array.from(document.querySelectorAll('[data-spot-suitability]:checked')).map(input => input.value);
-      LocationManager.update(location.id, { suitability });
-      location.suitability = suitability;
-      const hint = document.getElementById('suitabilitySavedHint');
-      if (hint) {
-        hint.textContent = I18n.t('detail.saved');
-        setTimeout(() => { if (hint) hint.textContent = ''; }, 1500);
-      }
-    };
-    document.querySelectorAll('[data-spot-suitability]').forEach(input => {
-      input.addEventListener('change', saveSuitability);
-    });
 
     document.getElementById('logbookForm').addEventListener('submit', async (e) => {
       e.preventDefault();
