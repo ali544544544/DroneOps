@@ -94,6 +94,36 @@ const AirspaceService = {
   dronespaceUrl: 'https://utm.dronespace.at/avm/',
   dronespaceUasUrl: 'https://utm.dronespace.at/avm/utm/uas.geojson',
   droneSafetyMapUrl: 'https://dronesafetymap.com/',
+  officialMapLinks: {
+    be: 'https://map.droneguide.be/',
+    bg: 'https://www.caa.bg/bg/category/633/7062',
+    hr: 'https://amc.crocontrol.hr/Current-situation-anonymous-users',
+    cy: 'https://drones.gov.cy/geo-zones-map/',
+    cz: 'https://dronemap.gov.cz/',
+    ee: 'https://utm.eans.ee/',
+    fi: 'https://www.droneinfo.fi/en/where-to-fly',
+    fr: 'https://www.geoportail.gouv.fr/donnees/restrictions-uas-categorie-ouverte-et-aeromodelisme',
+    gr: 'https://dagr.hasp.gov.gr/',
+    hu: 'https://mydronespace.hu/',
+    is: 'https://island.is/en/drone-operation',
+    ie: 'https://www.iaa.ie/general-aviation/drones',
+    it: 'https://www.d-flight.it/new_portal/services/mappe/',
+    lv: 'https://www.airspace.lv/drones',
+    li: 'https://map.geo.admin.ch/#/map?topic=aviation&layers=ch.bazl.einschraenkungen-drohnen',
+    lt: 'https://utm.ans.lt/',
+    lu: 'https://map.geoportail.lu/',
+    mt: 'https://www.transport.gov.mt/aviation/drones',
+    nl: 'https://map.godrone.nl/',
+    no: 'https://www.luftfartstilsynet.no/en/drones/',
+    pl: 'https://dronemap.pansa.pl/',
+    pt: 'https://dnt.anac.pt/',
+    ro: 'https://flightplan.romatsa.ro/init/drones',
+    sk: 'https://gis.lps.sk/',
+    si: 'https://caa-slovenia.maps.arcgis.com/',
+    es: 'https://drones.enaire.es/',
+    se: 'https://daim.lfv.se/echarts/dronechart/',
+    gb: 'https://nats-uk.ead-it.com/cms-nats/opencms/en/uas-restriction-zones/'
+  },
   dronespaceCache: new Map(),
   swissMapUrl: 'https://map.geo.admin.ch/#/map',
   swissWmsUrl: 'https://wms.geo.admin.ch/',
@@ -171,6 +201,9 @@ const AirspaceService = {
   isInDroneSafetyMapCountry(location) {
     return this.isInItaly(location) || this.isInFrance(location) || this.isInSpain(location) || this.isInUnitedKingdom(location);
   },
+  officialMapUrl(location) {
+    return this.officialMapLinks[this.countryCode(location)] || '';
+  },
   isPointInPolygon(location, polygon) {
     const x = location.lon;
     const y = location.lat;
@@ -190,6 +223,7 @@ const AirspaceService = {
     if (this.isInAustria(location)) return 'dronespace';
     if (this.isInGermany(location)) return 'dipul';
     if (this.isInDenmark(location)) return 'dronezoner';
+    if (this.officialMapUrl(location)) return 'officialmap';
     return 'dronesafetymap';
   },
   isOverlayAvailable(location) {
@@ -213,6 +247,7 @@ const AirspaceService = {
       return `${this.swissMapUrl}?${params.toString()}`;
     }
     if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
+    if (this.provider(location) === 'officialmap') return this.officialMapUrl(location);
     if (this.provider(location) === 'dronesafetymap') return this.droneSafetyMapUrl;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
@@ -221,6 +256,7 @@ const AirspaceService = {
     if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.openSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
+    if (this.provider(location) === 'officialmap') return I18n.t('airspace.openOfficialMap');
     if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.openDroneSafetyMap');
     return I18n.t('airspace.openDipul');
   },
@@ -228,6 +264,7 @@ const AirspaceService = {
     if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
     if (this.isInSwitzerland(location)) return I18n.t('airspace.sourceSwissGeoAdmin');
     if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
+    if (this.provider(location) === 'officialmap') return I18n.t('airspace.sourceOfficialMap');
     if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.sourceDroneSafetyMap');
     return I18n.t('airspace.source');
   },
@@ -283,6 +320,12 @@ const AirspaceService = {
       const droneSafetyMap = { status: 'overlay', severity: 'caution', features: [], source: 'Drone Safety Map' };
       this.cache.set(key, droneSafetyMap);
       return droneSafetyMap;
+    }
+
+    if (this.provider(location) === 'officialmap') {
+      const officialMap = { status: 'overlay', severity: 'caution', features: [], source: 'Official national UAS map' };
+      this.cache.set(key, officialMap);
+      return officialMap;
     }
 
     const layerIds = this.layers.map(layer => layer.id).join(',');
