@@ -796,13 +796,13 @@ const UI = {
             <div class="airspace-title-row">
               <h4>${I18n.t('airspace.title')}</h4>
               <span class="badge ${severity} airspace-status-badge">${this.airspaceLabel(result)}${count ? ` &middot; ${count}` : ''}</span>
+              ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-small airspace-title-action" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
             </div>
             <p>${this.airspaceText(result)}</p>
           </div>
         </div>
         ${featureList ? `<ul class="airspace-zones">${featureList}</ul>` : ''}
         <div class="airspace-actions">
-          ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
           <span class="muted">${AirspaceService.sourceLabel(location)}</span>
         </div>
         <p class="muted airspace-disclaimer">${I18n.t('airspace.disclaimer')}</p>
