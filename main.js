@@ -793,10 +793,12 @@ const UI = {
       <div id="detailAirspacePanel" class="airspace-card airspace-${severity}">
         <div class="airspace-head">
           <div>
-            <h4>${I18n.t('airspace.title')}</h4>
+            <div class="airspace-title-row">
+              <h4>${I18n.t('airspace.title')}</h4>
+              <span class="badge ${severity} airspace-status-badge">${this.airspaceLabel(result)}${count ? ` &middot; ${count}` : ''}</span>
+            </div>
             <p>${this.airspaceText(result)}</p>
           </div>
-          <span class="badge ${severity}">${this.airspaceLabel(result)}${count ? ` · ${count}` : ''}</span>
         </div>
         ${featureList ? `<ul class="airspace-zones">${featureList}</ul>` : ''}
         <div class="airspace-actions">
