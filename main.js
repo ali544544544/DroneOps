@@ -1187,6 +1187,7 @@ const App = {
   overviewMap: null,
   overviewMarkers: null,
   lastLocCount: 0,
+  overviewBoundsKey: '',
   countryBackfillRunning: false,
   locationFilters: { name: '', country: '', suitability: [] },
   dashboardMap: null,
@@ -1287,7 +1288,7 @@ const App = {
     if (LocationManager.getAll().length) {
       this.overviewMap = MapManager.get('locationsOverviewMap', { preferCanvas: true });
       if (this.overviewMap && !this.overviewMap._hasTileLayer) {
-        this.overviewMap.setView([50.7333, 7.1], 10);
+        this.overviewMap.setView([51.1657, 10.4515], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.overviewMap);
         this.overviewMarkers = L.layerGroup().addTo(this.overviewMap);
         this.overviewMap._hasTileLayer = true;
@@ -1300,10 +1301,12 @@ const App = {
       this.overviewMarkers.clearLayers();
       if (!locations.length) {
         this.lastLocCount = 0;
+        this.overviewBoundsKey = '';
         if (this.overviewMap) setTimeout(() => this.overviewMap.invalidateSize(), 200);
         return;
       }
       const bounds = L.latLngBounds();
+      const boundsKey = locations.map(loc => `${loc.id}:${loc.lat},${loc.lon}`).join('|');
 
       locations.forEach(loc => {
         const marker = L.marker([loc.lat, loc.lon], { icon: premiumIcon }).addTo(this.overviewMarkers);
@@ -1315,9 +1318,15 @@ const App = {
         bounds.extend([loc.lat, loc.lon]);
       });
 
-      // Fit bounds only if it's the first time or location count changed significantly
-      if (locations.length > 0 && (!this.lastLocCount || this.lastLocCount !== locations.length)) {
-        this.overviewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+      // Keep the overview broad: show Germany by default, or all visible spots without zooming into a single cluster.
+      if (locations.length > 0 && this.overviewBoundsKey !== boundsKey) {
+        if (locations.length === 1) {
+          this.overviewMap.setView([locations[0].lat, locations[0].lon], 6);
+        } else {
+          this.overviewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
+        }
+        this.lastLocCount = locations.length;
+        this.overviewBoundsKey = boundsKey;
       }
       
       // Always invalidate size to handle visibility changes
