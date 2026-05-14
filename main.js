@@ -1549,6 +1549,121 @@ const App = {
     }
   },
 
+  flushAutosaveSoon() {
+    if (typeof CloudManager !== 'undefined' && CloudManager.flushSoon) {
+      CloudManager.flushSoon();
+    }
+  },
+
+  flushAutosaveNow() {
+    if (typeof CloudManager !== 'undefined' && CloudManager.flushNow) {
+      return CloudManager.flushNow();
+    }
+    return Promise.resolve();
+  },
+
+  saveOpenLocationDetailNow() {
+    const detailView = document.getElementById('locationsDetailView');
+    if (!detailView || detailView.classList.contains('hidden')) return false;
+
+    const locationId = Storage.get(Keys.activeLocation);
+    const location = LocationManager.getById(locationId);
+    if (!location) return false;
+
+    const patch = {};
+    const nameInput = document.getElementById('locationNameInput');
+    const notesArea = document.getElementById('notesArea');
+
+    if (nameInput) {
+      const name = nameInput.value.trim() || 'Unbenannter Ort';
+      if (name !== location.name) patch.name = name;
+    }
+    if (notesArea && notesArea.value !== (location.notes || '')) {
+      patch.notes = notesArea.value;
+    }
+
+    if (!Object.keys(patch).length) return false;
+    LocationManager.update(locationId, patch);
+    UI.renderDashboardLocationSelect();
+    this.flushAutosaveSoon();
+    return true;
+  },
+
+  saveOpenDroneEditorNow() {
+    const id = this.editingDroneId;
+    if (!id) return false;
+    const name = document.getElementById(`inline-drone-name-${id}`);
+    const style = document.getElementById(`inline-drone-style-${id}`);
+    const weight = document.getElementById(`inline-drone-weight-${id}`);
+    const size = document.getElementById(`inline-drone-size-${id}`);
+    const maxWind = document.getElementById(`inline-drone-maxwind-${id}`);
+    const maxGusts = document.getElementById(`inline-drone-maxgusts-${id}`);
+    const color = document.getElementById(`inline-drone-${id}-color`);
+    const rain = document.getElementById(`inline-drone-rain-${id}`);
+    if (!name || !name.value.trim()) return false;
+    ProfileManager.update(id, {
+      label: name.value.trim(),
+      style: style.value,
+      weight: Number(weight.value),
+      size: Number(size.value),
+      maxWind: Number(maxWind.value),
+      maxGusts: Number(maxGusts.value),
+      color: color.value,
+      rainTolerance: rain.value
+    });
+    return true;
+  },
+
+  saveOpenChecklistEditorNow() {
+    const id = this.editingChecklistId;
+    if (!id) return false;
+    const name = document.getElementById(`inline-name-${id}`);
+    const count = document.getElementById(`inline-count-${id}`);
+    const category = document.getElementById(`inline-cat-${id}`);
+    const notes = document.getElementById(`inline-notes-${id}`);
+    if (!name || !name.value.trim()) return false;
+    const old = ChecklistManager.getAll().find(x => x.id === id);
+    ChecklistManager.update(id, {
+      name: name.value.trim(),
+      count: Number(count.value),
+      category: category.value,
+      notes: notes.value.trim(),
+      attachments: old ? (old.attachments || (old.attachment ? [{ data: old.attachment, type: old.attachmentType, name: 'Datei' }] : [])) : []
+    });
+    return true;
+  },
+
+  saveOpenLogEditorNow() {
+    const id = this.editingLogId;
+    const locationId = Storage.get(Keys.activeLocation);
+    if (!id || !locationId) return false;
+    const dateInput = document.getElementById(`inline-log-date-${id}`);
+    const droneInput = document.getElementById(`inline-log-drone-${id}`);
+    const noteInput = document.getElementById(`inline-log-note-${id}`);
+    if (!dateInput || !droneInput || !noteInput) return false;
+    LocationManager.updateLog(locationId, id, {
+      date: dateInput.value,
+      drone: droneInput.value,
+      note: noteInput.value.trim()
+    });
+    return true;
+  },
+
+  saveOpenEditorsNow() {
+    const changed = [
+      this.saveOpenLocationDetailNow(),
+      this.saveOpenDroneEditorNow(),
+      this.saveOpenChecklistEditorNow(),
+      this.saveOpenLogEditorNow()
+    ].some(Boolean);
+    if (changed) {
+      UI.renderProfileSelect();
+      UI.renderDashboardLocationSelect();
+      this.flushAutosaveSoon();
+    }
+    return changed;
+  },
+
   bindEvents() {
     window.onerror = (msg, url, line, col, error) => {
       console.error('Global Error:', msg, url, line, col, error);
@@ -1559,13 +1674,24 @@ const App = {
       console.error('Unhandled Rejection:', event.reason);
       UI.toast(I18n.t('error.generic') || 'Ein Fehler ist aufgetreten', 'error');
     };
+    const saveAndFlushOpenData = () => {
+      this.saveOpenEditorsNow();
+      this.flushAutosaveNow();
+    };
+    window.addEventListener('pagehide', saveAndFlushOpenData);
+    window.addEventListener('beforeunload', saveAndFlushOpenData);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') saveAndFlushOpenData();
+    });
 
     document.getElementById('langDe').addEventListener('click', async () => {
       I18n.setLanguage('de');
+      this.flushAutosaveSoon();
       await this.renderAll();
     });
     document.getElementById('langEn').addEventListener('click', async () => {
       I18n.setLanguage('en');
+      this.flushAutosaveSoon();
       await this.renderAll();
     });
 
@@ -1628,6 +1754,7 @@ const App = {
     UI.els.profileSelect.addEventListener('change', async (e) => {
       ProfileManager.setActive(e.target.value);
       UI.toast(I18n.t('toast.profileChanged'));
+      this.flushAutosaveSoon();
       await this.renderActivePage();
       UI.renderProfileSelect();
       UI.renderDashboardLocationSelect();
@@ -1636,8 +1763,10 @@ const App = {
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const tab = btn.dataset.tab;
+        this.saveOpenEditorsNow();
         Router.showPage(tab);
         Storage.set(Keys.activeTab, tab);
+        this.flushAutosaveSoon();
         await this.renderActivePage();
       });
     });
@@ -1685,6 +1814,7 @@ const App = {
             UI.els.searchSuggestions.innerHTML = '';
             UI.els.searchSuggestions.classList.add('hidden');
             if (location) {
+              this.flushAutosaveSoon();
               UI.renderDashboardLocationSelect();
               await this.renderLocationsList();
               await this.renderDashboard();
@@ -1891,6 +2021,8 @@ const App = {
     });
 
     document.getElementById('detailBackBtn').addEventListener('click', async () => {
+      this.saveOpenEditorsNow();
+      this.flushAutosaveSoon();
       document.getElementById('locationsDetailView').classList.add('hidden');
       document.getElementById('locationsListView').classList.remove('hidden');
       await this.renderLocationsList();
@@ -2066,6 +2198,8 @@ const App = {
           delete item.attachment;
           const removed = docs.splice(idx, 1)[0];
           if (removed) AttachmentManager.delete(removed);
+          ChecklistManager.saveAll(all);
+          this.flushAutosaveSoon();
 
         }
       }
@@ -3187,6 +3321,7 @@ const App = {
   },
 
   async openLocationDetail(locationId) {
+    this.saveOpenEditorsNow();
     LocationManager.setActive(locationId);
     document.getElementById('locationsDetailView').classList.remove('hidden');
     document.getElementById('locationsListView').classList.add('hidden');
@@ -3556,6 +3691,28 @@ const App = {
       await this.renderLocationDetail(location.id);
       await this.renderLocationsList();
     });
+
+    if (this.editingLogId) {
+      const id = this.editingLogId;
+      const autosaveLog = Util.debounce(() => {
+        const dateInput = document.getElementById(`inline-log-date-${id}`);
+        const droneInput = document.getElementById(`inline-log-drone-${id}`);
+        const noteInput = document.getElementById(`inline-log-note-${id}`);
+        if (!dateInput || !droneInput || !noteInput) return;
+        LocationManager.updateLog(location.id, id, {
+          date: dateInput.value,
+          drone: droneInput.value,
+          note: noteInput.value.trim()
+        });
+        this.flushAutosaveSoon();
+      }, 400);
+      [`inline-log-date-${id}`, `inline-log-drone-${id}`, `inline-log-note-${id}`].forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        field.addEventListener('input', autosaveLog);
+        field.addEventListener('change', autosaveLog);
+      });
+    }
   },
 
   async renderDrones() {
@@ -3675,6 +3832,50 @@ const App = {
         await this.renderDrones();
       });
     });
+
+    if (this.editingDroneId) {
+      const id = this.editingDroneId;
+      const autosaveDrone = Util.debounce(() => {
+        const name = document.getElementById(`inline-drone-name-${id}`);
+        const style = document.getElementById(`inline-drone-style-${id}`);
+        const weight = document.getElementById(`inline-drone-weight-${id}`);
+        const size = document.getElementById(`inline-drone-size-${id}`);
+        const maxWind = document.getElementById(`inline-drone-maxwind-${id}`);
+        const maxGusts = document.getElementById(`inline-drone-maxgusts-${id}`);
+        const color = document.getElementById(`inline-drone-${id}-color`);
+        const rain = document.getElementById(`inline-drone-rain-${id}`);
+        if (!name || !name.value.trim()) return;
+        ProfileManager.update(id, {
+          label: name.value.trim(),
+          style: style.value,
+          weight: Number(weight.value),
+          size: Number(size.value),
+          maxWind: Number(maxWind.value),
+          maxGusts: Number(maxGusts.value),
+          color: color.value,
+          rainTolerance: rain.value
+        });
+        UI.renderProfileSelect();
+        UI.renderDashboardLocationSelect();
+        this.flushAutosaveSoon();
+      }, 400);
+
+      [
+        `inline-drone-name-${id}`,
+        `inline-drone-style-${id}`,
+        `inline-drone-weight-${id}`,
+        `inline-drone-size-${id}`,
+        `inline-drone-maxwind-${id}`,
+        `inline-drone-maxgusts-${id}`,
+        `inline-drone-${id}-color`,
+        `inline-drone-rain-${id}`
+      ].forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        field.addEventListener('input', autosaveDrone);
+        field.addEventListener('change', autosaveDrone);
+      });
+    }
 
     UI.els.dronesList.querySelectorAll('[data-drone-save]').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -3817,9 +4018,55 @@ const App = {
         </details>
       `;
     }).join('');
+
+    if (this.editingChecklistId) {
+      const id = this.editingChecklistId;
+      const autosaveChecklist = Util.debounce(() => {
+        const name = document.getElementById(`inline-name-${id}`);
+        const count = document.getElementById(`inline-count-${id}`);
+        const category = document.getElementById(`inline-cat-${id}`);
+        const notes = document.getElementById(`inline-notes-${id}`);
+        if (!name || !name.value.trim()) return;
+        const old = ChecklistManager.getAll().find(x => x.id === id);
+        ChecklistManager.update(id, {
+          name: name.value.trim(),
+          count: Number(count.value),
+          category: category.value,
+          notes: notes.value.trim(),
+          attachments: old ? (old.attachments || (old.attachment ? [{ data: old.attachment, type: old.attachmentType, name: 'Datei' }] : [])) : []
+        });
+        this.flushAutosaveSoon();
+      }, 400);
+
+      [`inline-name-${id}`, `inline-count-${id}`, `inline-cat-${id}`, `inline-notes-${id}`].forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        field.addEventListener('input', autosaveChecklist);
+        field.addEventListener('change', autosaveChecklist);
+      });
+
+      const fileInput = document.getElementById(`inline-file-${id}`);
+      fileInput?.addEventListener('change', async () => {
+        const old = ChecklistManager.getAll().find(x => x.id === id);
+        if (!old) return;
+        const attachments = old.attachments || (old.attachment ? [{ data: old.attachment, type: old.attachmentType, name: 'Datei' }] : []);
+        const files = Array.from(fileInput.files);
+        for (const file of files) {
+          if (file.size > 2 * 1024 * 1024) {
+            alert(`Datei "${file.name}" zu groÃŸ (Max 2MB)`);
+            continue;
+          }
+          const attachment = await AttachmentManager.upload(file);
+          attachments.push(attachment);
+        }
+        ChecklistManager.update(id, { attachments });
+        this.flushAutosaveSoon();
+      });
+    }
   },
 
   async renderActivePage() {
+    this.saveOpenEditorsNow();
     const page = Storage.get(Keys.activeTab, 'dashboard');
     if (page === 'dashboard') await this.renderDashboard();
     if (page === 'locations') {

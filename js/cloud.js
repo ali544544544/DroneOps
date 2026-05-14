@@ -6,6 +6,10 @@ import { I18n } from './i18n.js';
 export const CloudManager = {
   user: null,
   client: null,
+  pending: new Map(),
+  flushTimer: null,
+  flushPromise: null,
+  flushDelay: 250,
 
   async init() {
     if (typeof supabase === 'undefined') {
@@ -50,6 +54,7 @@ export const CloudManager = {
 
   async logout() {
     if (!this.client) return;
+    await this.flushNow();
     await this.client.auth.signOut();
     this.user = null;
     this.updateUI();
@@ -57,14 +62,75 @@ export const CloudManager = {
 
   async push(key, value) {
     if (!this.user || !this.client) return;
+    this.queue(key, value);
+  },
+
+  queue(key, value) {
+    this.pending.set(key, value);
+    this.scheduleFlush();
+  },
+
+  scheduleFlush(delay = this.flushDelay) {
+    if (!this.user || !this.client) return;
+    if (this.flushTimer) clearTimeout(this.flushTimer);
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      this.flushPending();
+    }, delay);
+  },
+
+  flushSoon() {
+    if (!this.pending.size) return Promise.resolve();
+    this.scheduleFlush(25);
+    return Promise.resolve();
+  },
+
+  async flushNow() {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (this.flushPromise) await this.flushPromise;
+    if (!this.pending.size) return;
+    await this.flushPending();
+  },
+
+  async flushPending() {
+    if (!this.user || !this.client || !this.pending.size) return;
+    if (this.flushPromise) {
+      await this.flushPromise;
+      if (this.pending.size) return this.flushPending();
+      return;
+    }
+
+    const entries = Array.from(this.pending.entries());
+    this.pending.clear();
+    this.flushPromise = this.pushBatch(entries);
     try {
-      await this.client.from('user_data').upsert({
-        user_id: this.user.id,
-        key: key,
-        value: value,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id, key' });
-    } catch (e) { console.error('Cloud Push Error:', e); }
+      await this.flushPromise;
+    } catch (e) {
+      entries.forEach(([key, value]) => {
+        if (!this.pending.has(key)) this.pending.set(key, value);
+      });
+      console.error('Cloud Push Error:', e);
+      this.scheduleFlush(3000);
+    } finally {
+      this.flushPromise = null;
+    }
+  },
+
+  async pushBatch(entries) {
+    if (!entries.length) return;
+    const rows = entries.map(([key, value]) => ({
+      user_id: this.user.id,
+      key,
+      value,
+      updated_at: new Date().toISOString()
+    }));
+    const { error } = await this.client
+      .from('user_data')
+      .upsert(rows, { onConflict: 'user_id, key' });
+    if (error) throw error;
   },
 
   async pullAll() {
@@ -82,20 +148,23 @@ export const CloudManager = {
 
   async pushAll() {
     if (!this.user || !this.client) return 0;
-    const keysToSync = [
-      Keys.locations, Keys.profiles, Keys.checklist, 
-      Keys.droneChecklist, Keys.homeBase, Keys.language, 
-      Keys.activeProfile
-    ];
-    let count = 0;
+    await this.flushNow();
+    const keysToSync = this.getSyncKeys();
+    const entries = [];
     for (const key of keysToSync) {
       const val = Storage.get(key);
       if (val !== null) {
-        await this.push(key, val);
-        count++;
+        entries.push([key, val]);
       }
     }
-    return count;
+    await this.pushBatch(entries);
+    return entries.length;
+  },
+
+  getSyncKeys() {
+    const known = Object.values(Keys);
+    const local = Object.keys(localStorage).filter(key => key.startsWith('drone_'));
+    return Array.from(new Set([...known, ...local]));
   },
 
   async resetPassword(email) {
