@@ -1186,8 +1186,6 @@ const App = {
   editingChecklistId: null,
   overviewMap: null,
   overviewMarkers: null,
-  lastLocCount: 0,
-  overviewBoundsKey: '',
   countryBackfillRunning: false,
   locationFilters: { name: '', country: '', suitability: [] },
   dashboardMap: null,
@@ -1300,13 +1298,10 @@ const App = {
       if (!this.overviewMarkers) return;
       this.overviewMarkers.clearLayers();
       if (!locations.length) {
-        this.lastLocCount = 0;
-        this.overviewBoundsKey = '';
+        this.overviewMap.setView([51.1657, 10.4515], 6);
         if (this.overviewMap) setTimeout(() => this.overviewMap.invalidateSize(), 200);
         return;
       }
-      const bounds = L.latLngBounds();
-      const boundsKey = locations.map(loc => `${loc.id}:${loc.lat},${loc.lon}`).join('|');
 
       locations.forEach(loc => {
         const marker = L.marker([loc.lat, loc.lon], { icon: premiumIcon }).addTo(this.overviewMarkers);
@@ -1315,20 +1310,10 @@ const App = {
           offset: [0, -25]
         });
         marker.on('click', () => this.openLocationDetail(loc.id));
-        bounds.extend([loc.lat, loc.lon]);
       });
 
-      // Keep the overview broad: show Germany by default, or all visible spots without zooming into a single cluster.
-      if (locations.length > 0 && this.overviewBoundsKey !== boundsKey) {
-        if (locations.length === 1) {
-          this.overviewMap.setView([locations[0].lat, locations[0].lon], 6);
-        } else {
-          this.overviewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 });
-        }
-        this.lastLocCount = locations.length;
-        this.overviewBoundsKey = boundsKey;
-      }
-      
+      this.overviewMap.setView([51.1657, 10.4515], 6);
+
       // Always invalidate size to handle visibility changes
       if (this.overviewMap) {
         setTimeout(() => this.overviewMap.invalidateSize(), 200);
