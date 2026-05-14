@@ -60,6 +60,7 @@ html {
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
+  background: var(--bg);
 }
 
 body {
@@ -72,14 +73,25 @@ body {
 
 body {
   color: var(--text);
+  background: var(--bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
   background:
     radial-gradient(circle at 10% 10%, rgba(64, 160, 255, 0.08), transparent 40%),
     radial-gradient(circle at 90% 10%, rgba(55, 231, 129, 0.06), transparent 35%),
     radial-gradient(circle at 50% 80%, rgba(167, 139, 250, 0.04), transparent 50%),
     var(--bg-gradient);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* === ANIMIERTER HINTERGRUND GRID === */
