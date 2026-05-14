@@ -2,6 +2,7 @@ import { CloudManager } from './cloud.js';
 
 const DB_NAME = 'DroneOpsDB';
 const STORE_NAME = 'attachments';
+const BUCKET_NAME = 'attachments';
 
 export const AttachmentManager = {
   db: null,
@@ -58,7 +59,7 @@ export const AttachmentManager = {
   },
 
   async upload(file) {
-    const fileId = `att_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const fileId = `att_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`}`;
     
     // Save to local IndexedDB for fast offline access
     await this.saveLocal(fileId, file);
@@ -68,20 +69,16 @@ export const AttachmentManager = {
 
     // Upload to Supabase if logged in
     if (CloudManager.user && CloudManager.client) {
-      const ext = file.name.split('.').pop() || '';
+      const ext = this.safeExtension(file.name);
       const path = `${CloudManager.user.id}/${fileId}.${ext}`;
       
       try {
         const { error } = await CloudManager.client.storage
-          .from('attachments')
+          .from(BUCKET_NAME)
           .upload(path, file);
           
         if (!error) {
           cloudPath = path;
-          const { data: urlData } = CloudManager.client.storage
-            .from('attachments')
-            .getPublicUrl(path);
-          url = urlData.publicUrl;
         } else {
           console.warn("Supabase upload error", error);
         }
@@ -99,6 +96,15 @@ export const AttachmentManager = {
       size: file.size
     };
   },
+
+  safeExtension(name = '') {
+    const raw = String(name).split('.').pop() || 'bin';
+    return raw.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12) || 'bin';
+  },
+
+  isOwnCloudPath(path) {
+    return !!(CloudManager.user?.id && path && String(path).startsWith(`${CloudManager.user.id}/`));
+  },
   
   async getFileUrl(attachment) {
     // If it has a public cloud URL and we are online, we could use it.
@@ -112,11 +118,20 @@ export const AttachmentManager = {
       console.warn('Failed to get local file', e);
     }
     
-    // Fallback to cloud URL
-    if (attachment.url) {
-      return attachment.url;
+    if (attachment.cloudPath && CloudManager.user && CloudManager.client && this.isOwnCloudPath(attachment.cloudPath)) {
+      try {
+        const { data, error } = await CloudManager.client.storage
+          .from(BUCKET_NAME)
+          .createSignedUrl(attachment.cloudPath, 60 * 60);
+        if (!error && data?.signedUrl) return data.signedUrl;
+      } catch (e) {
+        console.warn('Failed to create signed URL', e);
+      }
     }
-    
+
+    // Fallback for older public attachment records.
+    if (attachment.url && (!attachment.cloudPath || this.isOwnCloudPath(attachment.cloudPath))) return attachment.url;
+
     // Fallback for old base64 attachments
     if (attachment.data) {
       // If it's already a data URL
@@ -131,10 +146,10 @@ export const AttachmentManager = {
     if (attachment.id) {
       await this.deleteLocal(attachment.id);
     }
-    if (attachment.cloudPath && CloudManager.user && CloudManager.client) {
+    if (attachment.cloudPath && CloudManager.user && CloudManager.client && this.isOwnCloudPath(attachment.cloudPath)) {
       try {
         await CloudManager.client.storage
-          .from('attachments')
+          .from(BUCKET_NAME)
           .remove([attachment.cloudPath]);
       } catch (e) {
         console.warn('Failed to delete from cloud', e);

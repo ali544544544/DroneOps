@@ -3,6 +3,9 @@ import { I18n } from './i18n.js';
 
 /* global supabase */
 
+const LOCAL_OWNER_KEY = 'droneops_cloud_user_id';
+const USER_DATA_PREFIX = 'drone_';
+
 export const CloudManager = {
   user: null,
   client: null,
@@ -28,7 +31,17 @@ export const CloudManager = {
       const { data: { session } } = await this.client.auth.getSession();
       this.user = session?.user ?? null;
       if (this.user) {
-        await this.pullAll();
+        const previousOwner = this.getLocalOwner();
+        const hasLocalUserData = this.hasLocalUserData();
+        const remoteRows = await this.fetchUserRows();
+        if ((previousOwner && previousOwner !== this.user.id) || (!previousOwner && remoteRows.length)) {
+          this.clearLocalUserData();
+        }
+        this.applyRows(remoteRows);
+        if (!remoteRows.length && hasLocalUserData && !previousOwner) {
+          await this.pushAll();
+        }
+        this.markLocalOwner(this.user.id);
       }
     }
     this.updateUI();
@@ -39,10 +52,25 @@ export const CloudManager = {
     const { data, error } = await this.client.auth.signInWithPassword({ email, password });
     if (error) throw error;
     this.user = data.user;
-    
-    await this.pullAll();
-    await this.pushAll(); 
-    
+
+    const previousOwner = this.getLocalOwner();
+    const hasLocalUserData = this.hasLocalUserData();
+
+    if (previousOwner === this.user.id && hasLocalUserData) {
+      await this.pushAll();
+      await this.pullAll();
+    } else {
+      const remoteRows = await this.fetchUserRows();
+      if ((previousOwner && previousOwner !== this.user.id) || (!previousOwner && remoteRows.length)) {
+        this.clearLocalUserData();
+      }
+      this.applyRows(remoteRows);
+      if (!remoteRows.length && hasLocalUserData && !previousOwner) {
+        await this.pushAll();
+      }
+    }
+
+    this.markLocalOwner(this.user.id);
     this.updateUI();
   },
 
@@ -57,11 +85,16 @@ export const CloudManager = {
     await this.flushNow();
     await this.client.auth.signOut();
     this.user = null;
+    this.pending.clear();
+    this.clearLocalUserData();
+    this.clearLocalOwner();
     this.updateUI();
+    window.dispatchEvent(new CustomEvent('droneops:account-data-cleared'));
   },
 
   async push(key, value) {
     if (!this.user || !this.client) return;
+    if (!this.isUserDataKey(key)) return;
     this.queue(key, value);
   },
 
@@ -121,12 +154,15 @@ export const CloudManager = {
 
   async pushBatch(entries) {
     if (!entries.length) return;
-    const rows = entries.map(([key, value]) => ({
+    const rows = entries
+      .filter(([key]) => this.isUserDataKey(key))
+      .map(([key, value]) => ({
       user_id: this.user.id,
       key,
       value,
       updated_at: new Date().toISOString()
     }));
+    if (!rows.length) return;
     const { error } = await this.client
       .from('user_data')
       .upsert(rows, { onConflict: 'user_id, key' });
@@ -136,14 +172,29 @@ export const CloudManager = {
   async pullAll() {
     if (!this.user || !this.client) return;
     try {
-      const { data, error } = await this.client.from('user_data').select('key, value');
-      if (!error && data) {
-        data.forEach(item => {
-          const val = typeof item.value === 'string' ? item.value : JSON.stringify(item.value);
-          localStorage.setItem(item.key, val);
-        });
-      }
+      const data = await this.fetchUserRows();
+      this.applyRows(data);
+      return data.length;
     } catch (e) { console.error('Cloud Pull Error:', e); }
+    return 0;
+  },
+
+  async fetchUserRows() {
+    if (!this.user || !this.client) return [];
+    const { data, error } = await this.client
+      .from('user_data')
+      .select('key, value')
+      .eq('user_id', this.user.id);
+    if (error) throw error;
+    return data || [];
+  },
+
+  applyRows(rows = []) {
+    rows.forEach(item => {
+      if (!this.isUserDataKey(item.key)) return;
+      const val = typeof item.value === 'string' ? item.value : JSON.stringify(item.value);
+      localStorage.setItem(item.key, val);
+    });
   },
 
   async pushAll() {
@@ -163,8 +214,34 @@ export const CloudManager = {
 
   getSyncKeys() {
     const known = Object.values(Keys);
-    const local = Object.keys(localStorage).filter(key => key.startsWith('drone_'));
+    const local = Object.keys(localStorage).filter(key => this.isUserDataKey(key));
     return Array.from(new Set([...known, ...local]));
+  },
+
+  isUserDataKey(key) {
+    return Object.values(Keys).includes(key) || String(key).startsWith(USER_DATA_PREFIX);
+  },
+
+  hasLocalUserData() {
+    return Object.keys(localStorage).some(key => this.isUserDataKey(key));
+  },
+
+  clearLocalUserData() {
+    Object.keys(localStorage)
+      .filter(key => this.isUserDataKey(key))
+      .forEach(key => localStorage.removeItem(key));
+  },
+
+  getLocalOwner() {
+    return localStorage.getItem(LOCAL_OWNER_KEY);
+  },
+
+  markLocalOwner(userId) {
+    localStorage.setItem(LOCAL_OWNER_KEY, userId);
+  },
+
+  clearLocalOwner() {
+    localStorage.removeItem(LOCAL_OWNER_KEY);
   },
 
   async resetPassword(email) {

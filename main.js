@@ -1664,6 +1664,18 @@ const App = {
     return changed;
   },
 
+  async renderAfterAccountChange({ resetTab = false, forceRefresh = true } = {}) {
+    this.editingDroneId = null;
+    this.editingChecklistId = null;
+    this.editingLogId = null;
+    ProfileManager.init();
+    LocationManager.init();
+    ChecklistManager.init();
+    if (resetTab) Storage.set(Keys.activeTab, 'dashboard');
+    Router.showPage(Storage.get(Keys.activeTab, 'dashboard'));
+    await this.renderAll(forceRefresh);
+  },
+
   bindEvents() {
     window.onerror = (msg, url, line, col, error) => {
       console.error('Global Error:', msg, url, line, col, error);
@@ -1682,6 +1694,9 @@ const App = {
     window.addEventListener('beforeunload', saveAndFlushOpenData);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') saveAndFlushOpenData();
+    });
+    window.addEventListener('droneops:account-data-cleared', () => {
+      this.renderAfterAccountChange({ resetTab: true, forceRefresh: true });
     });
 
     document.getElementById('langDe').addEventListener('click', async () => {
@@ -2275,7 +2290,10 @@ const App = {
     document.getElementById('loginBtn').addEventListener('click', async () => {
       const email = document.getElementById('authEmail').value;
       const pass = document.getElementById('authPassword').value;
-      try { await CloudManager.login(email, pass); } catch (e) { alert(e.message); }
+      try {
+        await CloudManager.login(email, pass);
+        await this.renderAfterAccountChange({ resetTab: false, forceRefresh: true });
+      } catch (e) { alert(e.message); }
     });
 
     const changePassBtn = document.getElementById('changePasswordBtn');
