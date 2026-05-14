@@ -1286,7 +1286,7 @@ const App = {
     if (LocationManager.getAll().length) {
       this.overviewMap = MapManager.get('locationsOverviewMap', { preferCanvas: true });
       if (this.overviewMap && !this.overviewMap._hasTileLayer) {
-        this.overviewMap.setView([51.1657, 10.4515], 6);
+        this.overviewMap.setView([51.1657, 10.4515], 5);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.overviewMap);
         this.overviewMarkers = L.layerGroup().addTo(this.overviewMap);
         this.overviewMap._hasTileLayer = true;
@@ -1298,7 +1298,7 @@ const App = {
       if (!this.overviewMarkers) return;
       this.overviewMarkers.clearLayers();
       if (!locations.length) {
-        this.overviewMap.setView([51.1657, 10.4515], 6);
+        this.overviewMap.setView([51.1657, 10.4515], 5);
         if (this.overviewMap) setTimeout(() => this.overviewMap.invalidateSize(), 200);
         return;
       }
@@ -1312,7 +1312,7 @@ const App = {
         marker.on('click', () => this.openLocationDetail(loc.id));
       });
 
-      this.overviewMap.setView([51.1657, 10.4515], 6);
+      this.overviewMap.setView([51.1657, 10.4515], 5);
 
       // Always invalidate size to handle visibility changes
       if (this.overviewMap) {
