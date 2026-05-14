@@ -1200,8 +1200,11 @@ const App = {
   pickerMarker: null,
   dashboardPickerMap: null,
 
-  openDashboardMapPicker() {
-    document.getElementById('dashboardMapSection').classList.remove('hidden');
+  toggleDashboardMapPicker() {
+    const section = document.getElementById('dashboardMapSection');
+    const isHidden = section.classList.toggle('hidden');
+    document.getElementById('dashboardMapSelectBtn')?.classList.toggle('btn-active', !isHidden);
+    if (isHidden) return;
     this.initDashboardMapPicker();
     if (this.dashboardPickerMap) {
       setTimeout(() => this.dashboardPickerMap.invalidateSize(), 200);
@@ -1246,6 +1249,7 @@ const App = {
         Storage.set(Keys.dashboardSource, loc.id);
         Storage.set(Keys.distSource, 'home'); // Default to home distance if applicable
         document.getElementById('dashboardMapSection').classList.add('hidden');
+        document.getElementById('dashboardMapSelectBtn')?.classList.remove('btn-active');
         await this.renderDashboard();
         UI.toast(I18n.t('dashboard.locationSelected'));
       });
@@ -1256,9 +1260,6 @@ const App = {
       this.dashboardPickerMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
     }
 
-    document.getElementById('dashboardMapClose').onclick = () => {
-      document.getElementById('dashboardMapSection').classList.add('hidden');
-    };
   },
 
   renderOverviewMap(locations = LocationManager.getAll()) {
@@ -1978,7 +1979,7 @@ const App = {
     });
 
     document.getElementById('dashboardMapSelectBtn').addEventListener('click', () => {
-      this.openDashboardMapPicker();
+      this.toggleDashboardMapPicker();
     });
 
     const pickerSearchInput = document.getElementById('pickerSearchInput');
