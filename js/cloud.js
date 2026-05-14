@@ -76,8 +76,21 @@ export const CloudManager = {
 
   async signup(email, password) {
     if (!this.client) throw new Error('Cloud client not ready');
-    const { error } = await this.client.auth.signUp({ email, password });
+    const emailRedirectTo = ['http:', 'https:'].includes(window.location.protocol)
+      ? window.location.href
+      : undefined;
+    const { data, error } = await this.client.auth.signUp({
+      email,
+      password,
+      options: emailRedirectTo ? { emailRedirectTo } : undefined
+    });
     if (error) throw error;
+    if (data?.session?.user) {
+      this.user = data.session.user;
+      this.markLocalOwner(this.user.id);
+      this.updateUI();
+    }
+    return data;
   },
 
   async logout() {

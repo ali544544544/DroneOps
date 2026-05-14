@@ -2289,8 +2289,16 @@ const App = {
     });
 
     document.getElementById('loginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('authEmail').value;
+      const email = document.getElementById('authEmail').value.trim();
       const pass = document.getElementById('authPassword').value;
+      if (!email) {
+        alert('Bitte E-Mail Adresse eingeben.');
+        return;
+      }
+      if (!pass) {
+        alert('Bitte Passwort eingeben.');
+        return;
+      }
       try {
         await CloudManager.login(email, pass);
         await this.renderAfterAccountChange({ resetTab: false, forceRefresh: true });
@@ -2316,9 +2324,34 @@ const App = {
     }
 
     document.getElementById('signupBtn').addEventListener('click', async () => {
-      const email = document.getElementById('authEmail').value;
+      const email = document.getElementById('authEmail').value.trim();
       const pass = document.getElementById('authPassword').value;
-      try { await CloudManager.signup(email, pass); } catch (e) { alert(e.message); }
+      if (!email) {
+        alert('Bitte E-Mail Adresse eingeben.');
+        return;
+      }
+      if (!pass || pass.length < 6) {
+        alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
+        return;
+      }
+      const btn = document.getElementById('signupBtn');
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '...';
+      try {
+        const data = await CloudManager.signup(email, pass);
+        if (data?.session) {
+          await this.renderAfterAccountChange({ resetTab: false, forceRefresh: true });
+          UI.toast(I18n.t('toast.loggedIn'));
+        } else {
+          UI.toast(I18n.t('toast.verifyEmail'));
+        }
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
     });
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
