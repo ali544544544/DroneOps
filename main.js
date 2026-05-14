@@ -790,7 +790,7 @@ const UI = {
     `).join('');
 
     return `
-      <div class="airspace-card airspace-${severity}">
+      <div id="detailAirspacePanel" class="airspace-card airspace-${severity}">
         <div class="airspace-head">
           <div>
             <h4>${I18n.t('airspace.title')}</h4>
@@ -2815,12 +2815,22 @@ const App = {
   },
 
   async renderDetailAirspace(location) {
-    const panel = document.getElementById('detailAirspacePanel');
+    const panel = UI.els.detailMapPanel?.querySelector('#detailAirspacePanel');
     if (!panel) return;
     const result = await AirspaceService.check(location);
     if (Storage.get(Keys.activeLocation) !== location.id) return;
-    const currentPanel = document.getElementById('detailAirspacePanel');
+    const currentPanel = UI.els.detailMapPanel?.querySelector('#detailAirspacePanel');
     if (currentPanel) currentPanel.outerHTML = UI.renderAirspacePanel(location, result);
+  },
+
+  removeDuplicateDetailAirspacePanels() {
+    const mapPanel = UI.els.detailMapPanel;
+    if (!mapPanel) return;
+    const panels = Array.from(mapPanel.querySelectorAll('.airspace-card'));
+    const primary = mapPanel.querySelector('#detailAirspacePanel');
+    panels.forEach(panel => {
+      if (panel !== primary) panel.remove();
+    });
   },
 
   isDipulOverlayEnabled() {
@@ -3286,7 +3296,8 @@ const App = {
         detailMapContainer = document.getElementById('detailMap');
         detailMapInfo = document.getElementById('detailMapInfo');
       }
-      if (!document.getElementById('detailAirspacePanel')) {
+      this.removeDuplicateDetailAirspacePanels();
+      if (!UI.els.detailMapPanel.querySelector('#detailAirspacePanel')) {
         detailMapInfo.insertAdjacentHTML('afterend', `
           <div id="detailAirspacePanel" class="airspace-card airspace-loading mt-14">
             <div class="airspace-head">
@@ -3299,7 +3310,8 @@ const App = {
           </div>
         `);
       }
-      const airspacePanel = document.getElementById('detailAirspacePanel');
+      this.removeDuplicateDetailAirspacePanels();
+      const airspacePanel = UI.els.detailMapPanel.querySelector('#detailAirspacePanel');
       if (airspacePanel) {
         airspacePanel.className = 'airspace-card airspace-loading mt-14';
         airspacePanel.innerHTML = `
