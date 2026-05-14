@@ -193,16 +193,24 @@ const AirspaceService = {
     [7.5, 44.0], [6.8, 44.3], [6.6, 45.1]
   ],
   isInGermany(location) {
+    const countryMatch = this.countryMatches(location, ['de'], ['deutschland', 'germany']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 47.1 && location.lat <= 55.2 && location.lon >= 5.5 && location.lon <= 15.6;
   },
   isInDenmark(location) {
+    const countryMatch = this.countryMatches(location, ['dk'], ['danmark', 'denmark', 'daenemark']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 52.7 && location.lat <= 59.7 && location.lon >= 3.0 && location.lon <= 17.9;
   },
   isInSwitzerland(location) {
+    const countryMatch = this.countryMatches(location, ['ch'], ['schweiz', 'switzerland', 'suisse', 'svizzera']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 45.75 && location.lat <= 47.85 && location.lon >= 5.75 && location.lon <= 10.7
       && this.isPointInPolygon(location, this.switzerlandPolygon);
   },
   isInAustria(location) {
+    const countryMatch = this.countryMatches(location, ['at'], ['austria', 'oesterreich', 'osterreich']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 46.2 && location.lat <= 49.1 && location.lon >= 9.3 && location.lon <= 17.3
       && this.isPointInPolygon(location, this.austriaPolygon);
   },
@@ -213,6 +221,13 @@ const AirspaceService = {
   countryName(location) {
     const country = String(location.country || location.address?.country || '').toLowerCase();
     return country;
+  },
+  countryMatches(location, codes, names = []) {
+    const countryCode = this.countryCode(location);
+    if (countryCode) return codes.includes(countryCode);
+    const country = this.countryName(location);
+    if (country) return names.includes(country);
+    return null;
   },
   overlayCountryCode(location) {
     const countryCode = this.countryCode(location);
@@ -232,28 +247,24 @@ const AirspaceService = {
     return match?.code || '';
   },
   isInItaly(location) {
-    const countryCode = this.countryCode(location);
-    const country = this.countryName(location);
-    if (countryCode === 'it' || country === 'italia' || country === 'italy') return true;
+    const countryMatch = this.countryMatches(location, ['it'], ['italia', 'italy', 'italien']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 35.4 && location.lat <= 47.2 && location.lon >= 6.3 && location.lon <= 18.9
       && this.isPointInPolygon(location, this.italyPolygon);
   },
   isInFrance(location) {
-    const countryCode = this.countryCode(location);
-    const country = this.countryName(location);
-    if (countryCode === 'fr' || country === 'frankreich' || country === 'france') return true;
+    const countryMatch = this.countryMatches(location, ['fr'], ['frankreich', 'france']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 41.0 && location.lat <= 51.3 && location.lon >= -5.4 && location.lon <= 9.7;
   },
   isInSpain(location) {
-    const countryCode = this.countryCode(location);
-    const country = this.countryName(location);
-    if (countryCode === 'es' || country === 'spanien' || country === 'spain' || country === 'españa') return true;
+    const countryMatch = this.countryMatches(location, ['es'], ['spanien', 'spain', 'espana', 'españa']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 35.8 && location.lat <= 43.9 && location.lon >= -9.5 && location.lon <= 4.4;
   },
   isInUnitedKingdom(location) {
-    const countryCode = this.countryCode(location);
-    const country = this.countryName(location);
-    if (countryCode === 'gb' || country === 'vereinigtes königreich' || country === 'united kingdom' || country === 'great britain') return true;
+    const countryMatch = this.countryMatches(location, ['gb', 'uk'], ['vereinigtes königreich', 'united kingdom', 'great britain']);
+    if (countryMatch !== null) return countryMatch;
     return location.lat >= 49.8 && location.lat <= 60.9 && location.lon >= -8.7 && location.lon <= 2.1;
   },
   isInDroneSafetyMapCountry(location) {
@@ -299,8 +310,9 @@ const AirspaceService = {
     return ['dipul', 'dronespace', 'dronezoner', 'swissgeo', 'officialdata'].includes(this.provider(location));
   },
   mapUrl(location, radius = 1000) {
-    if (this.isInDenmark(location)) return this.dronezonerUrl;
-    if (this.isInSwitzerland(location)) {
+    const provider = this.provider(location);
+    if (provider === 'dronezoner') return this.dronezonerUrl;
+    if (provider === 'swissgeo') {
       const center = this.wgs84ToLv95(location);
       const params = new URLSearchParams({
         lang: I18n.lang === 'en' ? 'en' : 'de',
@@ -312,30 +324,32 @@ const AirspaceService = {
       });
       return `${this.swissMapUrl}?${params.toString()}`;
     }
-    if (this.isInAustria(location)) return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
-    if (this.provider(location) === 'officialdata' || this.provider(location) === 'officialweb') return this.officialMapUrl(location);
-    if (this.provider(location) === 'officialmap') return this.officialMapUrl(location);
-    if (this.provider(location) === 'dronesafetymap') return this.droneSafetyMapUrl;
+    if (provider === 'dronespace') return `${this.dronespaceUrl}#p=13.00/${location.lat.toFixed(6)}/${location.lon.toFixed(6)}`;
+    if (provider === 'officialdata' || provider === 'officialweb') return this.officialMapUrl(location);
+    if (provider === 'officialmap') return this.officialMapUrl(location);
+    if (provider === 'dronesafetymap') return this.droneSafetyMapUrl;
     const zoom = radius > 1500 ? '11.0' : '13.0';
     return `https://maptool-dipul.dfs.de/geozones/@${location.lon.toFixed(7)},${location.lat.toFixed(7)},${radius}r?language=${I18n.lang === 'en' ? 'en' : 'de'}&zoom=${zoom}`;
   },
   openMapLabel(location) {
-    if (this.isInDenmark(location)) return I18n.t('airspace.openDronezoner');
-    if (this.isInSwitzerland(location)) return I18n.t('airspace.openSwissGeoAdmin');
-    if (this.isInAustria(location)) return I18n.t('airspace.openDronespace');
-    if (this.provider(location) === 'officialdata' || this.provider(location) === 'officialweb') return I18n.t('airspace.openOfficialMap');
-    if (this.provider(location) === 'officialmap') return I18n.t('airspace.openOfficialMap');
-    if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.openDroneSafetyMap');
+    const provider = this.provider(location);
+    if (provider === 'dronezoner') return I18n.t('airspace.openDronezoner');
+    if (provider === 'swissgeo') return I18n.t('airspace.openSwissGeoAdmin');
+    if (provider === 'dronespace') return I18n.t('airspace.openDronespace');
+    if (provider === 'officialdata' || provider === 'officialweb') return I18n.t('airspace.openOfficialMap');
+    if (provider === 'officialmap') return I18n.t('airspace.openOfficialMap');
+    if (provider === 'dronesafetymap') return I18n.t('airspace.openDroneSafetyMap');
     return I18n.t('airspace.openDipul');
   },
   sourceLabel(location) {
-    if (this.isInDenmark(location)) return I18n.t('airspace.sourceDronezoner');
-    if (this.isInSwitzerland(location)) return I18n.t('airspace.sourceSwissGeoAdmin');
-    if (this.isInAustria(location)) return I18n.t('airspace.sourceDronespace');
-    if (this.provider(location) === 'officialdata') return `Source geodata: ${this.officialLayerSource(location)?.source || 'national UAS map'}`;
-    if (this.provider(location) === 'officialweb') return `Source geodata: ${this.officialWebOverlay(location)?.source || 'national UAS map'}`;
-    if (this.provider(location) === 'officialmap') return I18n.t('airspace.sourceOfficialMap');
-    if (this.provider(location) === 'dronesafetymap') return I18n.t('airspace.sourceDroneSafetyMap');
+    const provider = this.provider(location);
+    if (provider === 'dronezoner') return I18n.t('airspace.sourceDronezoner');
+    if (provider === 'swissgeo') return I18n.t('airspace.sourceSwissGeoAdmin');
+    if (provider === 'dronespace') return I18n.t('airspace.sourceDronespace');
+    if (provider === 'officialdata') return `Source geodata: ${this.officialLayerSource(location)?.source || 'national UAS map'}`;
+    if (provider === 'officialweb') return `Source geodata: ${this.officialWebOverlay(location)?.source || 'national UAS map'}`;
+    if (provider === 'officialmap') return I18n.t('airspace.sourceOfficialMap');
+    if (provider === 'dronesafetymap') return I18n.t('airspace.sourceDroneSafetyMap');
     return I18n.t('airspace.source');
   },
   wgs84ToLv95(location) {
@@ -367,46 +381,47 @@ const AirspaceService = {
   async check(location) {
     const key = this.cacheKey(location);
     if (this.cache.has(key)) return this.cache.get(key);
+    const provider = this.provider(location);
 
-    if (this.isInDenmark(location)) {
+    if (provider === 'dronezoner') {
       const dronezoner = { status: 'overlay', severity: 'caution', features: [], source: 'Dronezoner' };
       this.cache.set(key, dronezoner);
       return dronezoner;
     }
 
-    if (this.isInSwitzerland(location)) {
+    if (provider === 'swissgeo') {
       const swissgeo = { status: 'overlay', severity: 'caution', features: [], source: 'Swiss GeoAdmin' };
       this.cache.set(key, swissgeo);
       return swissgeo;
     }
 
-    if (this.isInAustria(location)) {
+    if (provider === 'dronespace') {
       const dronespace = { status: 'overlay', severity: 'caution', features: [], source: 'Dronespace' };
       this.cache.set(key, dronespace);
       return dronespace;
     }
 
-    if (this.provider(location) === 'dronesafetymap') {
+    if (provider === 'dronesafetymap') {
       const droneSafetyMap = { status: 'overlay', severity: 'caution', features: [], source: 'Drone Safety Map' };
       this.cache.set(key, droneSafetyMap);
       return droneSafetyMap;
     }
 
-    if (this.provider(location) === 'officialdata') {
+    if (provider === 'officialdata') {
       const source = this.officialLayerSource(location);
       const officialData = { status: 'overlay', severity: 'caution', features: [], source: source?.source || 'Official national UAS map' };
       this.cache.set(key, officialData);
       return officialData;
     }
 
-    if (this.provider(location) === 'officialweb') {
+    if (provider === 'officialweb') {
       const source = this.officialWebOverlay(location);
       const officialWeb = { status: 'overlay', severity: 'caution', features: [], source: source?.source || 'Official national UAS map' };
       this.cache.set(key, officialWeb);
       return officialWeb;
     }
 
-    if (this.provider(location) === 'officialmap') {
+    if (provider === 'officialmap') {
       const officialMap = { status: 'overlay', severity: 'caution', features: [], source: 'Official national UAS map' };
       this.cache.set(key, officialMap);
       return officialMap;
