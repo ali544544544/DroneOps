@@ -1250,7 +1250,7 @@ const App = {
         Storage.set(Keys.distSource, 'home'); // Default to home distance if applicable
         document.getElementById('dashboardMapSection').classList.add('hidden');
         document.getElementById('dashboardMapSelectBtn')?.classList.remove('btn-active');
-        await this.renderDashboard();
+        await this.renderDashboard(true);
         UI.toast(I18n.t('dashboard.locationSelected'));
       });
       bounds.extend([loc.lat, loc.lon]);
@@ -1312,7 +1312,7 @@ const App = {
           direction: 'top', 
           offset: [0, -25]
         });
-        marker.on('click', () => this.openLocationDetail(loc.id));
+        marker.on('click', () => this.openLocationDetail(loc.id, true));
       });
 
       this.overviewMap.setView([51.1657, 10.4515], 5);
@@ -1792,7 +1792,7 @@ const App = {
     document.getElementById('pickerBackBtn').addEventListener('click', () => this.toggleMapPicker());
     UI.els.dashboardLocationSelect.addEventListener('change', async (e) => {
       Storage.set(Keys.dashboardSource, e.target.value || 'gps');
-      await this.renderDashboard();
+      await this.renderDashboard(true);
     });
 
     const doSearch = Util.debounce(async (value) => {
@@ -1833,7 +1833,7 @@ const App = {
               this.flushAutosaveSoon();
               UI.renderDashboardLocationSelect();
               await this.renderLocationsList();
-              await this.renderDashboard();
+              await this.renderDashboard(true);
             }
           });
         });
@@ -1931,7 +1931,7 @@ const App = {
             UI.els.dashboardHomeSearchInput.value = '';
             UI.els.dashboardHomeSearchWrap.classList.add('hidden');
             UI.toast(I18n.t('toast.startPointSaved'));
-            await this.renderDashboard();
+            await this.renderDashboard(true);
           });
         });
       } catch (error) {
@@ -1954,7 +1954,7 @@ const App = {
           UI.els.dashboardHomeSearchWrap.classList.remove('hidden');
           UI.els.dashboardHomeSearchInput.focus();
         }
-        this.renderDashboard();
+        this.renderDashboard(true);
       }
     });
 
@@ -2143,18 +2143,18 @@ const App = {
         }
       }
 
-      if (detailBtn) await this.openLocationDetail(detailBtn.dataset.id);
+      if (detailBtn) await this.openLocationDetail(detailBtn.dataset.id, true);
       if (deleteBtn) {
         if (confirm(I18n.t('confirm.deleteLocation'))) {
           LocationManager.remove(deleteBtn.dataset.id);
           UI.renderDashboardLocationSelect();
           await this.renderLocationsList();
-          await this.renderDashboard();
+          await this.renderDashboard(true);
         }
       }
       if (miniCard) {
         Router.showPage('locations');
-        await this.openLocationDetail(miniCard.dataset.dashboardLocation);
+        await this.openLocationDetail(miniCard.dataset.dashboardLocation, true);
       }
       if (checkDelete) {
         ChecklistManager.remove(checkDelete.dataset.checkDelete);
@@ -2369,7 +2369,7 @@ const App = {
       };
       Storage.set(Keys.dashboardSource, 'gps');
       Storage.set('drone_dashboard_gps_cache', gpsLocation);
-      await this.renderDashboard();
+      await this.renderDashboard(true);
     }, () => UI.toast(I18n.t('error.gpsDenied')));
   },
 
@@ -2388,7 +2388,7 @@ const App = {
         if (location) {
           UI.renderDashboardLocationSelect();
           await this.renderLocationsList();
-          await this.renderDashboard();
+          await this.renderDashboard(true);
         }
       } catch (error) {
         console.error(error);
@@ -2868,7 +2868,7 @@ const App = {
     listContent.querySelectorAll('[data-action="detail"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.openLocationDetail(btn.dataset.id);
+        this.openLocationDetail(btn.dataset.id, true);
       });
     });
     listContent.querySelectorAll('[data-action="delete"]').forEach(btn => {
@@ -2883,7 +2883,7 @@ const App = {
     listContent.querySelectorAll('.location-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('button, a, input, select, textarea')) return;
-        this.openLocationDetail(card.dataset.id);
+        this.openLocationDetail(card.dataset.id, true);
       });
     });
 
@@ -3339,12 +3339,12 @@ const App = {
     );
   },
 
-  async openLocationDetail(locationId) {
+  async openLocationDetail(locationId, forceRefresh = false) {
     this.saveOpenEditorsNow();
     LocationManager.setActive(locationId);
     document.getElementById('locationsDetailView').classList.remove('hidden');
     document.getElementById('locationsListView').classList.add('hidden');
-    await this.renderLocationDetail(locationId);
+    await this.renderLocationDetail(locationId, forceRefresh);
   },
 
   bindSpotSuitabilityEditor(location) {
@@ -3365,7 +3365,7 @@ const App = {
     });
   },
 
-  async renderLocationDetail(locationId) {
+  async renderLocationDetail(locationId, forceRefresh = false) {
     const location = LocationManager.getById(locationId);
     if (!location) return;
     UI.els.detailTitle.innerHTML = `
@@ -3379,7 +3379,10 @@ const App = {
     UI.showSkeleton(UI.els.detailHourlyPanel, 'hourly');
 
     try {
-      const [weather, sun] = await Promise.all([WeatherService.get(location), SunService.get(location)]);
+      const [weather, sun] = await Promise.all([
+        WeatherService.get(location, forceRefresh),
+        SunService.get(location, new Date(), forceRefresh)
+      ]);
       StatusTracker.update('weather', weather.source, weather.timestamp);
       StatusTracker.update('sun', sun.source, sun.timestamp);
       const idx = this.currentIndex(weather.data);
