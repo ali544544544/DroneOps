@@ -2177,21 +2177,22 @@ a { color: inherit; text-decoration: none; }
 
 .map-legend {
   background: rgba(13, 18, 31, 0.85);
-  backdrop-filter: blur(8px);
-  padding: 10px;
-  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  padding: 6px 7px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   color: white;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.15;
   pointer-events: none;
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 5px;
+  margin-bottom: 2px;
   white-space: nowrap;
 }
 
@@ -2200,8 +2201,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .legend-line {
-  width: 20px;
-  height: 3px;
+  width: 14px;
+  height: 2px;
   border-radius: 2px;
   display: inline-block;
 }
