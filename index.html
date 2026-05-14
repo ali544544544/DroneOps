@@ -85,12 +85,17 @@
       </div>
       
       <div id="authView">
+        <div class="auth-info">
+          <strong data-i18n="auth.infoTitle">Ein Formular, zwei Aktionen</strong>
+          <p data-i18n="auth.infoText">E-Mail und Passwort eingeben. Wenn du schon ein Konto hast, nutze Login. Wenn nicht, nutze Registrieren und bestaetige danach ggf. die E-Mail.</p>
+        </div>
         <div class="field">
           <input id="authEmail" type="email" placeholder="Email" data-i18n-placeholder="auth.email" autocomplete="username" />
         </div>
         <div class="field mt-8">
           <input id="authPassword" type="password" placeholder="Passwort" data-i18n-placeholder="auth.password" autocomplete="current-password" />
         </div>
+        <p class="auth-action-hint" data-i18n="auth.actionHint">Login prueft bestehende Konten. Registrieren erstellt ein neues Konto mit denselben Eingaben.</p>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px;">
           <button id="loginBtn" class="btn" data-i18n="auth.login">Login</button>
           <button id="signupBtn" class="btn btn-secondary" data-i18n="auth.signup">Sign Up</button>
