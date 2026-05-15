@@ -1438,8 +1438,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .map-panel {
-  padding: 0;
-  overflow: hidden;
+  padding: var(--panel-pad);
+  overflow: visible;
 }
 
 .app-map {
@@ -1450,8 +1450,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .map-panel .app-map {
-  border: 0;
-  border-radius: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
 }
 
 .app-map-medium {
