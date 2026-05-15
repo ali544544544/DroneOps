@@ -947,6 +947,19 @@ a { color: inherit; text-decoration: none; }
   margin-top: calc(0.86rem * 1.5 + 7px);
 }
 
+.picker-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.picker-search-row .btn {
+  min-height: var(--control-h);
+  min-width: var(--control-h);
+  align-self: center;
+}
+
 .location-filter-panel {
   margin: var(--space-4) 0 var(--space-5);
 }
@@ -2393,12 +2406,18 @@ a { color: inherit; text-decoration: none; }
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .picker-search-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .search-row > .btn {
     margin-top: 0;
   }
 
   .search-row .field,
-  .search-row .btn {
+  .search-row .btn,
+  .picker-search-row .field,
+  .picker-search-row .btn {
     min-width: 0;
     width: 100%;
   }

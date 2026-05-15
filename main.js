@@ -1341,6 +1341,7 @@ const App = {
   pickerMap: null,
   pickerMarker: null,
   dashboardPickerMap: null,
+  germanyBounds: [[47.2, 5.6], [55.1, 15.4]],
 
   toggleDashboardMapPicker() {
     const section = document.getElementById('dashboardMapSection');
@@ -1483,12 +1484,13 @@ const App = {
       detailView.classList.add('hidden');
       this.pickerMap = MapManager.get('locationsPickerMap');
       if (this.pickerMap && !this.pickerMap._hasTileLayer) {
-        this.pickerMap.setView([51.1657, 10.4515], 6);
+        this.pickerMap.fitBounds(this.germanyBounds, { padding: [24, 24] });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.pickerMap);
         this.pickerMap._hasTileLayer = true;
       }
       MapManager.invalidate('locationsPickerMap');
       this.initMapPicker();
+      setTimeout(() => this.pickerMap?.fitBounds(this.germanyBounds, { padding: [24, 24] }), 180);
     }
   },
 
@@ -1496,7 +1498,7 @@ const App = {
     if (!this.pickerMap) {
       this.pickerMap = MapManager.get('locationsPickerMap');
       if (this.pickerMap && !this.pickerMap._hasTileLayer) {
-        this.pickerMap.setView([51.1657, 10.4515], 6);
+        this.pickerMap.fitBounds(this.germanyBounds, { padding: [24, 24] });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.pickerMap);
         this.pickerMap._hasTileLayer = true;
       }
@@ -1537,9 +1539,6 @@ const App = {
         }
       });
 
-      Util.getCurrentPosition().then(pos => {
-        this.pickerMap.setView([pos.coords.latitude, pos.coords.longitude], 12);
-      }).catch(() => {});
     }
   },
 
