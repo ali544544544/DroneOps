@@ -911,6 +911,7 @@ const UI = {
           <div>
             <div class="airspace-title-row">
               <h4>${I18n.t('airspace.title')}</h4>
+              ${this.infoIcon('help.airspace')}
               <span class="badge ${severity} airspace-status-badge">${this.airspaceLabel(result)}${count ? ` &middot; ${count}` : ''}</span>
               ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-small airspace-title-action" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
             </div>
@@ -1290,13 +1291,25 @@ const UI = {
     `;
     this.els.dashboardCurrentPanel.querySelector('[data-empty-gps]').textContent = I18n.t('dashboard.useGps');
     this.els.dashboardCurrentPanel.querySelector('[data-empty-locations]').textContent = I18n.t('locations.addLocation');
-    this.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p class="muted">${I18n.t('dashboard.emptyGoldenHint')}</p>`;
-    this.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p class="muted">${I18n.t('dashboard.emptyHourlyHint')}</p>`;
+    this.els.dashboardGoldenPanel.innerHTML = `${this.titleWithInfo(I18n.t('dashboard.golden'), 'help.goldenHour')}<p class="muted">${I18n.t('dashboard.emptyGoldenHint')}</p>`;
+    this.els.dashboardHourlyPanel.innerHTML = `${this.titleWithInfo(I18n.t('dashboard.hourly'), 'help.hourlyForecast')}<p class="muted">${I18n.t('dashboard.emptyHourlyHint')}</p>`;
   },
   renderChecklistFormOptions() {
     this.els.checklistCategory.innerHTML = ChecklistManager.categories()
       .map(c => `<option value="${c}">${I18n.t(`check.${c}`)}</option>`)
       .join('');
+  },
+  infoIcon(helpKey) {
+    const text = Util.escapeHtml(I18n.t(helpKey));
+    return `<button class="info-dot" type="button" data-tooltip="${text}" aria-label="${text}">i</button>`;
+  },
+  titleWithInfo(title, helpKey, tag = 'h3') {
+    return `
+      <div class="panel-title-line">
+        <${tag}>${title}</${tag}>
+        ${this.infoIcon(helpKey)}
+      </div>
+    `;
   },
   drawSunLine(map, center, azimuth, color, label, dash = null) {
     if (!map || !azimuth) return;
@@ -2709,7 +2722,7 @@ const App = {
         currentInfo.innerHTML = `
           <div class="score-hero">
             <div>
-              <h3>${I18n.t('dashboard.current')}</h3>
+              ${UI.titleWithInfo(I18n.t('dashboard.current'), 'help.currentConditions')}
               <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
               ${UI.renderSpotSuitabilityTags(location)}
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
@@ -2821,7 +2834,7 @@ const App = {
       }
 
       UI.els.dashboardGoldenPanel.innerHTML = `
-        <h3>${I18n.t('dashboard.golden')}</h3>
+        ${UI.titleWithInfo(I18n.t('dashboard.golden'), 'help.goldenHour')}
         ${nextTwo.map(w => {
            const tempGH = {
              morningStart: w.start, morningEnd: w.end,
@@ -2848,7 +2861,7 @@ const App = {
         <div class="sun-arc-wrap">${UI.renderSunArc(sunToday.data, ghToday)}</div>
       `;
 
-      UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
+      UI.els.dashboardHourlyPanel.innerHTML = `${UI.titleWithInfo(I18n.t('dashboard.hourly'), 'help.hourlyForecast')}<div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
       UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather, gh, location);
       
       this.renderDashboardDrone();
@@ -2859,9 +2872,9 @@ const App = {
       StatusTracker.update('weather', 'error');
       StatusTracker.update('sun', 'error');
       UI.updateStatusIndicator();
-      UI.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
-      UI.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
-      UI.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.dashboardCurrentPanel.innerHTML = `${UI.titleWithInfo(I18n.t('dashboard.current'), 'help.currentConditions')}<p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.dashboardGoldenPanel.innerHTML = `${UI.titleWithInfo(I18n.t('dashboard.golden'), 'help.goldenHour')}<p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.dashboardHourlyPanel.innerHTML = `${UI.titleWithInfo(I18n.t('dashboard.hourly'), 'help.hourlyForecast')}<p>${I18n.t('error.dataUnavailable')}</p>`;
       this.renderDashboardDrone();
       this.renderDashboardChecklist();
       await this.renderDashboardLocationCards(forceRefresh);
@@ -2875,7 +2888,7 @@ const App = {
     
     UI.els.dashboardDronePanel.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <h3 style="margin:0">Aktive Drohne</h3>
+        ${UI.titleWithInfo(I18n.t('drones.activeDroneTitle'), 'help.activeDrone')}
         <button class="btn btn-secondary btn-small" onclick="Router.showPage('drones')">✎</button>
       </div>
       <div class="drone-card active" style="--drone-accent: ${drone.color || 'var(--blue)'}; padding:16px; border-radius:16px; background:rgba(255,255,255,0.02)">
@@ -2914,7 +2927,7 @@ const App = {
     const prog = total > 0 ? Math.round((checked / total) * 100) : 0;
     
     UI.els.dashboardChecklistPanel.innerHTML = `
-      <h3>${I18n.t('checklist.title')}</h3>
+      ${UI.titleWithInfo(I18n.t('checklist.title'), 'help.dashboardChecklist')}
       <div style="margin-top:16px">
         <div style="display:flex; justify-content:space-between; margin-bottom:8px">
           <span class="muted">${checked} / ${total}</span>
@@ -2930,7 +2943,7 @@ const App = {
 
   async renderDashboardLocationCards(forceRefresh = false) {
     const locations = LocationManager.getAll();
-    UI.els.dashboardLocationCardsPanel.innerHTML = `<h3>${I18n.t('dashboard.locationsOverview')}</h3>`;
+    UI.els.dashboardLocationCardsPanel.innerHTML = UI.titleWithInfo(I18n.t('dashboard.locationsOverview'), 'help.locationsOverview');
     if (!locations.length) {
       UI.els.dashboardLocationCardsPanel.innerHTML += `
         <div class="empty-panel">
@@ -3585,7 +3598,7 @@ const App = {
       const gustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const windDir = Util.windArrow(weather.data.current_weather.winddirection);
       UI.els.detailFlightPanel.innerHTML = `
-        <h3>${I18n.t('detail.flightStatus')}</h3>
+        ${UI.titleWithInfo(I18n.t('detail.flightStatus'), 'help.flightStatus')}
         <div class="score-hero">
           <div>
             <div class="score-value">${score.score}</div>
@@ -3623,7 +3636,7 @@ const App = {
       
       if (!detailMapContainer || !detailMapInfo) {
         UI.els.detailMapPanel.innerHTML = `
-          <h3>${I18n.t('detail.map')}</h3>
+          ${UI.titleWithInfo(I18n.t('detail.map'), 'help.detailMap')}
           <div id="detailMap" style="height: 300px; margin-top: 12px; z-index: 1;"></div>
           <div id="detailMapInfo" class="info-list mt-12"></div>
           <div id="detailAirspacePanel" class="airspace-card airspace-loading mt-14">
@@ -3718,7 +3731,7 @@ const App = {
       const visKm = (weather.data.hourly.visibility[idx] / 1000).toFixed(1);
       const detailRainBS = Util.getBrightSkyRain(weather.bsData, weather.data.current_weather.time);
       UI.els.detailWeatherPanel.innerHTML = `
-        <h3>${I18n.t('detail.weather')}</h3>
+        ${UI.titleWithInfo(I18n.t('detail.weather'), 'help.weatherData')}
         <div class="metric-grid">
           <div class="kpi"><span>${I18n.t('weather.temp')}</span><strong>${weather.data.current_weather.temperature} °C</strong></div>
           <div class="kpi"><span>${I18n.t('weather.feels')}</span><strong>${weather.data.hourly.apparent_temperature[idx]} °C</strong></div>
@@ -3745,7 +3758,7 @@ const App = {
       const sunset = new Date(sun.data.results.sunset);
       const dayMinutes = Math.round((sunset - sunrise) / 60000);
       UI.els.detailSunPanel.innerHTML = `
-        <h3>${I18n.t('detail.sun')}</h3>
+        ${UI.titleWithInfo(I18n.t('detail.sun'), 'help.sunData')}
         <div class="sun-times">
           <span class="inline-pill">🌄 ${I18n.t('sun.dawn')}: ${Util.formatTime(sun.data.results.civil_twilight_begin, I18n.locale)}</span>
           <span class="inline-pill">🌅 ${I18n.t('sun.sunrise')}: ${Util.formatTime(sun.data.results.sunrise, I18n.locale)}</span>
@@ -3762,7 +3775,7 @@ const App = {
         ${gh.isActiveNow ? `<p class="mt-12"><strong>${I18n.t('sun.active')}</strong></p>` : ''}
       `;
 
-      UI.els.detailHourlyPanel.innerHTML = `<h3>${I18n.t('detail.hourly')}</h3><div id="detailHourlyInner" class=\"hourly-inner\"></div>`;
+      UI.els.detailHourlyPanel.innerHTML = `${UI.titleWithInfo(I18n.t('detail.hourly'), 'help.hourlyForecast')}<div id="detailHourlyInner" class=\"hourly-inner\"></div>`;
       UI.renderHourly(document.getElementById('detailHourlyInner'), weather, gh, location);
 
       this.renderNotesPanel(location);
@@ -3772,7 +3785,7 @@ const App = {
       StatusTracker.update('sun', 'error');
       UI.updateStatusIndicator();
       UI.els.detailFlightPanel.innerHTML = `
-        <h3>${I18n.t('detail.flightStatus')}</h3>
+        ${UI.titleWithInfo(I18n.t('detail.flightStatus'), 'help.flightStatus')}
         <p>${I18n.t('error.dataUnavailable')}</p>
         <div class="flight-suitability mt-14">
           <label class="field">
@@ -3783,17 +3796,17 @@ const App = {
         </div>
       `;
       this.bindSpotSuitabilityEditor(location);
-      UI.els.detailMapPanel.innerHTML = `<h3>${I18n.t('detail.map')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
-      UI.els.detailWeatherPanel.innerHTML = `<h3>${I18n.t('detail.weather')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
-      UI.els.detailSunPanel.innerHTML = `<h3>${I18n.t('detail.sun')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
-      UI.els.detailHourlyPanel.innerHTML = `<h3>${I18n.t('detail.hourly')}</h3><p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.detailMapPanel.innerHTML = `${UI.titleWithInfo(I18n.t('detail.map'), 'help.detailMap')}<p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.detailWeatherPanel.innerHTML = `${UI.titleWithInfo(I18n.t('detail.weather'), 'help.weatherData')}<p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.detailSunPanel.innerHTML = `${UI.titleWithInfo(I18n.t('detail.sun'), 'help.sunData')}<p>${I18n.t('error.dataUnavailable')}</p>`;
+      UI.els.detailHourlyPanel.innerHTML = `${UI.titleWithInfo(I18n.t('detail.hourly'), 'help.hourlyForecast')}<p>${I18n.t('error.dataUnavailable')}</p>`;
       this.renderNotesPanel(location);
     }
   },
 
   renderNotesPanel(location) {
     UI.els.detailNotesPanel.innerHTML = `
-      <h3>${I18n.t('detail.notesLogbook')}</h3>
+      ${UI.titleWithInfo(I18n.t('detail.notesLogbook'), 'help.notesLogbook')}
       <div class="notes-grid">
         <div>
           <label class="field">

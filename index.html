@@ -140,7 +140,10 @@
         <section class="panel glass quick-actions-panel">
           <div class="panel-toolbar compact-toolbar">
             <div>
-              <h3 data-i18n="dashboard.sourceTitle">Flugort für das Dashboard</h3>
+              <div class="panel-title-line">
+                <h3 data-i18n="dashboard.sourceTitle">Flugort für das Dashboard</h3>
+                <button class="info-dot" type="button" data-i18n-title="help.dashboardSource" aria-label="Flugort Info">i</button>
+              </div>
               <p class="muted" data-i18n="dashboard.sourceHelp">GPS fragt deinen Browser nach der aktuellen Position. Gespeicherte Orte kommen aus deinen Locations.</p>
             </div>
           </div>
@@ -162,7 +165,10 @@
         </section>
 
         <section id="dashboardMapSection" class="panel glass map-picker-panel hidden">
-          <h3 data-i18n="dashboard.mapSelect">Karte wählen</h3>
+          <div class="panel-title-line">
+            <h3 data-i18n="dashboard.mapSelect">Karte wählen</h3>
+            <button class="info-dot" type="button" data-i18n-title="help.dashboardMapPicker" aria-label="Kartenwahl Info">i</button>
+          </div>
           <div id="dashboardMapPicker" class="app-map app-map-medium"></div>
           <p class="muted mt-12" data-i18n="dashboard.pickerHelp">Klicke auf einen Spot, um ihn für das Dashboard auszuwählen.</p>
         </section>
@@ -203,6 +209,12 @@
           </section>
 
           <section class="panel glass location-filter-panel">
+            <div class="panel-toolbar compact-toolbar">
+              <div class="panel-title-line">
+                <h3 data-i18n="locations.filterTitle">Spots filtern</h3>
+                <button class="info-dot" type="button" data-i18n-title="help.locationFilters" aria-label="Filter Info">i</button>
+              </div>
+            </div>
             <div class="location-filter-grid">
               <label class="field">
                 <span data-i18n="locations.filterName">Nach Name filtern</span>
@@ -225,6 +237,12 @@
           </section>
 
           <section class="panel glass map-panel">
+            <div class="panel-toolbar compact-toolbar">
+              <div class="panel-title-line">
+                <h3 data-i18n="locations.mapOverviewTitle">Spotkarte</h3>
+                <button class="info-dot" type="button" data-i18n-title="help.locationOverviewMap" aria-label="Spotkarte Info">i</button>
+              </div>
+            </div>
             <div id="locationsOverviewMap" class="app-map app-map-medium"></div>
           </section>
 
@@ -357,6 +375,12 @@
         </div>
 
         <section class="panel glass">
+          <div class="panel-toolbar compact-toolbar">
+            <div class="panel-title-line">
+              <h3 data-i18n="checklist.progressTitle">Flugvorbereitung</h3>
+              <button class="info-dot" type="button" data-i18n-title="help.checklistProgress" aria-label="Checklisten Info">i</button>
+            </div>
+          </div>
           <div class="checklist-head">
             <div class="checklist-progress">
               <strong id="checklistProgressText">0 / 0</strong>

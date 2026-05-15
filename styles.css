@@ -461,6 +461,44 @@ a { color: inherit; text-decoration: none; }
   margin: 0;
 }
 
+.panel-title-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin-bottom: var(--space-4);
+}
+
+.panel-title-line::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: linear-gradient(to bottom, var(--blue), var(--cyan));
+  border-radius: 2px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.panel-title-line h3,
+.panel-title-line h4 {
+  margin: 0;
+  min-width: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.panel-title-line .info-dot {
+  margin-left: 2px;
+}
+
+.panel-toolbar .panel-title-line,
+.score-hero .panel-title-line {
+  margin-bottom: 0;
+}
+
 .panel > h3,
 .panel h3:first-child {
   margin-bottom: var(--space-5);
@@ -483,6 +521,19 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(to bottom, var(--blue), var(--cyan));
   border-radius: 2px;
   display: inline-block;
+}
+
+.panel .panel-title-line h3,
+.panel .panel-title-line h4 {
+  margin: 0;
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.panel .panel-title-line h3::before,
+.panel .panel-title-line h4::before {
+  content: none;
 }
 
 .panel-emphasis {
