@@ -2495,6 +2495,7 @@ const App = {
       else if (!Object.values(rules).every(Boolean)) message = I18n.t('auth.passwordRequirementsAlert');
       else if (!privacyAccepted?.checked) message = I18n.t('auth.validationPrivacyRequired');
       if (showMessage) setAuthMessage(message);
+      if (signupBtn) signupBtn.disabled = !!message;
       return !message;
     };
     const validateLoginForm = ({ showMessage = false } = {}) => {
@@ -2547,6 +2548,7 @@ const App = {
       if (authPasswordInput) authPasswordInput.autocomplete = isSignup ? 'new-password' : 'current-password';
       if (authPasswordConfirmInput) authPasswordConfirmInput.value = '';
       if (privacyAccepted) privacyAccepted.checked = false;
+      if (signupBtn) signupBtn.disabled = true;
       validateSignupForm();
     };
     [authEmailInput, authPasswordInput, authPasswordConfirmInput, privacyAccepted].forEach(input => {
@@ -2665,8 +2667,8 @@ const App = {
       } catch (e) {
         setAuthMessage(e.message);
       } finally {
-        signupBtn.disabled = false;
         signupBtn.textContent = original;
+        validateSignupForm();
       }
     });
 
