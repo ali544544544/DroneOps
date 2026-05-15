@@ -60,7 +60,7 @@ export const ScoreEngine = {
       const higherRain = Math.max(rain, rainSecondary).toFixed(1);
       factors.push({
         key: 'rainSource',
-        label: `Regen unsicher: Wetterdienste melden ${lowerRain}-${higherRain} mm. Bewertung nutzt vorsichtig den höheren Wert.`,
+        label: `Regen: ${lowerRain}-${higherRain} mm`,
         severity: 'warn'
       });
     }
