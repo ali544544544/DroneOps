@@ -2643,6 +2643,8 @@ const App = {
 
     if (!location) {
       UI.renderDashboardNone();
+      this.renderDashboardDrone();
+      this.renderDashboardChecklist();
       await this.renderDashboardLocationCards(forceRefresh);
       return;
     }
