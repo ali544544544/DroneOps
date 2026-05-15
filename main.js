@@ -2447,15 +2447,20 @@ const App = {
     });
 
     const authEmailInput = document.getElementById('authEmail');
+    const authPasswordField = document.getElementById('authPasswordField');
     const authPasswordInput = document.getElementById('authPassword');
     const authPasswordConfirmInput = document.getElementById('authPasswordConfirm');
     const signupFields = document.getElementById('signupFields');
     const authModeTitle = document.getElementById('authModeTitle');
     const authModeText = document.getElementById('authModeText');
     const authValidationMessage = document.getElementById('authValidationMessage');
+    const authModeSwitchWrap = document.getElementById('authModeSwitchWrap');
     const authModeSwitchBtn = document.getElementById('authModeSwitchBtn');
     const authSwitchText = document.getElementById('authSwitchText');
     const forgotPasswordWrap = document.getElementById('forgotPasswordWrap');
+    const resetPasswordActions = document.getElementById('resetPasswordActions');
+    const resetPasswordSubmitBtn = document.getElementById('resetPasswordSubmitBtn');
+    const resetBackBtn = document.getElementById('resetBackBtn');
     const loginBtn = document.getElementById('loginBtn');
     const signupBtn = document.getElementById('signupBtn');
     const privacyAccepted = document.getElementById('privacyAccepted');
@@ -2502,21 +2507,33 @@ const App = {
       if (showMessage) setAuthMessage(message);
       return !message;
     };
+    const validateResetForm = ({ showMessage = false } = {}) => {
+      const email = authEmailInput?.value.trim() || '';
+      let message = '';
+      if (!email) message = I18n.t('auth.validationEmailRequired');
+      else if (!emailLooksValid(email)) message = I18n.t('auth.validationEmailInvalid');
+      if (showMessage) setAuthMessage(message);
+      return !message;
+    };
     const updateAuthMode = (mode) => {
       authMode = mode;
       authSubmitted = false;
       setAuthMessage('');
       const isSignup = mode === 'signup';
+      const isReset = mode === 'reset';
       signupFields?.classList.toggle('hidden', !isSignup);
-      loginBtn?.classList.toggle('hidden', isSignup);
+      authPasswordField?.classList.toggle('hidden', isReset);
+      loginBtn?.classList.toggle('hidden', isSignup || isReset);
       signupBtn?.classList.toggle('hidden', !isSignup);
-      forgotPasswordWrap?.classList.toggle('hidden', isSignup);
+      resetPasswordActions?.classList.toggle('hidden', !isReset);
+      forgotPasswordWrap?.classList.toggle('hidden', isSignup || isReset);
+      authModeSwitchWrap?.classList.toggle('hidden', isReset);
       if (authModeTitle) {
-        authModeTitle.dataset.i18n = isSignup ? 'auth.signupTitle' : 'auth.loginTitle';
+        authModeTitle.dataset.i18n = isReset ? 'auth.resetPasswordTitle' : (isSignup ? 'auth.signupTitle' : 'auth.loginTitle');
         authModeTitle.textContent = I18n.t(authModeTitle.dataset.i18n);
       }
       if (authModeText) {
-        authModeText.dataset.i18n = isSignup ? 'auth.signupText' : 'auth.loginText';
+        authModeText.dataset.i18n = isReset ? 'auth.resetPasswordText' : (isSignup ? 'auth.signupText' : 'auth.loginText');
         authModeText.textContent = I18n.t(authModeText.dataset.i18n);
       }
       if (authSwitchText) {
@@ -2535,10 +2552,12 @@ const App = {
     [authEmailInput, authPasswordInput, authPasswordConfirmInput, privacyAccepted].forEach(input => {
       input?.addEventListener('input', () => {
         if (authMode === 'signup') validateSignupForm({ showMessage: authSubmitted });
+        else if (authMode === 'reset') validateResetForm({ showMessage: authSubmitted });
         else validateLoginForm({ showMessage: authSubmitted });
       });
       input?.addEventListener('change', () => {
         if (authMode === 'signup') validateSignupForm({ showMessage: authSubmitted });
+        else if (authMode === 'reset') validateResetForm({ showMessage: authSubmitted });
       });
     });
     authModeSwitchBtn?.addEventListener('click', () => {
@@ -2690,15 +2709,31 @@ const App = {
       }
     });
 
-    document.getElementById('resetPassBtn').addEventListener('click', async () => {
+    document.getElementById('resetPassBtn').addEventListener('click', () => {
+      updateAuthMode('reset');
+      authEmailInput?.focus();
+    });
+
+    resetBackBtn?.addEventListener('click', () => {
+      updateAuthMode('login');
+      authPasswordInput?.focus();
+    });
+
+    resetPasswordSubmitBtn?.addEventListener('click', async () => {
+      authSubmitted = true;
+      if (!validateResetForm({ showMessage: true })) return;
       const email = authEmailInput.value.trim();
-      if (!email) return setAuthMessage(I18n.t('auth.validationEmailRequired'));
-      if (!emailLooksValid(email)) return setAuthMessage(I18n.t('auth.validationEmailInvalid'));
+      const original = resetPasswordSubmitBtn.textContent;
+      resetPasswordSubmitBtn.disabled = true;
+      resetPasswordSubmitBtn.textContent = '...';
       try {
         await CloudManager.resetPassword(email);
         setAuthMessage(I18n.t('auth.resetPasswordSent'));
       } catch (e) {
         setAuthMessage(e.message);
+      } finally {
+        resetPasswordSubmitBtn.disabled = false;
+        resetPasswordSubmitBtn.textContent = original;
       }
     });
   },

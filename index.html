@@ -96,7 +96,7 @@
         <div class="field">
           <input id="authEmail" type="email" placeholder="Email" data-i18n-placeholder="auth.email" autocomplete="username" />
         </div>
-        <div class="field mt-8">
+        <div id="authPasswordField" class="field mt-8">
           <input id="authPassword" type="password" placeholder="Passwort" data-i18n-placeholder="auth.password" autocomplete="current-password" />
         </div>
         <div id="signupFields" class="hidden">
@@ -119,10 +119,14 @@
           <button id="loginBtn" class="btn" data-i18n="auth.login">Login</button>
           <button id="signupBtn" class="btn hidden" data-i18n="auth.signup">Registrieren</button>
         </div>
+        <div id="resetPasswordActions" class="auth-actions hidden">
+          <button id="resetBackBtn" class="btn btn-secondary" type="button" data-i18n="nav.back">Zurück</button>
+          <button id="resetPasswordSubmitBtn" class="btn" type="button" data-i18n="auth.resetPasswordButton">Passwort zurücksetzen</button>
+        </div>
         <div id="forgotPasswordWrap" style="text-align:center; margin-top:12px;">
           <button id="resetPassBtn" class="nav-link-small" style="background:none; border:none; color:var(--blue); cursor:pointer;" data-i18n="auth.forgotPassword">Passwort vergessen?</button>
         </div>
-        <div class="auth-mode-switch">
+        <div id="authModeSwitchWrap" class="auth-mode-switch">
           <span id="authSwitchText" data-i18n="auth.noAccount">Noch keinen Account?</span>
           <button id="authModeSwitchBtn" type="button" class="nav-link-small" data-i18n="auth.goSignup">Registrieren</button>
         </div>
