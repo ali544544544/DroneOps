@@ -3727,11 +3727,13 @@ const App = {
 
       detailMapInfo.innerHTML = `
         <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
-        <span id="detailTravelInfo" class="inline-pill">${I18n.t('detail.distanceLoading')}</span>
-        <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
-        <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
-        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
-        ${AirspaceService.hasInteractiveOverlay(location) ? `<button class="btn btn-secondary" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
+        <div class="route-action-group">
+          <span id="detailTravelInfo" class="inline-pill">${I18n.t('detail.distanceLoading')}</span>
+          <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">🧭 ${I18n.t('nav.route')}</button>
+        </div>
+        <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">📍 ${I18n.t('nav.openMaps')}</button>
+        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">🛡️ ${AirspaceService.openMapLabel(location)}</button>` : ''}
+        ${AirspaceService.hasInteractiveOverlay(location) ? `<button class="btn btn-secondary" data-toggle-dipul>🗺️ ${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
       `;
       this.updateDetailTravelInfo(location);
       this.updateDipulToggle();

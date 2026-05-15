@@ -1222,6 +1222,17 @@ a { color: inherit; text-decoration: none; }
   margin: 0;
 }
 
+.route-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.route-action-group .inline-pill {
+  min-height: var(--control-h);
+}
+
 .airspace-head,
 .airspace-actions {
   display: flex;
@@ -2444,6 +2455,12 @@ a { color: inherit; text-decoration: none; }
   .check-item > .inline-actions .btn {
     width: auto;
     flex: 1 1 44px;
+  }
+
+  .route-action-group,
+  .route-action-group .btn,
+  .route-action-group .inline-pill {
+    width: 100%;
   }
 
   .app-map-medium,
