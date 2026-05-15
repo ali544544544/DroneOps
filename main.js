@@ -601,9 +601,16 @@ const HelpTooltip = {
 
   show(trigger) {
     const text = trigger.dataset.tooltip || trigger.getAttribute('aria-label');
-    if (!text) return;
+    const titleKey = trigger.dataset.helpTitleKey;
+    if (!text && !titleKey) return;
     this.active = trigger;
-    this.el.textContent = text;
+    if (titleKey) {
+      this.el.innerHTML = this.renderRich(trigger);
+      this.el.classList.add('rich');
+    } else {
+      this.el.textContent = text;
+      this.el.classList.remove('rich');
+    }
     this.el.style.visibility = 'hidden';
     this.el.style.left = '0px';
     this.el.style.top = '0px';
@@ -612,6 +619,28 @@ const HelpTooltip = {
       this.position();
       this.el.style.visibility = 'visible';
     });
+  },
+
+  renderRich(trigger) {
+    const kicker = I18n.t(trigger.dataset.helpKickerKey, '');
+    const title = I18n.t(trigger.dataset.helpTitleKey, '');
+    const text = I18n.t(trigger.dataset.helpTextKey, trigger.dataset.tooltip || '');
+    const stepKeys = (trigger.dataset.helpStepKeys || '')
+      .split(',')
+      .map(key => key.trim())
+      .filter(Boolean);
+    const steps = stepKeys.map((key, index) => `
+      <div class="tooltip-step">
+        <strong>${index + 1}</strong>
+        <span>${Util.escapeHtml(I18n.t(key))}</span>
+      </div>
+    `).join('');
+    return `
+      ${kicker ? `<span class="tooltip-eyebrow">${Util.escapeHtml(kicker)}</span>` : ''}
+      ${title ? `<h3>${Util.escapeHtml(title)}</h3>` : ''}
+      ${text ? `<p>${Util.escapeHtml(text)}</p>` : ''}
+      ${steps ? `<div class="tooltip-steps">${steps}</div>` : ''}
+    `;
   },
 
   hide() {
