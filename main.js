@@ -808,6 +808,7 @@ const UI = {
     document.querySelectorAll('[data-i18n-title]').forEach(node => {
       node.setAttribute('title', I18n.t(node.dataset.i18nTitle));
     });
+    if (typeof CloudManager !== 'undefined' && CloudManager.updateUI) CloudManager.updateUI();
     if (this.els.searchInput) this.els.searchInput.placeholder = I18n.lang === 'de' ? 'Hamburg, DE' : 'Hamburg, DE';
   },
   updateStatusIndicator() {
@@ -2445,75 +2446,233 @@ const App = {
       document.getElementById('accountPanel').classList.add('hidden');
     });
 
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      const email = document.getElementById('authEmail').value.trim();
-      const pass = document.getElementById('authPassword').value;
-      if (!email) {
-        alert('Bitte E-Mail Adresse eingeben.');
-        return;
+    const authEmailInput = document.getElementById('authEmail');
+    const authPasswordInput = document.getElementById('authPassword');
+    const authPasswordConfirmInput = document.getElementById('authPasswordConfirm');
+    const signupFields = document.getElementById('signupFields');
+    const authModeTitle = document.getElementById('authModeTitle');
+    const authModeText = document.getElementById('authModeText');
+    const authValidationMessage = document.getElementById('authValidationMessage');
+    const authModeSwitchBtn = document.getElementById('authModeSwitchBtn');
+    const authSwitchText = document.getElementById('authSwitchText');
+    const forgotPasswordWrap = document.getElementById('forgotPasswordWrap');
+    const loginBtn = document.getElementById('loginBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    const privacyAccepted = document.getElementById('privacyAccepted');
+    let authMode = 'login';
+    let authSubmitted = false;
+
+    const emailLooksValid = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const setAuthMessage = (message = '') => {
+      if (authValidationMessage) authValidationMessage.textContent = message;
+    };
+    const getSignupRules = () => {
+      const pass = authPasswordInput?.value || '';
+      const confirmPass = authPasswordConfirmInput?.value || '';
+      return {
+        signupReqLength: pass.length >= 8,
+        signupReqLetter: /[a-z]/.test(pass) && /[A-Z]/.test(pass),
+        signupReqNumber: /\d/.test(pass),
+        signupReqMatch: !!pass && pass === confirmPass
+      };
+    };
+    const validateSignupForm = ({ showMessage = false } = {}) => {
+      const email = authEmailInput?.value.trim() || '';
+      const pass = authPasswordInput?.value || '';
+      const rules = getSignupRules();
+      Object.entries(rules).forEach(([id, valid]) => {
+        document.getElementById(id)?.classList.toggle('valid', valid);
+      });
+      let message = '';
+      if (!email) message = I18n.t('auth.validationEmailRequired');
+      else if (!emailLooksValid(email)) message = I18n.t('auth.validationEmailInvalid');
+      else if (!pass) message = I18n.t('auth.validationPasswordRequired');
+      else if (!Object.values(rules).every(Boolean)) message = I18n.t('auth.passwordRequirementsAlert');
+      else if (!privacyAccepted?.checked) message = I18n.t('auth.validationPrivacyRequired');
+      if (showMessage) setAuthMessage(message);
+      return !message;
+    };
+    const validateLoginForm = ({ showMessage = false } = {}) => {
+      const email = authEmailInput?.value.trim() || '';
+      const pass = authPasswordInput?.value || '';
+      let message = '';
+      if (!email) message = I18n.t('auth.validationEmailRequired');
+      else if (!emailLooksValid(email)) message = I18n.t('auth.validationEmailInvalid');
+      else if (!pass) message = I18n.t('auth.validationPasswordRequired');
+      if (showMessage) setAuthMessage(message);
+      return !message;
+    };
+    const updateAuthMode = (mode) => {
+      authMode = mode;
+      authSubmitted = false;
+      setAuthMessage('');
+      const isSignup = mode === 'signup';
+      signupFields?.classList.toggle('hidden', !isSignup);
+      loginBtn?.classList.toggle('hidden', isSignup);
+      signupBtn?.classList.toggle('hidden', !isSignup);
+      forgotPasswordWrap?.classList.toggle('hidden', isSignup);
+      if (authModeTitle) {
+        authModeTitle.dataset.i18n = isSignup ? 'auth.signupTitle' : 'auth.loginTitle';
+        authModeTitle.textContent = I18n.t(authModeTitle.dataset.i18n);
       }
-      if (!pass) {
-        alert('Bitte Passwort eingeben.');
-        return;
+      if (authModeText) {
+        authModeText.dataset.i18n = isSignup ? 'auth.signupText' : 'auth.loginText';
+        authModeText.textContent = I18n.t(authModeText.dataset.i18n);
       }
+      if (authSwitchText) {
+        authSwitchText.dataset.i18n = isSignup ? 'auth.hasAccount' : 'auth.noAccount';
+        authSwitchText.textContent = I18n.t(authSwitchText.dataset.i18n);
+      }
+      if (authModeSwitchBtn) {
+        authModeSwitchBtn.dataset.i18n = isSignup ? 'auth.goLogin' : 'auth.goSignup';
+        authModeSwitchBtn.textContent = I18n.t(authModeSwitchBtn.dataset.i18n);
+      }
+      if (authPasswordInput) authPasswordInput.autocomplete = isSignup ? 'new-password' : 'current-password';
+      if (authPasswordConfirmInput) authPasswordConfirmInput.value = '';
+      if (privacyAccepted) privacyAccepted.checked = false;
+      validateSignupForm();
+    };
+    [authEmailInput, authPasswordInput, authPasswordConfirmInput, privacyAccepted].forEach(input => {
+      input?.addEventListener('input', () => {
+        if (authMode === 'signup') validateSignupForm({ showMessage: authSubmitted });
+        else validateLoginForm({ showMessage: authSubmitted });
+      });
+      input?.addEventListener('change', () => {
+        if (authMode === 'signup') validateSignupForm({ showMessage: authSubmitted });
+      });
+    });
+    authModeSwitchBtn?.addEventListener('click', () => {
+      updateAuthMode(authMode === 'signup' ? 'login' : 'signup');
+    });
+    updateAuthMode('login');
+
+    loginBtn.addEventListener('click', async () => {
+      authSubmitted = true;
+      if (!validateLoginForm({ showMessage: true })) return;
+      const email = authEmailInput.value.trim();
+      const pass = authPasswordInput.value;
+      const original = loginBtn.textContent;
+      loginBtn.disabled = true;
+      loginBtn.textContent = '...';
       try {
         await CloudManager.login(email, pass);
+        setAuthMessage('');
         await this.renderAfterAccountChange({ resetTab: false, forceRefresh: true });
-      } catch (e) { alert(e.message); }
+      } catch (e) {
+        setAuthMessage(e.message);
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = original;
+      }
     });
 
+    const togglePasswordChangeBtn = document.getElementById('togglePasswordChangeBtn');
+    const passwordChangeForm = document.getElementById('passwordChangeForm');
+    const changePasswordInput = document.getElementById('changePasswordInput');
+    const changePasswordConfirmInput = document.getElementById('changePasswordConfirmInput');
     const changePassBtn = document.getElementById('changePasswordBtn');
+    const passwordRequirementIds = ['passwordReqLength', 'passwordReqLetter', 'passwordReqNumber', 'passwordReqMatch'];
+    const validatePasswordChange = () => {
+      const newPass = changePasswordInput?.value || '';
+      const confirmPass = changePasswordConfirmInput?.value || '';
+      const rules = {
+        passwordReqLength: newPass.length >= 8,
+        passwordReqLetter: /[a-z]/.test(newPass) && /[A-Z]/.test(newPass),
+        passwordReqNumber: /\d/.test(newPass),
+        passwordReqMatch: !!newPass && newPass === confirmPass
+      };
+      passwordRequirementIds.forEach(id => document.getElementById(id)?.classList.toggle('valid', !!rules[id]));
+      const valid = Object.values(rules).every(Boolean);
+      if (changePassBtn) changePassBtn.disabled = !valid;
+      return valid;
+    };
+    const closePasswordForm = () => {
+      passwordChangeForm?.classList.add('hidden');
+      if (changePasswordInput) changePasswordInput.value = '';
+      if (changePasswordConfirmInput) changePasswordConfirmInput.value = '';
+      validatePasswordChange();
+    };
+    if (togglePasswordChangeBtn && passwordChangeForm) {
+      togglePasswordChangeBtn.addEventListener('click', () => {
+        passwordChangeForm.classList.toggle('hidden');
+        validatePasswordChange();
+        if (!passwordChangeForm.classList.contains('hidden')) changePasswordInput?.focus();
+      });
+    }
+    [changePasswordInput, changePasswordConfirmInput].forEach(input => {
+      input?.addEventListener('input', validatePasswordChange);
+    });
     if (changePassBtn) {
       changePassBtn.addEventListener('click', async () => {
-        const newPass = document.getElementById('changePasswordInput').value;
-        if (!newPass || newPass.length < 6) return alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
+        if (!validatePasswordChange()) {
+          alert(I18n.t('auth.passwordRequirementsAlert'));
+          return;
+        }
+        const newPass = changePasswordInput.value;
         const original = changePassBtn.textContent;
         changePassBtn.textContent = '...';
+        changePassBtn.disabled = true;
         try {
           await CloudManager.updatePassword(newPass);
-          document.getElementById('changePasswordInput').value = '';
+          closePasswordForm();
+          UI.toast(I18n.t('toast.passwordChanged'));
         } catch (e) {
           alert('Fehler: ' + e.message);
         } finally {
           changePassBtn.textContent = original;
+          validatePasswordChange();
         }
       });
     }
 
-    document.getElementById('signupBtn').addEventListener('click', async () => {
-      const email = document.getElementById('authEmail').value.trim();
-      const pass = document.getElementById('authPassword').value;
-      if (!email) {
-        alert('Bitte E-Mail Adresse eingeben.');
-        return;
-      }
-      if (!pass || pass.length < 6) {
-        alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
-        return;
-      }
-      const btn = document.getElementById('signupBtn');
-      const original = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = '...';
+    signupBtn.addEventListener('click', async () => {
+      authSubmitted = true;
+      if (!validateSignupForm({ showMessage: true })) return;
+      const email = authEmailInput.value.trim();
+      const pass = authPasswordInput.value;
+      const original = signupBtn.textContent;
+      signupBtn.disabled = true;
+      signupBtn.textContent = '...';
       try {
         const data = await CloudManager.signup(email, pass);
         if (data?.session) {
+          setAuthMessage('');
           await this.renderAfterAccountChange({ resetTab: false, forceRefresh: true });
           UI.toast(I18n.t('toast.loggedIn'));
         } else {
           UI.toast(I18n.t('toast.verifyEmail'));
+          updateAuthMode('login');
         }
       } catch (e) {
-        alert(e.message);
+        setAuthMessage(e.message);
       } finally {
-        btn.disabled = false;
-        btn.textContent = original;
+        signupBtn.disabled = false;
+        signupBtn.textContent = original;
       }
     });
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await CloudManager.logout();
     });
+
+    const requestDeletionBtn = document.getElementById('requestDeletionBtn');
+    if (requestDeletionBtn) {
+      requestDeletionBtn.addEventListener('click', async () => {
+        if (!confirm(I18n.t('auth.requestDeletionConfirm'))) return;
+        const original = requestDeletionBtn.textContent;
+        requestDeletionBtn.textContent = '...';
+        requestDeletionBtn.disabled = true;
+        try {
+          await CloudManager.requestAccountDeletion();
+          UI.toast(I18n.t('toast.accountDeletionRequested'));
+        } catch (e) {
+          alert('Fehler: ' + e.message);
+        } finally {
+          requestDeletionBtn.textContent = original;
+          requestDeletionBtn.disabled = false;
+        }
+      });
+    }
 
     document.getElementById('syncNowBtn').addEventListener('click', async () => {
       const btn = document.getElementById('syncNowBtn');
@@ -2532,15 +2691,14 @@ const App = {
     });
 
     document.getElementById('resetPassBtn').addEventListener('click', async () => {
-      const email = document.getElementById('authEmail').value;
-      if (!email) {
-        alert('Bitte E-Mail Adresse eingeben.');
-        return;
-      }
+      const email = authEmailInput.value.trim();
+      if (!email) return setAuthMessage(I18n.t('auth.validationEmailRequired'));
+      if (!emailLooksValid(email)) return setAuthMessage(I18n.t('auth.validationEmailInvalid'));
       try {
         await CloudManager.resetPassword(email);
+        setAuthMessage(I18n.t('auth.resetPasswordSent'));
       } catch (e) {
-        alert(e.message);
+        setAuthMessage(e.message);
       }
     });
   },

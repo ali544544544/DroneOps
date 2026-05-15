@@ -265,8 +265,39 @@ export const CloudManager = {
 
   async updatePassword(newPassword) {
     if (!this.client) throw new Error('Cloud client not ready');
-    const { error } = await this.client.auth.updateUser({ password: newPassword });
+    const { data, error } = await this.client.auth.updateUser({ password: newPassword });
     if (error) throw error;
+    if (data?.user) this.user = data.user;
+    this.updateUI();
+  },
+
+  async requestAccountDeletion() {
+    if (!this.client || !this.user) throw new Error('Cloud client not ready');
+    const requestedAt = new Date().toISOString();
+    const { data, error } = await this.client.auth.updateUser({
+      data: {
+        account_deletion_requested_at: requestedAt,
+        account_deletion_requested_email: this.user.email
+      }
+    });
+    if (error) throw error;
+    if (data?.user) this.user = data.user;
+    this.updateUI();
+    return requestedAt;
+  },
+
+  formatAccountDate(value) {
+    if (!value) return I18n.t('auth.notAvailable');
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return I18n.t('auth.notAvailable');
+    try {
+      return new Intl.DateTimeFormat(I18n.locale, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(date);
+    } catch (e) {
+      return date.toLocaleString();
+    }
   },
 
   updateUI() {
@@ -274,24 +305,48 @@ export const CloudManager = {
     const authView = document.getElementById('authView');
     const userView = document.getElementById('userView');
     const userEmail = document.getElementById('userEmail');
+    const accountEmailValue = document.getElementById('accountEmailValue');
+    const accountMemberSince = document.getElementById('accountMemberSince');
+    const accountLastLogin = document.getElementById('accountLastLogin');
+    const passwordChangeForm = document.getElementById('passwordChangeForm');
+    const changePasswordInput = document.getElementById('changePasswordInput');
+    const changePasswordConfirmInput = document.getElementById('changePasswordConfirmInput');
     const modePill = document.querySelector('.account-mode-pill');
 
     const accountBtn = document.getElementById('accountBtn');
     if (this.user) {
       if (statusEl) statusEl.classList.add('live');
-      if (accountBtn) accountBtn.classList.add('btn-active');
+      if (accountBtn) {
+        accountBtn.classList.add('btn-active');
+        accountBtn.textContent = this.user.email || I18n.t('common.account');
+        accountBtn.title = this.user.email || I18n.t('common.account');
+      }
       if (authView) authView.classList.add('hidden');
       if (userView) userView.classList.remove('hidden');
       if (userEmail) userEmail.textContent = this.user.email;
+      if (accountEmailValue) accountEmailValue.textContent = this.user.email || I18n.t('auth.notAvailable');
+      if (accountMemberSince) accountMemberSince.textContent = this.formatAccountDate(this.user.created_at);
+      if (accountLastLogin) accountLastLogin.textContent = this.formatAccountDate(this.user.last_sign_in_at);
       if (modePill) {
         modePill.textContent = I18n.t('auth.syncModePill');
         modePill.classList.add('synced');
       }
     } else {
       if (statusEl) statusEl.classList.remove('live');
-      if (accountBtn) accountBtn.classList.remove('btn-active');
+      if (accountBtn) {
+        accountBtn.classList.remove('btn-active');
+        accountBtn.textContent = I18n.t('common.account');
+        accountBtn.title = I18n.t('common.account');
+      }
       if (authView) authView.classList.remove('hidden');
       if (userView) userView.classList.add('hidden');
+      if (userEmail) userEmail.textContent = '';
+      if (accountEmailValue) accountEmailValue.textContent = '-';
+      if (accountMemberSince) accountMemberSince.textContent = '-';
+      if (accountLastLogin) accountLastLogin.textContent = '-';
+      if (passwordChangeForm) passwordChangeForm.classList.add('hidden');
+      if (changePasswordInput) changePasswordInput.value = '';
+      if (changePasswordConfirmInput) changePasswordConfirmInput.value = '';
       if (modePill) {
         modePill.textContent = I18n.t('auth.localModePill');
         modePill.classList.remove('synced');

@@ -89,8 +89,8 @@
       
       <div id="authView">
         <div class="auth-info">
-          <strong data-i18n="auth.infoTitle">Ein Formular, zwei Aktionen</strong>
-          <p data-i18n="auth.infoText">E-Mail und Passwort eingeben. Wenn du schon ein Konto hast, nutze Login. Wenn nicht, nutze Registrieren und bestaetige danach ggf. die E-Mail.</p>
+          <strong id="authModeTitle" data-i18n="auth.loginTitle">Einloggen</strong>
+          <p id="authModeText" data-i18n="auth.loginText">Melde dich mit deiner E-Mail und deinem Passwort an.</p>
         </div>
         <p class="storage-notice" data-i18n="auth.storageNotice">Ohne Account bleiben Orte, Drohnen und Checklisten nur in diesem Browser gespeichert. Mit Account kannst du die Daten auf mehreren Geräten nutzen.</p>
         <div class="field">
@@ -99,29 +99,86 @@
         <div class="field mt-8">
           <input id="authPassword" type="password" placeholder="Passwort" data-i18n-placeholder="auth.password" autocomplete="current-password" />
         </div>
-        <p class="auth-action-hint" data-i18n="auth.actionHint">Login prueft bestehende Konten. Registrieren erstellt ein neues Konto mit denselben Eingaben.</p>
-        <div class="auth-actions">
-          <button id="loginBtn" class="btn" data-i18n="auth.login">Login</button>
-          <button id="signupBtn" class="btn btn-secondary" data-i18n="auth.signup">Sign Up</button>
+        <div id="signupFields" class="hidden">
+          <div class="field mt-8">
+            <input id="authPasswordConfirm" type="password" minlength="8" placeholder="Passwort bestaetigen..." data-i18n-placeholder="auth.confirmPasswordPlaceholder" autocomplete="new-password" />
+          </div>
+          <ul id="signupPasswordRequirements" class="password-requirements">
+            <li id="signupReqLength" data-i18n="auth.passwordReqLength">Mindestens 8 Zeichen</li>
+            <li id="signupReqLetter" data-i18n="auth.passwordReqLetter">Gross- und Kleinbuchstaben</li>
+            <li id="signupReqNumber" data-i18n="auth.passwordReqNumber">Mindestens eine Zahl</li>
+            <li id="signupReqMatch" data-i18n="auth.passwordReqMatch">Passwoerter stimmen ueberein</li>
+          </ul>
+          <label class="auth-terms">
+            <input id="privacyAccepted" type="checkbox" />
+            <span><span data-i18n="auth.privacyAccepted">Ich habe die Privacy Policy gelesen.</span> <a href="./privacy.html" data-i18n="auth.privacy">Privacy Statement</a></span>
+          </label>
         </div>
-        <div style="text-align:center; margin-top:12px;">
+        <p id="authValidationMessage" class="auth-validation-message" role="alert"></p>
+        <div class="auth-actions single">
+          <button id="loginBtn" class="btn" data-i18n="auth.login">Login</button>
+          <button id="signupBtn" class="btn hidden" data-i18n="auth.signup">Registrieren</button>
+        </div>
+        <div id="forgotPasswordWrap" style="text-align:center; margin-top:12px;">
           <button id="resetPassBtn" class="nav-link-small" style="background:none; border:none; color:var(--blue); cursor:pointer;" data-i18n="auth.forgotPassword">Passwort vergessen?</button>
+        </div>
+        <div class="auth-mode-switch">
+          <span id="authSwitchText" data-i18n="auth.noAccount">Noch keinen Account?</span>
+          <button id="authModeSwitchBtn" type="button" class="nav-link-small" data-i18n="auth.goSignup">Registrieren</button>
         </div>
       </div>
 
-      <div id="userView" class="hidden">
-        <p id="userEmail" class="muted" style="margin-bottom:12px; font-size:0.9rem; word-break: break-all;"></p>
+      <div id="userView" class="hidden account-user-view">
+        <p id="userEmail" class="account-user-email"></p>
+
+        <section class="account-section">
+          <h4 data-i18n="auth.accountDetails">Account Details</h4>
+          <dl class="account-details">
+            <div>
+              <dt data-i18n="auth.detailEmail">E-Mail</dt>
+              <dd id="accountEmailValue">-</dd>
+            </div>
+            <div>
+              <dt data-i18n="auth.memberSince">Member since</dt>
+              <dd id="accountMemberSince">-</dd>
+            </div>
+            <div>
+              <dt data-i18n="auth.lastLogin">Last login</dt>
+              <dd id="accountLastLogin">-</dd>
+            </div>
+          </dl>
+        </section>
         
-        <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.1);">
-          <p style="font-size:0.8rem; margin-bottom:8px;" class="muted" data-i18n="auth.changePassword">Passwort ändern:</p>
-          <div class="field" style="margin-bottom:8px;">
-            <input id="changePasswordInput" type="password" placeholder="Neues Passwort..." data-i18n-placeholder="auth.newPasswordPlaceholder" autocomplete="new-password" />
+        <section class="account-section">
+          <button id="togglePasswordChangeBtn" class="btn btn-secondary btn-small account-full-btn" type="button" data-i18n="auth.changePassword">Passwort aendern</button>
+          <div id="passwordChangeForm" class="password-change-form hidden">
+            <div class="field">
+              <input id="changePasswordInput" type="password" minlength="8" placeholder="Neues Passwort..." data-i18n-placeholder="auth.newPasswordPlaceholder" autocomplete="new-password" />
+            </div>
+            <div class="field mt-8">
+              <input id="changePasswordConfirmInput" type="password" minlength="8" placeholder="Passwort bestaetigen..." data-i18n-placeholder="auth.confirmPasswordPlaceholder" autocomplete="new-password" />
+            </div>
+            <ul id="passwordRequirements" class="password-requirements">
+              <li id="passwordReqLength" data-i18n="auth.passwordReqLength">Mindestens 8 Zeichen</li>
+              <li id="passwordReqLetter" data-i18n="auth.passwordReqLetter">Gross- und Kleinbuchstaben</li>
+              <li id="passwordReqNumber" data-i18n="auth.passwordReqNumber">Mindestens eine Zahl</li>
+              <li id="passwordReqMatch" data-i18n="auth.passwordReqMatch">Passwoerter stimmen ueberein</li>
+            </ul>
+            <button id="changePasswordBtn" class="btn btn-secondary btn-small account-full-btn" type="button" disabled data-i18n="common.save">Speichern</button>
           </div>
-          <button id="changePasswordBtn" class="btn btn-secondary btn-small" style="width:100%" data-i18n="common.save">Speichern</button>
-        </div>
+        </section>
  
         <button id="syncNowBtn" class="btn btn-small" style="width:100%; margin-bottom:8px;" data-i18n="auth.syncData">☁️ Daten jetzt sichern</button>
-        <button id="logoutBtn" class="btn btn-secondary btn-small" style="width:100%" data-i18n="auth.logout">Logout</button>
+        <nav class="account-legal-links" aria-label="Account links">
+          <a href="./legal.html" data-i18n="auth.legal">Legal</a>
+          <a href="./imprint.html" data-i18n="auth.imprint">Imprint</a>
+          <a href="./privacy.html" data-i18n="auth.privacy">Privacy Statement</a>
+        </nav>
+
+        <div class="account-bottom-actions">
+          <button id="logoutBtn" class="btn btn-secondary btn-small account-full-btn" type="button" data-i18n="auth.logout">Logout</button>
+          <button id="requestDeletionBtn" class="account-danger-link" type="button" data-i18n="auth.requestDeletion">Request account deletion</button>
+        </div>
       </div>
     </div>
 

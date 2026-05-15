@@ -646,7 +646,7 @@ a { color: inherit; text-decoration: none; }
   top: calc(10px + var(--header-h) + 12px);
   right: 20px;
   z-index: 2000;
-  width: min(340px, calc(100vw - 32px));
+  width: min(380px, calc(100vw - 32px));
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
@@ -707,6 +707,15 @@ a { color: inherit; text-decoration: none; }
   margin-top: 10px;
 }
 
+.auth-validation-message {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: #ffb0b0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .storage-notice {
   margin: -2px 0 14px;
   padding: 10px 12px;
@@ -722,6 +731,180 @@ a { color: inherit; text-decoration: none; }
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 16px;
+}
+
+.auth-actions.single {
+  grid-template-columns: 1fr;
+}
+
+.auth-terms {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.auth-terms input {
+  margin-top: 2px;
+}
+
+.auth-terms a {
+  color: var(--cyan);
+  text-decoration: underline;
+}
+
+.auth-mode-switch {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.auth-mode-switch button {
+  border: 0;
+  background: none;
+  color: var(--blue);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+}
+
+.auth-mode-switch button:hover,
+.auth-mode-switch button:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.account-user-view {
+  display: grid;
+  gap: 12px;
+}
+
+.account-user-email {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.account-section {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-section h4 {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.account-details {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+}
+
+.account-details div {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.45fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.account-details dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.account-details dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.8rem;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.account-full-btn {
+  width: 100%;
+}
+
+.password-change-form {
+  margin-top: 10px;
+}
+
+.password-requirements {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 10px;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.password-requirements li.valid {
+  color: var(--green);
+}
+
+.account-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 14px;
+  padding: 4px 0;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.account-legal-links a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+.account-legal-links a:hover,
+.account-legal-links a:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.account-bottom-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.account-danger-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #ff8a8a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.account-danger-link:hover,
+.account-danger-link:focus-visible {
+  color: #ffd1d1;
+  text-decoration: underline;
 }
 
 .info-dot {
