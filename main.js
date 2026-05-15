@@ -2613,10 +2613,37 @@ const App = {
     return locations[0] || null;
   },
 
-  currentIndex(weatherData) {
-    const currentTime = weatherData.current_weather.time;
-    const idx = weatherData.hourly.time.indexOf(currentTime);
-    return idx >= 0 ? idx : 0;
+  currentIndex(weatherData, targetTime = null) {
+    const times = weatherData?.hourly?.time || [];
+    if (!times.length) return 0;
+
+    const currentTime = targetTime || weatherData?.current_weather?.time || new Date();
+    const exactIdx = times.indexOf(currentTime);
+    if (exactIdx >= 0) return exactIdx;
+
+    const targetMs = this.parseWeatherDate(currentTime).getTime();
+    if (!Number.isFinite(targetMs)) return 0;
+
+    let nearestIdx = 0;
+    let nearestDiff = Infinity;
+    times.forEach((time, index) => {
+      const timeMs = this.parseWeatherDate(time).getTime();
+      const diff = Math.abs(timeMs - targetMs);
+      if (Number.isFinite(diff) && diff < nearestDiff) {
+        nearestDiff = diff;
+        nearestIdx = index;
+      }
+    });
+    return nearestIdx;
+  },
+
+  parseWeatherDate(value) {
+    if (value instanceof Date) return value;
+    if (typeof value === 'number') return new Date(value);
+    if (!value) return new Date();
+    const str = String(value);
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(str);
+    return new Date(hasTimezone ? str : str.replace('T', ' '));
   },
 
   scoreForCurrent(weather) {
@@ -2695,10 +2722,11 @@ const App = {
       const dashWindMs = Util.kmhToMs(weather.data.current_weather.windspeed);
       const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
-      const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
+      const currentNDTime = new Date();
+      const posNow = this.getSolarPosition(currentNDTime, location.lat, location.lon);
       const dashRainBS = Util.getBrightSkyRain(weather.bsData, weather.data.current_weather.time);
-      const dashND = NDRecommendationService.fromOpenMeteoHour(weather, sun.data.results, idx, {
-        time: weather.data.current_weather.time,
+      const dashND = NDRecommendationService.fromOpenMeteoHour(weather, sunToday.data.results, idx, {
+        time: currentNDTime,
         sunElevation: posNow.elevation,
         rainSecondary: dashRainBS
       });
@@ -3789,8 +3817,9 @@ const App = {
       const detailWindDir = Util.windArrow(weather.data.current_weather.winddirection);
       const visKm = (weather.data.hourly.visibility[idx] / 1000).toFixed(1);
       const detailRainBS = Util.getBrightSkyRain(weather.bsData, weather.data.current_weather.time);
+      const detailNDTime = new Date();
       const detailND = NDRecommendationService.fromOpenMeteoHour(weather, sun.data.results, idx, {
-        time: weather.data.current_weather.time,
+        time: detailNDTime,
         sunElevation: posNow.elevation,
         rainSecondary: detailRainBS
       });
