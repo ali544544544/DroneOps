@@ -318,8 +318,8 @@ export const CloudManager = {
       if (statusEl) statusEl.classList.add('live');
       if (accountBtn) {
         accountBtn.classList.add('btn-active');
-        accountBtn.textContent = this.user.email || I18n.t('common.account');
-        accountBtn.title = this.user.email || I18n.t('common.account');
+        accountBtn.textContent = '👤';
+        accountBtn.title = I18n.t('common.account');
       }
       if (authView) authView.classList.add('hidden');
       if (userView) userView.classList.remove('hidden');
@@ -335,7 +335,7 @@ export const CloudManager = {
       if (statusEl) statusEl.classList.remove('live');
       if (accountBtn) {
         accountBtn.classList.remove('btn-active');
-        accountBtn.textContent = I18n.t('common.account');
+        accountBtn.textContent = '👤';
         accountBtn.title = I18n.t('common.account');
       }
       if (authView) authView.classList.remove('hidden');
