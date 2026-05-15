@@ -1,4 +1,4 @@
-const CACHE_NAME = 'droneops-v22';
+const CACHE_NAME = 'droneops-v23';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,8 @@ const CORE_ASSETS = [
   './js/ui.js',
   './js/util.js',
   './js/weather.js',
+  './weather/nd/ndRecommendationService.js',
+  './weather/nd/ndWeatherEstimate.js',
   './config.js',
   './manifest.json',
   './data/translations.json',

@@ -1,4 +1,5 @@
 import { Keys, Storage, FALLBACK_PROFILES, FALLBACK_TRANSLATIONS, DRONE_WEATHER_CODES_FALLBACK, I18n, CloudManager, ProfileManager, ChecklistManager, LocationManager, MapManager, Util, Nominatim, WeatherService, BrightSkyService, SunService, ScoreEngine, GoldenHour, Toast, Skeleton, Router, AttachmentManager } from './js/index.js';
+import { NDRecommendationService } from './weather/nd/ndRecommendationService.js';
 
 // Expose modules to global window for legacy event handlers and debugging
 window.Keys = Keys;
@@ -1213,7 +1214,7 @@ const UI = {
     svg += '\n</svg>';
     return svg;
   },
-  renderHourly(target, weather, gh, location) {
+  renderHourly(target, weather, gh, location, sunResults = null) {
     const profile = ProfileManager.getActive();
     const nowHour = new Date().getHours();
     const todayKey = Util.dayKey();
@@ -1231,7 +1232,10 @@ const UI = {
       });
       const hDate = new Date(time.replace('T', ' '));
       const pos = App.getSolarPosition(hDate, location.lat, location.lon);
-      const nd = Util.recommendND(weather.data.hourly.weathercode[i], pos.elevation);
+      const nd = NDRecommendationService.fromOpenMeteoHour(weather, sunResults, i, {
+        sunElevation: pos.elevation,
+        rainSecondary
+      });
 
       return {
         time,
@@ -1261,7 +1265,7 @@ const UI = {
               <span>💨 ${item.wind} m/s</span>
               <span>🌧 ${Math.max(item.rain, item.rainSecondary || 0)} mm${item.rainSecondary !== null && Math.abs(item.rain - item.rainSecondary) > 0.1 ? ` <span title="OM: ${item.rain} / BS: ${item.rainSecondary}" style="cursor:help; opacity:0.6">ⓘ</span>` : ''}</span>
             </div>
-            <div class="hour-nd" style="font-size:0.7rem;margin-top:4px;font-weight:800;color:var(--blue)">📷 ${item.nd}</div>
+            <div class="hour-nd" title="${Util.escapeHtml(item.nd.reason)}" style="font-size:0.7rem;margin-top:4px;font-weight:800;color:var(--blue)">📷 ${item.nd.recommendedFilter}</div>
             ${item.isGolden ? '<div class="hour-golden">🌅</div>' : ''}
             ${item.isNow ? '<div class="hour-now-dot"></div>' : ''}
           </article>
@@ -2692,6 +2696,12 @@ const App = {
       const dashGustsMs = Util.kmhToMs(weather.data.hourly.windgusts_10m[idx]);
       const dashWindDir = Util.windArrow(weather.data.current_weather.winddirection);
       const posNow = this.getSolarPosition(new Date(), location.lat, location.lon);
+      const dashRainBS = Util.getBrightSkyRain(weather.bsData, weather.data.current_weather.time);
+      const dashND = NDRecommendationService.fromOpenMeteoHour(weather, sun.data.results, idx, {
+        time: weather.data.current_weather.time,
+        sunElevation: posNow.elevation,
+        rainSecondary: dashRainBS
+      });
       
       // Isolated Map Rendering
       try {
@@ -2745,8 +2755,9 @@ const App = {
           <div class="metric-grid">
             <div class="kpi"><span>${I18n.t('weather.wind')} 10m</span><strong>${dashWindMs} <small>m/s</small> ${dashWindDir}</strong></div>
             <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${dashGustsMs} <small>m/s</small></strong></div>
-            <div class="kpi"><span>ND Filter</span><strong>${Util.recommendND(weather.data.current_weather.weathercode, posNow.elevation)}</strong></div>
+            <div class="kpi" title="${Util.escapeHtml(dashND.reason)}"><span>ND Filter</span><strong>${dashND.recommendedFilter}</strong></div>
           </div>
+          <p class="mt-12 muted nd-hint">${NDRecommendationService.hint}</p>
           <div class="wind-alt-bar">
             <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
             <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
@@ -2863,7 +2874,7 @@ const App = {
       `;
 
       UI.els.dashboardHourlyPanel.innerHTML = `${UI.titleWithInfo(I18n.t('dashboard.hourly'), 'help.hourlyForecast')}<div id="dashboardHourlyInner" class=\"hourly-inner\"></div>`;
-      UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather, gh, location);
+      UI.renderHourly(document.getElementById('dashboardHourlyInner'), weather, gh, location, sun.data.results);
       
       this.renderDashboardDrone();
       this.renderDashboardChecklist();
@@ -3778,6 +3789,11 @@ const App = {
       const detailWindDir = Util.windArrow(weather.data.current_weather.winddirection);
       const visKm = (weather.data.hourly.visibility[idx] / 1000).toFixed(1);
       const detailRainBS = Util.getBrightSkyRain(weather.bsData, weather.data.current_weather.time);
+      const detailND = NDRecommendationService.fromOpenMeteoHour(weather, sun.data.results, idx, {
+        time: weather.data.current_weather.time,
+        sunElevation: posNow.elevation,
+        rainSecondary: detailRainBS
+      });
       UI.els.detailWeatherPanel.innerHTML = `
         ${UI.titleWithInfo(I18n.t('detail.weather'), 'help.weatherData')}
         <div class="metric-grid">
@@ -3790,11 +3806,13 @@ const App = {
           <div class="kpi"><span>${I18n.t('weather.clouds')}</span><strong>${weather.data.hourly.cloudcover[idx]}%</strong></div>
           <div class="kpi"><span>${I18n.t('weather.visibility')}</span><strong>${visKm} <small>km</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.pressure')}</span><strong>${weather.data.hourly.surface_pressure[idx]} <small>hPa</small></strong></div>
+          <div class="kpi" title="${Util.escapeHtml(detailND.reason)}"><span>ND Filter</span><strong>${detailND.recommendedFilter}</strong></div>
         </div>
         <div class="wind-alt-bar">
           <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
           <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
         </div>
+        <p class="mt-12 muted nd-hint">${NDRecommendationService.hint}</p>
         <p class="mt-12">${meta.icon} ${meta[I18n.lang]}</p>
       `;
 
@@ -3824,7 +3842,7 @@ const App = {
       `;
 
       UI.els.detailHourlyPanel.innerHTML = `${UI.titleWithInfo(I18n.t('detail.hourly'), 'help.hourlyForecast')}<div id="detailHourlyInner" class=\"hourly-inner\"></div>`;
-      UI.renderHourly(document.getElementById('detailHourlyInner'), weather, gh, location);
+      UI.renderHourly(document.getElementById('detailHourlyInner'), weather, gh, location, sun.data.results);
 
       this.renderNotesPanel(location);
     } catch (error) {
