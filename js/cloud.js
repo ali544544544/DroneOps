@@ -314,13 +314,16 @@ export const CloudManager = {
     const modePill = document.querySelector('.account-mode-pill');
 
     const accountBtn = document.getElementById('accountBtn');
+    const accountNudge = document.getElementById('accountNudge');
     if (this.user) {
       if (statusEl) statusEl.classList.add('live');
       if (accountBtn) {
         accountBtn.classList.add('btn-active');
+        accountBtn.classList.remove('account-attention');
         accountBtn.textContent = '👤';
         accountBtn.title = I18n.t('common.account');
       }
+      if (accountNudge) accountNudge.classList.add('hidden');
       if (authView) authView.classList.add('hidden');
       if (userView) userView.classList.remove('hidden');
       if (userEmail) userEmail.textContent = this.user.email;
@@ -335,9 +338,11 @@ export const CloudManager = {
       if (statusEl) statusEl.classList.remove('live');
       if (accountBtn) {
         accountBtn.classList.remove('btn-active');
+        accountBtn.classList.add('account-attention');
         accountBtn.textContent = '👤';
         accountBtn.title = I18n.t('common.account');
       }
+      if (accountNudge) accountNudge.classList.remove('hidden');
       if (authView) authView.classList.remove('hidden');
       if (userView) userView.classList.add('hidden');
       if (userEmail) userEmail.textContent = '';

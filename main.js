@@ -2438,9 +2438,12 @@ const App = {
     });
 
     // Account UI Events
-    document.getElementById('accountBtn').addEventListener('click', () => {
+    const toggleAccountPanel = () => {
       document.getElementById('accountPanel').classList.toggle('hidden');
-    });
+    };
+
+    document.getElementById('accountBtn').addEventListener('click', toggleAccountPanel);
+    document.getElementById('accountNudge')?.addEventListener('click', toggleAccountPanel);
 
     document.getElementById('accountCloseBtn').addEventListener('click', () => {
       document.getElementById('accountPanel').classList.add('hidden');

@@ -1102,6 +1102,33 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
 }
 
+.account-nudge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(64, 160, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(64, 160, 255, 0.1);
+  color: var(--cyan);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.account-nudge:hover,
+.account-nudge:focus-visible {
+  background: rgba(64, 160, 255, 0.18);
+  color: var(--text);
+}
+
+#accountBtn.account-attention {
+  border-color: rgba(64, 160, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(64, 160, 255, 0.12);
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
@@ -2740,6 +2767,10 @@ a { color: inherit; text-decoration: none; }
     min-width: 40px;
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  .account-nudge {
+    display: none;
   }
 
   #accountPanel {
