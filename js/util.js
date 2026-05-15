@@ -51,6 +51,12 @@ export const Util = {
   kmhToMs(kmh = 0) {
     return Math.round((kmh / 3.6) * 10) / 10;
   },
+  formatDistance(km = 0, locale = 'de-DE') {
+    const value = Number(km);
+    if (!Number.isFinite(value)) return '';
+    if (value < 10) return `${value.toLocaleString(locale, { maximumFractionDigits: 1 })} km`;
+    return `${Math.round(value).toLocaleString(locale)} km`;
+  },
   recommendND(weatherCode, elevation) {
     if (elevation < 0) return 'None';
     if (elevation < 10) return 'ND4';
@@ -75,6 +81,10 @@ export const Util = {
     });
   },
   async getTravelTime(lat1, lon1, lat2, lon2) {
+    const route = await this.getRouteInfo(lat1, lon1, lat2, lon2);
+    return route?.duration ?? null;
+  },
+  async getRouteInfo(lat1, lon1, lat2, lon2) {
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=false`;
       const res = await fetch(url);
@@ -85,7 +95,8 @@ export const Util = {
       }
       window.StatusTracker?.update('routing', 'network');
       const duration = Math.round(data.routes[0].duration / 60);
-      return duration;
+      const distance = data.routes[0].distance / 1000;
+      return { duration, distance };
     } catch (e) {
       console.error('OSRM Error:', e);
       window.StatusTracker?.update('routing', 'error');

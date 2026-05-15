@@ -3175,6 +3175,49 @@ const App = {
     if (currentPanel) currentPanel.outerHTML = UI.renderAirspacePanel(location, result);
   },
 
+  async updateDetailTravelInfo(location) {
+    const el = document.getElementById('detailTravelInfo');
+    if (!el || !location) return;
+
+    const homeBase = Storage.get(Keys.homeBase);
+    const distSource = Storage.get(Keys.distSource, homeBase ? 'home' : 'gps');
+    const sourceLabel = distSource === 'home' && homeBase ? I18n.t('detail.distanceHome') : I18n.t('detail.distanceGps');
+
+    let start = null;
+    try {
+      if (distSource === 'home' && homeBase) {
+        start = homeBase;
+      } else {
+        const pos = await Util.getCurrentPosition();
+        start = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      }
+    } catch (error) {
+      if (homeBase) {
+        start = homeBase;
+      }
+    }
+
+    if (!start) {
+      el.textContent = I18n.t('detail.distanceUnavailable');
+      return;
+    }
+
+    const route = await Util.getRouteInfo(start.lat, start.lon, location.lat, location.lon);
+    if (!route) {
+      el.textContent = I18n.t('detail.distanceUnavailable');
+      return;
+    }
+
+    const distance = Util.formatDistance(route.distance, I18n.locale);
+    el.textContent = `${I18n.t('detail.distanceLabel')}: ${distance} · ${route.duration} Min. (${sourceLabel})`;
+
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${start.lat},${start.lon}&destination=${location.lat},${location.lon}&travelmode=driving`;
+    const routeBtn = UI.els.detailMapPanel?.querySelector('[data-open-route]');
+    if (routeBtn) routeBtn.dataset.openRoute = mapsUrl;
+    const topRouteBtn = document.getElementById('detailRouteBtnTop');
+    if (topRouteBtn) topRouteBtn.onclick = () => window.open(mapsUrl, '_blank');
+  },
+
   removeDuplicateDetailAirspacePanels() {
     const mapPanel = UI.els.detailMapPanel;
     if (!mapPanel) return;
@@ -3684,11 +3727,13 @@ const App = {
 
       detailMapInfo.innerHTML = `
         <span class="inline-pill">📍 ${location.lat.toFixed(5)}, ${location.lon.toFixed(5)}</span>
+        <span id="detailTravelInfo" class="inline-pill">${I18n.t('detail.distanceLoading')}</span>
         <button class="btn btn-secondary" data-open-pin="https://www.google.com/maps?q=${location.lat},${location.lon}">${I18n.t('nav.openMaps')}</button>
         <button class="btn" data-open-route="https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}">${I18n.t('nav.route')}</button>
         ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
         ${AirspaceService.hasInteractiveOverlay(location) ? `<button class="btn btn-secondary" data-toggle-dipul>${this.isDipulOverlayEnabled() ? I18n.t('airspace.overlayOn') : I18n.t('airspace.overlayOff')}</button>` : ''}
       `;
+      this.updateDetailTravelInfo(location);
       this.updateDipulToggle();
 
       if (detailMapContainer) {
