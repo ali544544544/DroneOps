@@ -41,7 +41,6 @@ export const I18n = {
         el.dataset.tooltip = text;
         el.setAttribute('aria-label', text);
         el.removeAttribute('title');
-        el.textContent = '';
       } else {
         el.title = text;
       }

@@ -604,8 +604,14 @@ const HelpTooltip = {
     if (!text) return;
     this.active = trigger;
     this.el.textContent = text;
+    this.el.style.visibility = 'hidden';
+    this.el.style.left = '0px';
+    this.el.style.top = '0px';
     this.el.classList.remove('hidden');
-    requestAnimationFrame(() => this.position());
+    requestAnimationFrame(() => {
+      this.position();
+      this.el.style.visibility = 'visible';
+    });
   },
 
   hide() {

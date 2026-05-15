@@ -129,23 +129,13 @@
       <section id="page-dashboard" class="page active">
         <div class="page-head">
           <div>
-            <h2 data-i18n="dashboard.title">Dashboard</h2>
+            <div class="page-title-line">
+              <h2 data-i18n="dashboard.title">Dashboard</h2>
+              <button class="info-dot" type="button" data-i18n-title="guide.dashboardText" aria-label="Schnellstart Info">i</button>
+            </div>
             <p class="muted" data-i18n="dashboard.subtitle">Golden Hour und Flugbedingungen auf einen Blick</p>
           </div>
         </div>
-
-        <section class="panel glass ux-guide-panel">
-          <div class="guide-copy">
-            <span class="eyebrow" data-i18n="guide.dashboardKicker">Schnellstart</span>
-            <h3 data-i18n="guide.dashboardTitle">Wähle zuerst deinen Flugort</h3>
-            <p class="muted" data-i18n="guide.dashboardText">Nutze GPS für deine aktuelle Position oder wähle einen gespeicherten Spot. Danach erscheinen Wetter, Golden Hour, Drohnen-Score und Checkliste automatisch.</p>
-          </div>
-          <div class="guide-grid">
-            <div class="guide-step"><strong>1</strong><span data-i18n="guide.stepLocation">Ort per GPS, Suche oder Karte wählen.</span></div>
-            <div class="guide-step"><strong>2</strong><span data-i18n="guide.stepDrone">Aktive Drohne prüfen, damit die Limits stimmen.</span></div>
-            <div class="guide-step"><strong>3</strong><span data-i18n="guide.stepAccount">Optional anmelden, um Daten geräteübergreifend zu sichern.</span></div>
-          </div>
-        </section>
 
         <section class="panel glass quick-actions-panel">
           <div class="panel-toolbar compact-toolbar">
@@ -190,18 +180,13 @@
       <section id="page-locations" class="page">
         <div class="page-head">
           <div>
-            <h2 data-i18n="locations.title">Locations</h2>
+            <div class="page-title-line">
+              <h2 data-i18n="locations.title">Locations</h2>
+              <button class="info-dot" type="button" data-i18n-title="locations.guideText" aria-label="Spots verwalten Info">i</button>
+            </div>
             <p class="muted" data-i18n="locations.subtitle">Flugspots verwalten, Wetter prüfen, Notizen und Logbuch pflegen</p>
           </div>
         </div>
-
-        <section class="panel glass ux-guide-panel">
-          <div class="guide-copy">
-            <span class="eyebrow" data-i18n="locations.guideKicker">Spots verwalten</span>
-            <h3 data-i18n="locations.guideTitle">Speichere Orte, die du öfter prüfen willst</h3>
-            <p class="muted" data-i18n="locations.guideText">Suche eine Stadt, nutze GPS oder setze einen Pin auf der Karte. Jeder gespeicherte Spot bekommt Wetter, Golden Hour, Drohnenzonen, Notizen und Logbuch.</p>
-          </div>
-        </section>
 
         <section id="locationsListView">
           <section class="panel glass">
@@ -284,19 +269,14 @@
       <section id="page-drones" class="page">
         <div class="page-head">
           <div>
-            <h2 data-i18n="drones.title">Drohnen</h2>
+            <div class="page-title-line">
+              <h2 data-i18n="drones.title">Drohnen</h2>
+              <button class="info-dot" type="button" data-i18n-title="drones.guideText" aria-label="Flugprofil Info">i</button>
+            </div>
             <p class="muted" data-i18n="drones.subtitle">Das aktive Profil beeinflusst alle Flugbewertungen in der gesamten App</p>
           </div>
           <button id="droneAddBtn" class="btn btn-action">＋ <span data-i18n="drones.add">Hinzufügen</span></button>
         </div>
-
-        <section class="panel glass ux-guide-panel">
-          <div class="guide-copy">
-            <span class="eyebrow" data-i18n="drones.guideKicker">Flugprofil</span>
-            <h3 data-i18n="drones.guideTitle">Die aktive Drohne bestimmt den Flugscore</h3>
-            <p class="muted" data-i18n="drones.guideText">Wind, Böen und Regen werden gegen die Limits der aktiven Drohne bewertet. Wähle vor dem Planen das Profil, mit dem du wirklich fliegen willst.</p>
-          </div>
-        </section>
 
         <form id="droneForm" class="panel glass hidden mt-16">
           <div class="form-grid">
@@ -368,18 +348,13 @@
       <section id="page-checklist" class="page">
         <div class="page-head">
           <div>
-            <h2 data-i18n="checklist.title">Checkliste</h2>
+            <div class="page-title-line">
+              <h2 data-i18n="checklist.title">Checkliste</h2>
+              <button class="info-dot" type="button" data-i18n-title="checklist.guideText" aria-label="Checkliste Info">i</button>
+            </div>
             <p class="muted" data-i18n="checklist.subtitle">Vor dem Flug alles dabeihaben</p>
           </div>
         </div>
-
-        <section class="panel glass ux-guide-panel">
-          <div class="guide-copy">
-            <span class="eyebrow" data-i18n="checklist.guideKicker">Vorbereitung</span>
-            <h3 data-i18n="checklist.guideTitle">Packliste und Dokumente an einem Ort</h3>
-            <p class="muted" data-i18n="checklist.guideText">Deine Drohnenprofile erscheinen automatisch. Ergänze Akkus, Werkzeug, Versicherungsdaten oder Dokumente, damit vor dem Flug nichts fehlt.</p>
-          </div>
-        </section>
 
         <section class="panel glass">
           <div class="checklist-head">
