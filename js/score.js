@@ -56,7 +56,13 @@ export const ScoreEngine = {
     }
 
     if (rainSecondary !== null && Math.abs(rain - rainSecondary) > 0.3) {
-      factors.push({ key: 'rainSource', label: `Regen-Abweichung: OM ${rain.toFixed(1)} / BS ${rainSecondary.toFixed(1)}`, severity: 'warn' });
+      const lowerRain = Math.min(rain, rainSecondary).toFixed(1);
+      const higherRain = Math.max(rain, rainSecondary).toFixed(1);
+      factors.push({
+        key: 'rainSource',
+        label: `Regen unsicher: Wetterdienste melden ${lowerRain}-${higherRain} mm. Bewertung nutzt vorsichtig den höheren Wert.`,
+        severity: 'warn'
+      });
     }
 
     // === VISIBILITY ===
