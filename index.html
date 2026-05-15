@@ -79,8 +79,11 @@
     </header>
  
     <div id="accountPanel" class="panel glass account-panel hidden">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 id="accountTitle" data-i18n="common.account">Account</h3>
+      <div class="account-panel-head">
+        <div>
+          <h3 id="accountTitle" data-i18n="common.account">Account</h3>
+          <span class="account-mode-pill" data-i18n="auth.localModePill">Lokaler Modus aktiv</span>
+        </div>
         <button id="accountCloseBtn" class="btn btn-secondary btn-small">✕</button>
       </div>
       
@@ -89,6 +92,7 @@
           <strong data-i18n="auth.infoTitle">Ein Formular, zwei Aktionen</strong>
           <p data-i18n="auth.infoText">E-Mail und Passwort eingeben. Wenn du schon ein Konto hast, nutze Login. Wenn nicht, nutze Registrieren und bestaetige danach ggf. die E-Mail.</p>
         </div>
+        <p class="storage-notice" data-i18n="auth.storageNotice">Ohne Account bleiben Orte, Drohnen und Checklisten nur in diesem Browser gespeichert. Mit Account kannst du die Daten auf mehreren Geräten nutzen.</p>
         <div class="field">
           <input id="authEmail" type="email" placeholder="Email" data-i18n-placeholder="auth.email" autocomplete="username" />
         </div>
@@ -96,7 +100,7 @@
           <input id="authPassword" type="password" placeholder="Passwort" data-i18n-placeholder="auth.password" autocomplete="current-password" />
         </div>
         <p class="auth-action-hint" data-i18n="auth.actionHint">Login prueft bestehende Konten. Registrieren erstellt ein neues Konto mit denselben Eingaben.</p>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px;">
+        <div class="auth-actions">
           <button id="loginBtn" class="btn" data-i18n="auth.login">Login</button>
           <button id="signupBtn" class="btn btn-secondary" data-i18n="auth.signup">Sign Up</button>
         </div>
@@ -130,7 +134,26 @@
           </div>
         </div>
 
+        <section class="panel glass ux-guide-panel">
+          <div class="guide-copy">
+            <span class="eyebrow" data-i18n="guide.dashboardKicker">Schnellstart</span>
+            <h3 data-i18n="guide.dashboardTitle">Wähle zuerst deinen Flugort</h3>
+            <p class="muted" data-i18n="guide.dashboardText">Nutze GPS für deine aktuelle Position oder wähle einen gespeicherten Spot. Danach erscheinen Wetter, Golden Hour, Drohnen-Score und Checkliste automatisch.</p>
+          </div>
+          <div class="guide-grid">
+            <div class="guide-step"><strong>1</strong><span data-i18n="guide.stepLocation">Ort per GPS, Suche oder Karte wählen.</span></div>
+            <div class="guide-step"><strong>2</strong><span data-i18n="guide.stepDrone">Aktive Drohne prüfen, damit die Limits stimmen.</span></div>
+            <div class="guide-step"><strong>3</strong><span data-i18n="guide.stepAccount">Optional anmelden, um Daten geräteübergreifend zu sichern.</span></div>
+          </div>
+        </section>
+
         <section class="panel glass quick-actions-panel">
+          <div class="panel-toolbar compact-toolbar">
+            <div>
+              <h3 data-i18n="dashboard.sourceTitle">Flugort für das Dashboard</h3>
+              <p class="muted" data-i18n="dashboard.sourceHelp">GPS fragt deinen Browser nach der aktuellen Position. Gespeicherte Orte kommen aus deinen Locations.</p>
+            </div>
+          </div>
           <div class="dashboard-source-row">
             <button id="dashboardUseGpsBtn" class="btn btn-action">📡 <span data-i18n="dashboard.useGps">GPS</span></button>
             <button id="dashboardHomeBtn" class="btn btn-secondary btn-action" title="Heimat-Basis" data-i18n-title="dashboard.homeTitle">🏠</button>
@@ -172,14 +195,24 @@
           </div>
         </div>
 
+        <section class="panel glass ux-guide-panel">
+          <div class="guide-copy">
+            <span class="eyebrow" data-i18n="locations.guideKicker">Spots verwalten</span>
+            <h3 data-i18n="locations.guideTitle">Speichere Orte, die du öfter prüfen willst</h3>
+            <p class="muted" data-i18n="locations.guideText">Suche eine Stadt, nutze GPS oder setze einen Pin auf der Karte. Jeder gespeicherte Spot bekommt Wetter, Golden Hour, Drohnenzonen, Notizen und Logbuch.</p>
+          </div>
+        </section>
+
         <section id="locationsListView">
           <section class="panel glass">
             <div class="search-row">
               <label class="field grow">
+                <span data-i18n="search.label">Ort hinzufügen</span>
                 <input id="locationSearchInput" type="text" autocomplete="off" placeholder="Stadt, Land eingeben..." data-i18n-placeholder="locations.searchPlaceholder" />
+                <small class="field-note" data-i18n="search.info">Tippe einen Ort ein und wähle danach einen Vorschlag aus der Liste.</small>
               </label>
-              <button id="gpsAddBtn" class="btn btn-secondary">📍 <span data-i18n="search.useGps">GPS</span></button>
-              <button id="toggleLocationPickerBtn" class="btn btn-secondary">🗺️ <span data-i18n="locations.mapPicker">Karte</span></button>
+              <button id="gpsAddBtn" class="btn btn-secondary" data-i18n-title="locations.gpsAddTitle" title="Aktuelle Position als neuen Spot speichern">📍 <span data-i18n="search.useGps">GPS</span></button>
+              <button id="toggleLocationPickerBtn" class="btn btn-secondary" data-i18n-title="locations.mapPickerTitle" title="Spot auf der Karte markieren">🗺️ <span data-i18n="locations.mapPicker">Karte</span></button>
             </div>
             <div id="searchSuggestions" class="suggestions hidden"></div>
           </section>
@@ -257,11 +290,20 @@
           <button id="droneAddBtn" class="btn btn-action">＋ <span data-i18n="drones.add">Hinzufügen</span></button>
         </div>
 
+        <section class="panel glass ux-guide-panel">
+          <div class="guide-copy">
+            <span class="eyebrow" data-i18n="drones.guideKicker">Flugprofil</span>
+            <h3 data-i18n="drones.guideTitle">Die aktive Drohne bestimmt den Flugscore</h3>
+            <p class="muted" data-i18n="drones.guideText">Wind, Böen und Regen werden gegen die Limits der aktiven Drohne bewertet. Wähle vor dem Planen das Profil, mit dem du wirklich fliegen willst.</p>
+          </div>
+        </section>
+
         <form id="droneForm" class="panel glass hidden mt-16">
           <div class="form-grid">
             <label class="field">
               <span data-i18n="drones.name">Name</span>
               <input id="droneName" type="text" required placeholder="z.B. Nazgul5 V3" />
+              <small class="field-note" data-i18n="drones.nameHelp">Ein eindeutiger Name hilft beim schnellen Umschalten.</small>
             </label>
             <label class="field">
               <span data-i18n="drones.style">Stil</span>
@@ -293,10 +335,12 @@
             <label class="field">
               <span data-i18n="drones.maxWind">Max Wind (km/h)</span>
               <input id="droneMaxWind" type="number" min="1" step="1" required />
+              <small class="field-note" data-i18n="drones.maxWindHelp">Ab diesem Wert wird der Score vorsichtiger bewertet.</small>
             </label>
             <label class="field">
               <span data-i18n="drones.maxGusts">Max Böen (km/h)</span>
               <input id="droneMaxGusts" type="number" min="1" step="1" required />
+              <small class="field-note" data-i18n="drones.maxGustsHelp">Böen sind kurze Windspitzen und oft wichtiger als der Durchschnittswind.</small>
             </label>
             <div class="field field-span-2">
               <span data-i18n="drones.color">Farbe</span>
@@ -328,6 +372,14 @@
             <p class="muted" data-i18n="checklist.subtitle">Vor dem Flug alles dabeihaben</p>
           </div>
         </div>
+
+        <section class="panel glass ux-guide-panel">
+          <div class="guide-copy">
+            <span class="eyebrow" data-i18n="checklist.guideKicker">Vorbereitung</span>
+            <h3 data-i18n="checklist.guideTitle">Packliste und Dokumente an einem Ort</h3>
+            <p class="muted" data-i18n="checklist.guideText">Deine Drohnenprofile erscheinen automatisch. Ergänze Akkus, Werkzeug, Versicherungsdaten oder Dokumente, damit vor dem Flug nichts fehlt.</p>
+          </div>
+        </section>
 
         <section class="panel glass">
           <div class="checklist-head">

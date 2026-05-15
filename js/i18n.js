@@ -36,7 +36,15 @@ export const I18n = {
       el.placeholder = this.t(el.dataset.i18nPlaceholder);
     });
     document.querySelectorAll('[data-i18n-title]').forEach(el => {
-      el.title = this.t(el.dataset.i18nTitle);
+      const text = this.t(el.dataset.i18nTitle);
+      if (el.classList.contains('info-dot')) {
+        el.dataset.tooltip = text;
+        el.setAttribute('aria-label', text);
+        el.removeAttribute('title');
+        el.textContent = '';
+      } else {
+        el.title = text;
+      }
     });
     document.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
       el.setAttribute('aria-label', this.t(el.dataset.i18nAriaLabel));

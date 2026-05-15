@@ -274,6 +274,7 @@ export const CloudManager = {
     const authView = document.getElementById('authView');
     const userView = document.getElementById('userView');
     const userEmail = document.getElementById('userEmail');
+    const modePill = document.querySelector('.account-mode-pill');
 
     const accountBtn = document.getElementById('accountBtn');
     if (this.user) {
@@ -282,11 +283,19 @@ export const CloudManager = {
       if (authView) authView.classList.add('hidden');
       if (userView) userView.classList.remove('hidden');
       if (userEmail) userEmail.textContent = this.user.email;
+      if (modePill) {
+        modePill.textContent = I18n.t('auth.syncModePill');
+        modePill.classList.add('synced');
+      }
     } else {
       if (statusEl) statusEl.classList.remove('live');
       if (accountBtn) accountBtn.classList.remove('btn-active');
       if (authView) authView.classList.remove('hidden');
       if (userView) userView.classList.add('hidden');
+      if (modePill) {
+        modePill.textContent = I18n.t('auth.localModePill');
+        modePill.classList.remove('synced');
+      }
     }
   }
 };

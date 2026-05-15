@@ -564,6 +564,72 @@ const AirspaceService = {
 };
 window.AirspaceService = AirspaceService;
 
+const HelpTooltip = {
+  el: null,
+  active: null,
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.initialized = true;
+    this.el = document.createElement('div');
+    this.el.id = 'helpTooltip';
+    this.el.className = 'help-tooltip hidden';
+    this.el.setAttribute('role', 'tooltip');
+    document.body.appendChild(this.el);
+
+    document.addEventListener('pointerover', (event) => {
+      const trigger = event.target.closest('.info-dot');
+      if (trigger) this.show(trigger);
+    });
+    document.addEventListener('pointerout', (event) => {
+      if (event.target.closest('.info-dot')) this.hide();
+    });
+    document.addEventListener('focusin', (event) => {
+      const trigger = event.target.closest('.info-dot');
+      if (trigger) this.show(trigger);
+    });
+    document.addEventListener('focusout', (event) => {
+      if (event.target.closest('.info-dot')) this.hide();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.hide();
+    });
+    window.addEventListener('resize', () => this.position(), { passive: true });
+    window.addEventListener('scroll', () => this.position(), { passive: true });
+  },
+
+  show(trigger) {
+    const text = trigger.dataset.tooltip || trigger.getAttribute('aria-label');
+    if (!text) return;
+    this.active = trigger;
+    this.el.textContent = text;
+    this.el.classList.remove('hidden');
+    requestAnimationFrame(() => this.position());
+  },
+
+  hide() {
+    this.active = null;
+    if (this.el) this.el.classList.add('hidden');
+  },
+
+  position() {
+    if (!this.active || !this.el || this.el.classList.contains('hidden')) return;
+    const rect = this.active.getBoundingClientRect();
+    const tip = this.el.getBoundingClientRect();
+    const pad = 12;
+    let left = rect.left + rect.width / 2 - tip.width / 2;
+    left = Math.max(pad, Math.min(left, window.innerWidth - tip.width - pad));
+    let top = rect.bottom + 10;
+    if (top + tip.height > window.innerHeight - pad) {
+      top = rect.top - tip.height - 10;
+    }
+    top = Math.max(pad, Math.min(top, window.innerHeight - tip.height - pad));
+    this.el.style.left = `${Math.round(left)}px`;
+    this.el.style.top = `${Math.round(top)}px`;
+  }
+};
+
 const UI = {
   els: {},
   weathercodes: DRONE_WEATHER_CODES_FALLBACK,
@@ -911,6 +977,8 @@ const UI = {
       <option value="gps" ${source === 'gps' ? 'selected' : ''}>📡 GPS</option>
       ${locations.map(l => `<option value="${l.id}" ${source === l.id ? 'selected' : ''}>${Util.escapeHtml(l.name)}</option>`).join('')}
     `;
+    const placeholder = this.els.dashboardLocationSelect.querySelector('option[value=""]');
+    if (placeholder) placeholder.textContent = I18n.t('dashboard.selectPlaceholder');
   },
   lastVisit(location) {
     const entry = (location.logbook || [])[0];
@@ -1175,9 +1243,20 @@ const UI = {
     }, 100);
   },
   renderDashboardNone() {
-    this.els.dashboardCurrentPanel.innerHTML = `<h3>${I18n.t('dashboard.current')}</h3><p>${I18n.t('dashboard.none')}</p>`;
-    this.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p>${I18n.t('dashboard.none')}</p>`;
-    this.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p>${I18n.t('dashboard.none')}</p>`;
+    this.els.dashboardCurrentPanel.innerHTML = `
+      <div class="empty-panel">
+        <h3>${I18n.t('dashboard.emptyTitle')}</h3>
+        <p class="muted">${I18n.t('dashboard.none')}</p>
+        <div class="inline-actions mt-16">
+          <button class="btn" data-empty-gps>${I18n.t('dashboard.useGps')}</button>
+          <button class="btn btn-secondary" data-empty-locations>${I18n.t('locations.addLocation')}</button>
+        </div>
+      </div>
+    `;
+    this.els.dashboardCurrentPanel.querySelector('[data-empty-gps]').textContent = I18n.t('dashboard.useGps');
+    this.els.dashboardCurrentPanel.querySelector('[data-empty-locations]').textContent = I18n.t('locations.addLocation');
+    this.els.dashboardGoldenPanel.innerHTML = `<h3>${I18n.t('dashboard.golden')}</h3><p class="muted">${I18n.t('dashboard.emptyGoldenHint')}</p>`;
+    this.els.dashboardHourlyPanel.innerHTML = `<h3>${I18n.t('dashboard.hourly')}</h3><p class="muted">${I18n.t('dashboard.emptyHourlyHint')}</p>`;
   },
   renderChecklistFormOptions() {
     this.els.checklistCategory.innerHTML = ChecklistManager.categories()
@@ -1523,6 +1602,7 @@ const App = {
       });
 
       I18n.init(translations);
+      HelpTooltip.init();
       ProfileManager.init(profiles);
       LocationManager.init();
       ChecklistManager.init();
@@ -2129,6 +2209,17 @@ const App = {
       const mapsRoute = e.target.closest('[data-open-route]');
       const dipulToggle = e.target.closest('[data-toggle-dipul]');
       const viewDoc = e.target.closest('[data-check-view]');
+      const emptyGps = e.target.closest('[data-empty-gps]');
+      const emptyLocations = e.target.closest('[data-empty-locations]');
+
+      if (emptyGps) {
+        await this.setDashboardGps();
+      }
+
+      if (emptyLocations) {
+        Router.showPage('locations');
+        document.getElementById('locationSearchInput')?.focus();
+      }
 
       if (viewDoc) {
         const id = viewDoc.dataset.checkId;
@@ -2806,7 +2897,12 @@ const App = {
     const locations = LocationManager.getAll();
     UI.els.dashboardLocationCardsPanel.innerHTML = `<h3>${I18n.t('dashboard.locationsOverview')}</h3>`;
     if (!locations.length) {
-      UI.els.dashboardLocationCardsPanel.innerHTML += `<p>${I18n.t('empty.text')}</p>`;
+      UI.els.dashboardLocationCardsPanel.innerHTML += `
+        <div class="empty-panel">
+          <p class="muted">${I18n.t('empty.text')}</p>
+          <button class="btn btn-secondary" data-empty-locations>${I18n.t('locations.addLocation')}</button>
+        </div>
+      `;
       return;
     }
 
@@ -2876,7 +2972,12 @@ const App = {
       <h2>${I18n.t('list.title')}</h2>
       <p class="muted">${I18n.t('list.subtitle')}</p>
       <div id="locationListContent">
-        ${locations.length ? '' : `<p class="muted">${allLocations.length ? I18n.t('locations.filterNoResults') : I18n.t('empty.text')}</p>`}
+        ${locations.length ? '' : `
+          <article class="empty-state">
+            <h3>${allLocations.length ? I18n.t('locations.filterNoResults') : I18n.t('empty.title')}</h3>
+            <p class="muted">${allLocations.length ? I18n.t('locations.filterHint') : I18n.t('empty.text')}</p>
+          </article>
+        `}
       </div>
     `;
 
