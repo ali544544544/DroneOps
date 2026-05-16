@@ -3253,6 +3253,49 @@ const App = {
     }
   },
 
+  locationCountryCode(location) {
+    const directCode = String(location.countryCode || location.address?.country_code || '').trim().toUpperCase();
+    if (directCode) return directCode === 'UK' ? 'GB' : directCode;
+
+    const country = String(location.country || location.address?.country || '').trim().toLowerCase();
+    const countryMap = {
+      deutschland: 'DE',
+      germany: 'DE',
+      niederlande: 'NL',
+      netherlands: 'NL',
+      holland: 'NL',
+      daenemark: 'DK',
+      dänemark: 'DK',
+      denmark: 'DK',
+      danmark: 'DK',
+      oesterreich: 'AT',
+      österreich: 'AT',
+      austria: 'AT',
+      schweiz: 'CH',
+      switzerland: 'CH',
+      france: 'FR',
+      frankreich: 'FR',
+      italy: 'IT',
+      italien: 'IT',
+      spain: 'ES',
+      spanien: 'ES'
+    };
+    return countryMap[country] || '';
+  },
+
+  renderLocationTitle(location) {
+    const code = this.locationCountryCode(location);
+    const badge = code
+      ? `<span class="country-code-badge" title="${Util.escapeHtml(location.country || code)}">${Util.escapeHtml(code)}</span>`
+      : '';
+    return `
+      <div class="location-title-row">
+        ${badge}
+        <h3>${Util.escapeHtml(location.name)}</h3>
+      </div>
+    `;
+  },
+
 
   async renderLocationsList() {
     const allLocations = LocationManager.getAll();
@@ -3279,7 +3322,7 @@ const App = {
     listContent.innerHTML = locations.map(location => `
       <article class="location-card" data-id="${location.id}">
         <div>
-          <h3>${Util.escapeHtml(location.name)}</h3>
+          ${this.renderLocationTitle(location)}
           <div class="location-meta">
             <span class="inline-pill">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</span>
             <span class="inline-pill">🗓️ ${Util.formatDate(location.createdAt, I18n.locale)}</span>
