@@ -2981,9 +2981,8 @@ const App = {
           <div class="metric-grid">
             <div class="kpi"><span>${I18n.t('weather.wind')} 10m</span><strong>${dashWindMs} <small>m/s</small> ${dashWindDir}</strong></div>
             <div class="kpi"><span>${I18n.t('weather.gusts')}</span><strong>${dashGustsMs} <small>m/s</small></strong></div>
-            <div class="kpi" title="${Util.escapeHtml(dashND.reason)}"><span>ND Filter</span><strong>${dashND.recommendedFilter}</strong></div>
+            <div class="kpi" title="${Util.escapeHtml(dashND.reason)}"><span class="kpi-label-with-info">ND Filter <button class="info-dot kpi-info-dot" type="button" data-tooltip="${Util.escapeHtml(NDRecommendationService.hint)}" aria-label="${Util.escapeHtml(NDRecommendationService.hint)}">i</button></span><strong>${dashND.recommendedFilter}</strong></div>
           </div>
-          <p class="mt-12 muted nd-hint">${NDRecommendationService.hint}</p>
           <div class="wind-alt-bar">
             <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
             <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
@@ -4033,13 +4032,12 @@ const App = {
           <div class="kpi"><span>${I18n.t('weather.clouds')}</span><strong>${weather.data.hourly.cloudcover[idx]}%</strong></div>
           <div class="kpi"><span>${I18n.t('weather.visibility')}</span><strong>${visKm} <small>km</small></strong></div>
           <div class="kpi"><span>${I18n.t('weather.pressure')}</span><strong>${weather.data.hourly.surface_pressure[idx]} <small>hPa</small></strong></div>
-          <div class="kpi" title="${Util.escapeHtml(detailND.reason)}"><span>ND Filter</span><strong>${detailND.recommendedFilter}</strong></div>
+          <div class="kpi" title="${Util.escapeHtml(detailND.reason)}"><span class="kpi-label-with-info">ND Filter <button class="info-dot kpi-info-dot" type="button" data-tooltip="${Util.escapeHtml(NDRecommendationService.hint)}" aria-label="${Util.escapeHtml(NDRecommendationService.hint)}">i</button></span><strong>${detailND.recommendedFilter}</strong></div>
         </div>
         <div class="wind-alt-bar">
           <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
           <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
         </div>
-        <p class="mt-12 muted nd-hint">${NDRecommendationService.hint}</p>
         <p class="mt-12">${meta.icon} ${meta[I18n.lang]}</p>
       `;
 
