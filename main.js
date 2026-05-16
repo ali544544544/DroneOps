@@ -2964,11 +2964,17 @@ const App = {
           UI.els.dashboardCurrentPanel.innerHTML = `
             <div id="dash-current-info"></div>
             <div id="dashboardMap" class="dashboard-map"></div>
+            <div id="dashboardAirspaceActions"></div>
             <div id="dash-current-stats"></div>
           `;
           currentInfo = document.getElementById('dash-current-info');
           mapContainer = document.getElementById('dashboardMap');
           currentStats = document.getElementById('dash-current-stats');
+        }
+        let airspaceActionsContainer = document.getElementById('dashboardAirspaceActions');
+        if (!airspaceActionsContainer) {
+          mapContainer.insertAdjacentHTML('afterend', '<div id="dashboardAirspaceActions"></div>');
+          airspaceActionsContainer = document.getElementById('dashboardAirspaceActions');
         }
 
         const dashboardOverlayToggle = AirspaceService.hasInteractiveOverlay(location)
@@ -2989,18 +2995,18 @@ const App = {
               <p><strong>${Util.escapeHtml(location.name)}</strong> <span class="muted">mit</span> <strong>${Util.escapeHtml(ProfileManager.getLabel(drone))}</strong></p>
               ${UI.renderSpotSuitabilityTags(location)}
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
-              ${dashboardAirspaceActions}
             </div>
           </div>
         `;
         this.updateDipulToggle();
         const existingNotice = document.getElementById('dashboardAirspaceNotice');
         if (existingNotice) existingNotice.remove();
-        mapContainer.insertAdjacentHTML('beforebegin', `
+        airspaceActionsContainer.innerHTML = `
+          ${dashboardAirspaceActions}
           <div id="dashboardAirspaceNotice" class="dashboard-airspace-notice airspace-loading">
             <span class="metric-chip">${I18n.t('airspace.checking')}</span>
           </div>
-        `);
+        `;
         this.renderDashboardAirspaceNotice(location);
 
         currentStats.innerHTML = `
