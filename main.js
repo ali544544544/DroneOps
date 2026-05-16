@@ -1675,6 +1675,7 @@ const App = {
       }
       
       setInterval(() => UI.setClock(), 1000);
+      setInterval(() => CloudManager.updateUI(), 60 * 1000);
       setInterval(() => this.refreshVisibleData(), 10 * 60 * 1000);
 
       this.bindEvents();

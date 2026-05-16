@@ -410,6 +410,27 @@ export const CloudManager = {
     }
   },
 
+  formatRelativeSave(value) {
+    if (!value) return I18n.t('auth.syncNotSaved');
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return I18n.t('auth.syncNotSaved');
+    const diffSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+    const absSeconds = Math.abs(diffSeconds);
+    if (absSeconds < 60) return I18n.t('auth.justNow');
+    const units = [
+      ['day', 86400],
+      ['hour', 3600],
+      ['minute', 60]
+    ];
+    const [unit, seconds] = units.find(([, size]) => absSeconds >= size) || ['minute', 60];
+    try {
+      return new Intl.RelativeTimeFormat(I18n.locale, { numeric: 'auto' }).format(Math.round(diffSeconds / seconds), unit);
+    } catch (e) {
+      const minutes = Math.max(1, Math.round(absSeconds / 60));
+      return I18n.t('auth.minutesAgo').replace('{count}', minutes);
+    }
+  },
+
   updateUI() {
     const statusEl = document.getElementById('dataStatusIndicator');
     const authView = document.getElementById('authView');
@@ -421,6 +442,7 @@ export const CloudManager = {
     const accountLastCloudSave = document.getElementById('accountLastCloudSave');
     const accountSavedElementsCount = document.getElementById('accountSavedElementsCount');
     const accountSavedElementsList = document.getElementById('accountSavedElementsList');
+    const headerSyncStatus = document.getElementById('headerSyncStatus');
     const passwordChangeForm = document.getElementById('passwordChangeForm');
     const changePasswordInput = document.getElementById('changePasswordInput');
     const changePasswordConfirmInput = document.getElementById('changePasswordConfirmInput');
@@ -444,6 +466,10 @@ export const CloudManager = {
       if (accountMemberSince) accountMemberSince.textContent = this.formatAccountDate(this.user.created_at);
       if (accountLastLogin) accountLastLogin.textContent = this.formatAccountDate(this.user.last_sign_in_at);
       if (accountLastCloudSave) accountLastCloudSave.textContent = this.formatAccountDate(syncMeta?.savedAt);
+      if (headerSyncStatus) {
+        headerSyncStatus.classList.remove('hidden');
+        headerSyncStatus.textContent = I18n.t('auth.lastBackupRelative').replace('{time}', this.formatRelativeSave(syncMeta?.savedAt));
+      }
       if (accountSavedElementsCount) accountSavedElementsCount.textContent = syncMeta ? I18n.t('auth.savedElementsCount').replace('{count}', syncMeta.totalCount ?? 0) : I18n.t('auth.notAvailable');
       if (accountSavedElementsList) accountSavedElementsList.textContent = savedItems.length
         ? savedItems.map(item => I18n.t('auth.syncItemLine').replace('{label}', I18n.t(item.labelKey)).replace('{count}', item.count)).join(', ')
@@ -469,6 +495,7 @@ export const CloudManager = {
       if (accountLastCloudSave) accountLastCloudSave.textContent = '-';
       if (accountSavedElementsCount) accountSavedElementsCount.textContent = '-';
       if (accountSavedElementsList) accountSavedElementsList.textContent = '-';
+      if (headerSyncStatus) headerSyncStatus.classList.add('hidden');
       if (passwordChangeForm) passwordChangeForm.classList.add('hidden');
       if (changePasswordInput) changePasswordInput.value = '';
       if (changePasswordConfirmInput) changePasswordConfirmInput.value = '';
