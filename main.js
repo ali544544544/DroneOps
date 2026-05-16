@@ -2443,7 +2443,6 @@ const App = {
     };
 
     document.getElementById('accountBtn').addEventListener('click', toggleAccountPanel);
-    document.getElementById('accountNudge')?.addEventListener('click', toggleAccountPanel);
 
     document.getElementById('accountCloseBtn').addEventListener('click', () => {
       document.getElementById('accountPanel').classList.add('hidden');

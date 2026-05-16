@@ -4,6 +4,7 @@ import { I18n } from './i18n.js';
 /* global supabase */
 
 const LOCAL_OWNER_KEY = 'droneops_cloud_user_id';
+const SYNC_META_KEY = 'droneops_cloud_sync_meta';
 const USER_DATA_PREFIX = 'drone_';
 
 export const CloudManager = {
@@ -101,6 +102,7 @@ export const CloudManager = {
     this.pending.clear();
     this.clearLocalUserData();
     this.clearLocalOwner();
+    this.clearSyncMeta();
     this.updateUI();
     window.dispatchEvent(new CustomEvent('droneops:account-data-cleared'));
   },
@@ -180,6 +182,7 @@ export const CloudManager = {
       .from('user_data')
       .upsert(rows, { onConflict: 'user_id, key' });
     if (error) throw error;
+    this.recordSyncSnapshot();
   },
 
   async pullAll() {
@@ -196,7 +199,7 @@ export const CloudManager = {
     if (!this.user || !this.client) return [];
     const { data, error } = await this.client
       .from('user_data')
-      .select('key, value')
+      .select('key, value, updated_at')
       .eq('user_id', this.user.id);
     if (error) throw error;
     return data || [];
@@ -208,6 +211,7 @@ export const CloudManager = {
       const val = typeof item.value === 'string' ? item.value : JSON.stringify(item.value);
       localStorage.setItem(item.key, val);
     });
+    this.recordSyncRows(rows);
   },
 
   async pushAll() {
@@ -229,6 +233,78 @@ export const CloudManager = {
     const known = Object.values(Keys);
     const local = Object.keys(localStorage).filter(key => this.isUserDataKey(key));
     return Array.from(new Set([...known, ...local]));
+  },
+
+  getStoredSyncEntries() {
+    return this.getSyncKeys()
+      .map(key => [key, Storage.get(key)])
+      .filter(([, value]) => value !== null);
+  },
+
+  recordSyncSnapshot(savedAt = new Date().toISOString()) {
+    const entries = this.getStoredSyncEntries();
+    this.saveSyncMeta({
+      savedAt,
+      count: entries.length,
+      keys: entries.map(([key]) => key)
+    });
+  },
+
+  recordSyncRows(rows = []) {
+    const syncRows = rows.filter(row => this.isUserDataKey(row.key));
+    if (!syncRows.length) return;
+    const savedAt = syncRows
+      .map(row => row.updated_at)
+      .filter(Boolean)
+      .sort()
+      .pop() || new Date().toISOString();
+    this.saveSyncMeta({
+      savedAt,
+      count: syncRows.length,
+      keys: syncRows.map(row => row.key)
+    });
+  },
+
+  saveSyncMeta(meta) {
+    try {
+      localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta));
+    } catch (e) {
+      console.warn('Could not save sync metadata', e);
+    }
+    this.updateUI();
+  },
+
+  getSyncMeta() {
+    try {
+      return JSON.parse(localStorage.getItem(SYNC_META_KEY)) || null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  clearSyncMeta() {
+    localStorage.removeItem(SYNC_META_KEY);
+  },
+
+  describeSyncKey(key) {
+    const labels = {
+      [Keys.locations]: I18n.t('auth.syncItemLocations'),
+      [Keys.profiles]: I18n.t('auth.syncItemProfiles'),
+      [Keys.checklist]: I18n.t('auth.syncItemChecklist'),
+      [Keys.droneChecklist]: I18n.t('auth.syncItemDroneChecklist'),
+      [Keys.weatherCache]: I18n.t('auth.syncItemWeatherCache'),
+      [Keys.sunCache]: I18n.t('auth.syncItemSunCache'),
+      [Keys.brightSkyCache]: I18n.t('auth.syncItemWeatherCache'),
+      [Keys.homeBase]: I18n.t('auth.syncItemHomeBase'),
+      [Keys.language]: I18n.t('auth.syncItemSettings'),
+      [Keys.activeProfile]: I18n.t('auth.syncItemSettings'),
+      [Keys.activeTab]: I18n.t('auth.syncItemSettings'),
+      [Keys.activeLocation]: I18n.t('auth.syncItemSettings'),
+      [Keys.dashboardSource]: I18n.t('auth.syncItemSettings'),
+      [Keys.distSource]: I18n.t('auth.syncItemSettings'),
+      [Keys.dipulOverlay]: I18n.t('auth.syncItemSettings')
+    };
+    return labels[key] || key.replace(/^drone_/, '').replace(/_/g, ' ');
   },
 
   isUserDataKey(key) {
@@ -308,14 +384,19 @@ export const CloudManager = {
     const accountEmailValue = document.getElementById('accountEmailValue');
     const accountMemberSince = document.getElementById('accountMemberSince');
     const accountLastLogin = document.getElementById('accountLastLogin');
+    const accountLastCloudSave = document.getElementById('accountLastCloudSave');
+    const accountSavedElementsCount = document.getElementById('accountSavedElementsCount');
+    const accountSavedElementsList = document.getElementById('accountSavedElementsList');
     const passwordChangeForm = document.getElementById('passwordChangeForm');
     const changePasswordInput = document.getElementById('changePasswordInput');
     const changePasswordConfirmInput = document.getElementById('changePasswordConfirmInput');
     const modePill = document.querySelector('.account-mode-pill');
 
     const accountBtn = document.getElementById('accountBtn');
-    const accountNudge = document.getElementById('accountNudge');
     if (this.user) {
+      const syncMeta = this.getSyncMeta();
+      const savedKeys = Array.from(new Set(syncMeta?.keys || []));
+      const savedLabels = Array.from(new Set(savedKeys.map(key => this.describeSyncKey(key))));
       if (statusEl) statusEl.classList.add('live');
       if (accountBtn) {
         accountBtn.classList.add('btn-active');
@@ -323,13 +404,15 @@ export const CloudManager = {
         accountBtn.textContent = '👤';
         accountBtn.title = I18n.t('common.account');
       }
-      if (accountNudge) accountNudge.classList.add('hidden');
       if (authView) authView.classList.add('hidden');
       if (userView) userView.classList.remove('hidden');
       if (userEmail) userEmail.textContent = this.user.email;
       if (accountEmailValue) accountEmailValue.textContent = this.user.email || I18n.t('auth.notAvailable');
       if (accountMemberSince) accountMemberSince.textContent = this.formatAccountDate(this.user.created_at);
       if (accountLastLogin) accountLastLogin.textContent = this.formatAccountDate(this.user.last_sign_in_at);
+      if (accountLastCloudSave) accountLastCloudSave.textContent = this.formatAccountDate(syncMeta?.savedAt);
+      if (accountSavedElementsCount) accountSavedElementsCount.textContent = syncMeta ? I18n.t('auth.savedElementsCount').replace('{count}', syncMeta.count ?? savedKeys.length) : I18n.t('auth.notAvailable');
+      if (accountSavedElementsList) accountSavedElementsList.textContent = savedLabels.length ? savedLabels.join(', ') : I18n.t('auth.noSavedElements');
       if (modePill) {
         modePill.textContent = I18n.t('auth.syncModePill');
         modePill.classList.add('synced');
@@ -342,13 +425,15 @@ export const CloudManager = {
         accountBtn.textContent = '👤';
         accountBtn.title = I18n.t('common.account');
       }
-      if (accountNudge) accountNudge.classList.remove('hidden');
       if (authView) authView.classList.remove('hidden');
       if (userView) userView.classList.add('hidden');
       if (userEmail) userEmail.textContent = '';
       if (accountEmailValue) accountEmailValue.textContent = '-';
       if (accountMemberSince) accountMemberSince.textContent = '-';
       if (accountLastLogin) accountLastLogin.textContent = '-';
+      if (accountLastCloudSave) accountLastCloudSave.textContent = '-';
+      if (accountSavedElementsCount) accountSavedElementsCount.textContent = '-';
+      if (accountSavedElementsList) accountSavedElementsList.textContent = '-';
       if (passwordChangeForm) passwordChangeForm.classList.add('hidden');
       if (changePasswordInput) changePasswordInput.value = '';
       if (changePasswordConfirmInput) changePasswordConfirmInput.value = '';

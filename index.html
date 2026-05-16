@@ -72,7 +72,6 @@
           <div class="lang-toggle" role="group" aria-label="Language" data-i18n-aria-label="common.language">
             <button id="langDe" class="btn btn-secondary btn-small">DE</button>
             <button id="langEn" class="btn btn-secondary btn-small">EN</button>
-            <button id="accountNudge" class="account-nudge" type="button" data-i18n="auth.headerNudge">Sync sichern</button>
             <button id="accountBtn" class="btn btn-secondary btn-small" title="Account" data-i18n-title="common.account">👤</button>
           </div>
         </div>
@@ -152,6 +151,24 @@
               <dd id="accountLastLogin">-</dd>
             </div>
           </dl>
+        </section>
+
+        <section class="account-section">
+          <h4 data-i18n="auth.syncSummary">Sync-Status</h4>
+          <dl class="account-details">
+            <div>
+              <dt data-i18n="auth.lastCloudSave">Letzter Save</dt>
+              <dd id="accountLastCloudSave">-</dd>
+            </div>
+            <div>
+              <dt data-i18n="auth.savedElements">Gesichert</dt>
+              <dd id="accountSavedElementsCount">-</dd>
+            </div>
+          </dl>
+          <details class="account-sync-details">
+            <summary data-i18n="auth.showSavedElements">Gesicherte Elemente anzeigen</summary>
+            <p id="accountSavedElementsList">-</p>
+          </details>
         </section>
         
         <section class="account-section">
