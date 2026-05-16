@@ -442,7 +442,6 @@ export const CloudManager = {
     const accountLastCloudSave = document.getElementById('accountLastCloudSave');
     const accountSavedElementsCount = document.getElementById('accountSavedElementsCount');
     const accountSavedElementsList = document.getElementById('accountSavedElementsList');
-    const headerSyncStatus = document.getElementById('headerSyncStatus');
     const passwordChangeForm = document.getElementById('passwordChangeForm');
     const changePasswordInput = document.getElementById('changePasswordInput');
     const changePasswordConfirmInput = document.getElementById('changePasswordConfirmInput');
@@ -465,11 +464,7 @@ export const CloudManager = {
       if (accountEmailValue) accountEmailValue.textContent = this.user.email || I18n.t('auth.notAvailable');
       if (accountMemberSince) accountMemberSince.textContent = this.formatAccountDate(this.user.created_at);
       if (accountLastLogin) accountLastLogin.textContent = this.formatAccountDate(this.user.last_sign_in_at);
-      if (accountLastCloudSave) accountLastCloudSave.textContent = this.formatAccountDate(syncMeta?.savedAt);
-      if (headerSyncStatus) {
-        headerSyncStatus.classList.remove('hidden');
-        headerSyncStatus.textContent = I18n.t('auth.lastBackupRelative').replace('{time}', this.formatRelativeSave(syncMeta?.savedAt));
-      }
+      if (accountLastCloudSave) accountLastCloudSave.textContent = this.formatRelativeSave(syncMeta?.savedAt);
       if (accountSavedElementsCount) accountSavedElementsCount.textContent = syncMeta ? I18n.t('auth.savedElementsCount').replace('{count}', syncMeta.totalCount ?? 0) : I18n.t('auth.notAvailable');
       if (accountSavedElementsList) accountSavedElementsList.textContent = savedItems.length
         ? savedItems.map(item => I18n.t('auth.syncItemLine').replace('{label}', I18n.t(item.labelKey)).replace('{count}', item.count)).join(', ')
@@ -495,7 +490,6 @@ export const CloudManager = {
       if (accountLastCloudSave) accountLastCloudSave.textContent = '-';
       if (accountSavedElementsCount) accountSavedElementsCount.textContent = '-';
       if (accountSavedElementsList) accountSavedElementsList.textContent = '-';
-      if (headerSyncStatus) headerSyncStatus.classList.add('hidden');
       if (passwordChangeForm) passwordChangeForm.classList.add('hidden');
       if (changePasswordInput) changePasswordInput.value = '';
       if (changePasswordConfirmInput) changePasswordConfirmInput.value = '';

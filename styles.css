@@ -1126,24 +1126,6 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 0 3px rgba(64, 160, 255, 0.12);
 }
 
-.header-sync-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  max-width: 190px;
-  padding: 0 10px;
-  border: 1px solid rgba(55, 231, 129, 0.22);
-  border-radius: 999px;
-  background: rgba(55, 231, 129, 0.08);
-  color: var(--green);
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
@@ -2782,10 +2764,6 @@ a { color: inherit; text-decoration: none; }
     min-width: 40px;
     padding-left: 10px;
     padding-right: 10px;
-  }
-
-  .header-sync-status {
-    display: none;
   }
 
   #accountPanel {
