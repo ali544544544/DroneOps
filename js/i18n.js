@@ -2,6 +2,7 @@ import { Keys, Storage, FALLBACK_TRANSLATIONS } from './core.js';
 
 export const I18n = {
   translations: FALLBACK_TRANSLATIONS,
+  defaultLang: 'de',
   lang: 'de',
 
   get locale() {
@@ -10,11 +11,21 @@ export const I18n = {
   },
 
   async init(remoteTranslations = null) {
-    this.lang = Storage.get(Keys.language, 'de');
+    this.loadStoredLanguage();
     if (remoteTranslations) {
       this.translations = remoteTranslations;
     }
     this.applyToDOM();
+  },
+
+  normalizeLanguage(value) {
+    return ['de', 'en'].includes(value) ? value : this.defaultLang;
+  },
+
+  loadStoredLanguage() {
+    this.lang = this.normalizeLanguage(Storage.get(Keys.language, this.defaultLang));
+    document.documentElement.lang = this.lang;
+    return this.lang;
   },
 
   t(key, fallback = null) {
@@ -22,10 +33,10 @@ export const I18n = {
   },
 
   setLanguage(l) {
-    this.lang = l;
-    Storage.set(Keys.language, l);
+    this.lang = this.normalizeLanguage(l);
+    Storage.set(Keys.language, this.lang);
     this.applyToDOM();
-    document.documentElement.lang = l;
+    document.documentElement.lang = this.lang;
   },
 
   applyToDOM() {

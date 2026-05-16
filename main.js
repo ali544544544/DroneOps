@@ -1674,6 +1674,7 @@ const App = {
       } catch (e) {
         console.error('App: CloudManager init failed:', e);
       }
+      I18n.loadStoredLanguage();
       ProfileManager.init(profiles);
       LocationManager.init();
       ChecklistManager.init();
