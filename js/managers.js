@@ -4,6 +4,9 @@ import { I18n } from './i18n.js';
 import { Toast } from './ui.js'; // Might need UI or Toast for duplicate location warning
 
 export const ProfileManager = {
+  markDeleted(id) {
+    recordSyncTombstone(Keys.profiles, id);
+  },
   init(loadedProfiles = []) {
     const existing = Storage.get(Keys.profiles, null);
     if (!existing || !existing.length) {
@@ -26,18 +29,20 @@ export const ProfileManager = {
   setActive(id) { Storage.set(Keys.activeProfile, id); },
   add(profile) {
     const profiles = this.getAll();
-    const next = { id: Util.uuid(), ...profile };
+    const now = new Date().toISOString();
+    const next = { id: Util.uuid(), createdAt: now, updatedAt: now, ...profile };
     profiles.push(next);
     this.saveAll(profiles);
     return next;
   },
   update(id, patch) {
-    const profiles = this.getAll().map(p => p.id === id ? { ...p, ...patch } : p);
+    const profiles = this.getAll().map(p => p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p);
     this.saveAll(profiles);
   },
   remove(id) {
     const profiles = this.getAll().filter(p => p.id !== id);
     if (profiles.length === 0) return; // Prevent deleting last profile
+    this.markDeleted(id);
     this.saveAll(profiles);
     if (Storage.get(Keys.activeProfile) === id) {
       this.setActive(profiles[0].id);
@@ -56,6 +61,9 @@ export const ProfileManager = {
 };
 
 export const ChecklistManager = {
+  markDeleted(id) {
+    recordSyncTombstone(Keys.checklist, id);
+  },
   defaults() {
     return [
       { id: Util.uuid(), name: 'Drohnen-Akku', count: 2, category: 'akkus', checked: false },
@@ -85,21 +93,30 @@ export const ChecklistManager = {
   saveAll(items) { Storage.set(Keys.checklist, items); },
   add(item) {
     const items = this.getAll();
-    items.push({ id: Util.uuid(), checked: false, ...item });
+    const now = new Date().toISOString();
+    items.push({ id: Util.uuid(), checked: false, createdAt: now, updatedAt: now, ...item });
     this.saveAll(items);
   },
   update(id, patch) {
-    this.saveAll(this.getAll().map(item => item.id === id ? { ...item, ...patch } : item));
+    this.saveAll(this.getAll().map(item => item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item));
   },
   remove(id) {
+    this.markDeleted(id);
     this.saveAll(this.getAll().filter(item => item.id !== id));
   },
   resetAll() {
-    this.saveAll(this.getAll().map(item => ({ ...item, checked: false })));
+    const now = new Date().toISOString();
+    this.saveAll(this.getAll().map(item => ({ ...item, checked: false, updatedAt: now })));
   }
 };
 
 export const LocationManager = {
+  markDeleted(id) {
+    recordSyncTombstone(Keys.locations, id);
+  },
+  markLogDeleted(locationId, entryId) {
+    recordSyncTombstone(`${Keys.locations}:logbook`, `${locationId}:${entryId}`);
+  },
   init(loadedLocations = []) {
     const existing = Storage.get(Keys.locations, null);
     if (!existing || !existing.length) {
@@ -120,12 +137,14 @@ export const LocationManager = {
       Toast.show(I18n.t('toast.locationExists'));
       return null;
     }
+    const now = new Date().toISOString();
     const next = [{
       id: Util.uuid(),
       notes: '',
       suitability: [],
       logbook: [],
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
       ...location
     }, ...items];
     this.saveAll(next);
@@ -133,12 +152,13 @@ export const LocationManager = {
     return next[0];
   },
   update(id, patch) {
-    const next = this.getAll().map(item => item.id === id ? { ...item, ...patch } : item);
+    const next = this.getAll().map(item => item.id === id ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item);
     this.saveAll(next);
     return this.getById(id);
   },
   remove(id) {
     const next = this.getAll().filter(item => item.id !== id);
+    this.markDeleted(id);
     this.saveAll(next);
     if (Storage.get(Keys.activeLocation) === id) {
       Storage.set(Keys.activeLocation, next[0]?.id || null);
@@ -147,19 +167,29 @@ export const LocationManager = {
   addLog(locationId, entry) {
     const location = this.getById(locationId);
     if (!location) return;
-    const logbook = [{ id: Util.uuid(), ...entry }, ...(location.logbook || [])];
+    const now = new Date().toISOString();
+    const logbook = [{ id: Util.uuid(), createdAt: now, updatedAt: now, ...entry }, ...(location.logbook || [])];
     this.update(locationId, { logbook });
   },
   removeLog(locationId, entryId) {
     const location = this.getById(locationId);
     if (!location) return;
+    this.markLogDeleted(locationId, entryId);
     const logbook = (location.logbook || []).filter(item => item.id !== entryId);
     this.update(locationId, { logbook });
   },
   updateLog(locationId, entryId, patch) {
     const location = this.getById(locationId);
     if (!location) return;
-    const logbook = (location.logbook || []).map(item => item.id === entryId ? { ...item, ...patch } : item);
+    const logbook = (location.logbook || []).map(item => item.id === entryId ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item);
     this.update(locationId, { logbook });
   }
 };
+
+function recordSyncTombstone(collectionKey, id) {
+  if (!id) return;
+  const tombstones = Storage.get(Keys.syncTombstones, {});
+  const collection = tombstones[collectionKey] || {};
+  collection[id] = new Date().toISOString();
+  Storage.set(Keys.syncTombstones, { ...tombstones, [collectionKey]: collection });
+}

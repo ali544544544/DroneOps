@@ -6,6 +6,7 @@ export const Keys = {
   weatherCache: 'drone_weather_cache',
   sunCache: 'drone_sun_cache',
   brightSkyCache: 'drone_brightsky_cache',
+  syncTombstones: 'drone_sync_tombstones',
   homeBase: 'drone_home_base',
   language: 'drone_language',
   activeProfile: 'drone_active_profile',

@@ -1655,6 +1655,14 @@ const App = {
 
       I18n.init(translations);
       HelpTooltip.init();
+      try {
+        if (typeof CloudManager !== 'undefined' && CloudManager.init) {
+          await CloudManager.init();
+          console.log('App: CloudManager initialized.');
+        }
+      } catch (e) {
+        console.error('App: CloudManager init failed:', e);
+      }
       ProfileManager.init(profiles);
       LocationManager.init();
       ChecklistManager.init();
@@ -1664,15 +1672,6 @@ const App = {
       UI.renderDashboardLocationSelect();
       UI.setClock();
       console.log('App: Core managers initialized.');
-
-      try {
-        if (typeof CloudManager !== 'undefined' && CloudManager.init) {
-          await CloudManager.init();
-          console.log('App: CloudManager initialized.');
-        }
-      } catch (e) {
-        console.error('App: CloudManager init failed:', e);
-      }
       
       setInterval(() => UI.setClock(), 1000);
       setInterval(() => CloudManager.updateUI(), 60 * 1000);

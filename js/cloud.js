@@ -35,11 +35,11 @@ export const CloudManager = {
         const previousOwner = this.getLocalOwner();
         const hasLocalUserData = this.hasLocalUserData();
         const remoteRows = await this.fetchUserRows();
-        if ((previousOwner && previousOwner !== this.user.id) || (!previousOwner && remoteRows.length)) {
+        if (previousOwner && previousOwner !== this.user.id) {
           this.clearLocalUserData();
         }
-        this.applyRows(remoteRows);
-        if (!remoteRows.length && hasLocalUserData && !previousOwner) {
+        const mergedLocalData = this.applyRows(remoteRows);
+        if ((!remoteRows.length && hasLocalUserData && !previousOwner) || mergedLocalData) {
           await this.pushAll();
         }
         this.markLocalOwner(this.user.id);
@@ -62,11 +62,11 @@ export const CloudManager = {
       await this.pullAll();
     } else {
       const remoteRows = await this.fetchUserRows();
-      if ((previousOwner && previousOwner !== this.user.id) || (!previousOwner && remoteRows.length)) {
+      if (previousOwner && previousOwner !== this.user.id) {
         this.clearLocalUserData();
       }
-      this.applyRows(remoteRows);
-      if (!remoteRows.length && hasLocalUserData && !previousOwner) {
+      const mergedLocalData = this.applyRows(remoteRows);
+      if ((!remoteRows.length && hasLocalUserData && !previousOwner) || mergedLocalData) {
         await this.pushAll();
       }
     }
@@ -169,14 +169,30 @@ export const CloudManager = {
 
   async pushBatch(entries) {
     if (!entries.length) return;
-    const rows = entries
+    const localEntries = entries.filter(([key]) => this.isUserDataKey(key));
+    if (!localEntries.length) return;
+    const remoteRows = await this.fetchUserRows([...localEntries.map(([key]) => key), Keys.syncTombstones]);
+    const remoteByKey = new Map(remoteRows.map(row => [row.key, this.normaliseSyncValue(row.value)]));
+    const tombstones = this.mergeTombstones(
+      Storage.get(Keys.syncTombstones, {}),
+      remoteByKey.get(Keys.syncTombstones) || {}
+    );
+    if (Object.keys(tombstones).length) {
+      this.writeLocalValue(Keys.syncTombstones, tombstones);
+    }
+
+    const rows = localEntries
       .filter(([key]) => this.isUserDataKey(key))
-      .map(([key, value]) => ({
-      user_id: this.user.id,
-      key,
-      value,
-      updated_at: new Date().toISOString()
-    }));
+      .map(([key, value]) => {
+        const mergedValue = this.mergeValue(key, value, remoteByKey.get(key), tombstones);
+        this.writeLocalValue(key, mergedValue);
+        return {
+          user_id: this.user.id,
+          key,
+          value: mergedValue,
+          updated_at: new Date().toISOString()
+        };
+      });
     if (!rows.length) return;
     const { error } = await this.client
       .from('user_data')
@@ -189,29 +205,53 @@ export const CloudManager = {
     if (!this.user || !this.client) return;
     try {
       const data = await this.fetchUserRows();
-      this.applyRows(data);
+      const mergedLocalData = this.applyRows(data);
+      if (mergedLocalData) await this.pushAll();
       return data.length;
     } catch (e) { console.error('Cloud Pull Error:', e); }
     return 0;
   },
 
-  async fetchUserRows() {
+  async fetchUserRows(keys = null) {
     if (!this.user || !this.client) return [];
-    const { data, error } = await this.client
+    let query = this.client
       .from('user_data')
       .select('key, value, updated_at')
       .eq('user_id', this.user.id);
+    if (Array.isArray(keys) && keys.length) query = query.in('key', Array.from(new Set(keys)));
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
   },
 
   applyRows(rows = []) {
+    let mergedLocalData = false;
+    const remoteByKey = new Map(rows
+      .filter(item => this.isUserDataKey(item.key))
+      .map(item => [item.key, this.normaliseSyncValue(item.value)]));
+    const tombstones = this.mergeTombstones(
+      Storage.get(Keys.syncTombstones, {}),
+      remoteByKey.get(Keys.syncTombstones) || {}
+    );
+
+    if (Object.keys(tombstones).length) {
+      const previous = localStorage.getItem(Keys.syncTombstones);
+      this.writeLocalValue(Keys.syncTombstones, tombstones);
+      if (previous !== localStorage.getItem(Keys.syncTombstones)) mergedLocalData = true;
+    }
+
     rows.forEach(item => {
       if (!this.isUserDataKey(item.key)) return;
-      const val = typeof item.value === 'string' ? item.value : JSON.stringify(item.value);
-      localStorage.setItem(item.key, val);
+      const localValue = Storage.get(item.key);
+      const remoteValue = this.normaliseSyncValue(item.value);
+      const mergedValue = this.mergeValue(item.key, localValue, remoteValue, tombstones);
+      const remoteRaw = JSON.stringify(remoteValue);
+      const mergedRaw = JSON.stringify(mergedValue);
+      this.writeLocalValue(item.key, mergedValue);
+      if (mergedRaw !== remoteRaw) mergedLocalData = true;
     });
     this.recordSyncRows(rows);
+    return mergedLocalData;
   },
 
   async pushAll() {
@@ -227,6 +267,149 @@ export const CloudManager = {
     }
     await this.pushBatch(entries);
     return entries.length;
+  },
+
+  mergeValue(key, localValue, remoteValue, tombstones = {}) {
+    if (key === Keys.syncTombstones) {
+      return this.mergeTombstones(localValue || {}, remoteValue || {});
+    }
+    if (key === Keys.locations) {
+      return this.mergeLocations(localValue, remoteValue, tombstones);
+    }
+    if (key === Keys.profiles || key === Keys.checklist) {
+      return this.mergeArrayById(localValue, remoteValue, tombstones[key] || {});
+    }
+    if (this.isPlainObject(localValue) && this.isPlainObject(remoteValue)) {
+      return this.mergePlainObject(localValue, remoteValue);
+    }
+    if (localValue === null || localValue === undefined) return remoteValue;
+    if (remoteValue === null || remoteValue === undefined) return localValue;
+    return localValue;
+  },
+
+  mergeLocations(localValue, remoteValue, tombstones = {}) {
+    const localItems = Array.isArray(localValue) ? localValue : [];
+    const remoteItems = Array.isArray(remoteValue) ? remoteValue : [];
+    const locationTombstones = tombstones[Keys.locations] || {};
+    const logTombstones = tombstones[`${Keys.locations}:logbook`] || {};
+    const byId = new Map();
+    const order = [];
+
+    const visit = (item, source) => {
+      if (!item || typeof item !== 'object' || !item.id) return;
+      if (!byId.has(item.id)) order.push(item.id);
+      const entry = byId.get(item.id) || {};
+      entry[source] = item;
+      byId.set(item.id, entry);
+    };
+    localItems.forEach(item => visit(item, 'local'));
+    remoteItems.forEach(item => visit(item, 'remote'));
+
+    return order
+      .map(id => {
+        const entry = byId.get(id);
+        const chosen = this.chooseNewerItem(entry.local, entry.remote);
+        if (!chosen) return null;
+        const deletedAt = this.timestampMs(locationTombstones[id]);
+        const itemTime = this.timestampMs(chosen.updatedAt || chosen.createdAt);
+        if (deletedAt && deletedAt >= itemTime) return null;
+
+        const localLog = entry.local?.logbook || [];
+        const remoteLog = entry.remote?.logbook || [];
+        const scopedLogTombstones = {};
+        Object.entries(logTombstones).forEach(([compoundId, deletedAtValue]) => {
+          const prefix = `${id}:`;
+          if (compoundId.startsWith(prefix)) {
+            scopedLogTombstones[compoundId.slice(prefix.length)] = deletedAtValue;
+          }
+        });
+        return {
+          ...chosen,
+          logbook: this.mergeArrayById(localLog, remoteLog, scopedLogTombstones)
+        };
+      })
+      .filter(Boolean);
+  },
+
+  mergeArrayById(localValue, remoteValue, tombstones = {}) {
+    const localItems = Array.isArray(localValue) ? localValue : [];
+    const remoteItems = Array.isArray(remoteValue) ? remoteValue : [];
+    if (!localItems.length && !remoteItems.length) return Array.isArray(localValue) ? localItems : remoteItems;
+
+    const byId = new Map();
+    const noId = [];
+    const order = [];
+    const visit = (item, source) => {
+      if (!item || typeof item !== 'object' || !item.id) {
+        if (item !== undefined && !noId.some(existing => JSON.stringify(existing) === JSON.stringify(item))) {
+          noId.push(item);
+        }
+        return;
+      }
+      if (!byId.has(item.id)) order.push(item.id);
+      const entry = byId.get(item.id) || {};
+      entry[source] = item;
+      byId.set(item.id, entry);
+    };
+
+    localItems.forEach(item => visit(item, 'local'));
+    remoteItems.forEach(item => visit(item, 'remote'));
+
+    const merged = order
+      .map(id => {
+        const entry = byId.get(id);
+        const chosen = this.chooseNewerItem(entry.local, entry.remote);
+        const deletedAt = this.timestampMs(tombstones[id]);
+        const itemTime = this.timestampMs(chosen?.updatedAt || chosen?.createdAt);
+        return deletedAt && deletedAt >= itemTime ? null : chosen;
+      })
+      .filter(Boolean);
+    return [...merged, ...noId];
+  },
+
+  chooseNewerItem(localItem, remoteItem) {
+    if (!localItem) return remoteItem || null;
+    if (!remoteItem) return localItem;
+    const localTime = this.timestampMs(localItem.updatedAt || localItem.createdAt);
+    const remoteTime = this.timestampMs(remoteItem.updatedAt || remoteItem.createdAt);
+    if (remoteTime > localTime) return { ...localItem, ...remoteItem };
+    return { ...remoteItem, ...localItem };
+  },
+
+  mergeTombstones(localValue = {}, remoteValue = {}) {
+    const merged = {};
+    [remoteValue, localValue].forEach(source => {
+      if (!this.isPlainObject(source)) return;
+      Object.entries(source).forEach(([collectionKey, entries]) => {
+        if (!this.isPlainObject(entries)) return;
+        merged[collectionKey] = merged[collectionKey] || {};
+        Object.entries(entries).forEach(([id, deletedAt]) => {
+          const current = merged[collectionKey][id];
+          if (!current || this.timestampMs(deletedAt) > this.timestampMs(current)) {
+            merged[collectionKey][id] = deletedAt;
+          }
+        });
+      });
+    });
+    return merged;
+  },
+
+  mergePlainObject(localValue = {}, remoteValue = {}) {
+    return { ...remoteValue, ...localValue };
+  },
+
+  isPlainObject(value) {
+    return value && typeof value === 'object' && !Array.isArray(value);
+  },
+
+  timestampMs(value) {
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(time) ? time : 0;
+  },
+
+  writeLocalValue(key, value) {
+    if (value === undefined || value === null) return;
+    localStorage.setItem(key, JSON.stringify(value));
   },
 
   getSyncKeys() {
