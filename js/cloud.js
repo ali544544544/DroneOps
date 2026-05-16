@@ -245,8 +245,7 @@ export const CloudManager = {
     const entries = this.getStoredSyncEntries();
     this.saveSyncMeta({
       savedAt,
-      count: entries.length,
-      keys: entries.map(([key]) => key)
+      items: this.buildSyncItems(entries)
     });
   },
 
@@ -260,14 +259,15 @@ export const CloudManager = {
       .pop() || new Date().toISOString();
     this.saveSyncMeta({
       savedAt,
-      count: syncRows.length,
-      keys: syncRows.map(row => row.key)
+      items: this.buildSyncItems(syncRows.map(row => [row.key, row.value]))
     });
   },
 
   saveSyncMeta(meta) {
+    const items = meta.items || [];
+    const totalCount = items.reduce((sum, item) => sum + item.count, 0);
     try {
-      localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta));
+      localStorage.setItem(SYNC_META_KEY, JSON.stringify({ ...meta, totalCount }));
     } catch (e) {
       console.warn('Could not save sync metadata', e);
     }
@@ -286,25 +286,61 @@ export const CloudManager = {
     localStorage.removeItem(SYNC_META_KEY);
   },
 
-  describeSyncKey(key) {
-    const labels = {
-      [Keys.locations]: I18n.t('auth.syncItemLocations'),
-      [Keys.profiles]: I18n.t('auth.syncItemProfiles'),
-      [Keys.checklist]: I18n.t('auth.syncItemChecklist'),
-      [Keys.droneChecklist]: I18n.t('auth.syncItemDroneChecklist'),
-      [Keys.weatherCache]: I18n.t('auth.syncItemWeatherCache'),
-      [Keys.sunCache]: I18n.t('auth.syncItemSunCache'),
-      [Keys.brightSkyCache]: I18n.t('auth.syncItemWeatherCache'),
-      [Keys.homeBase]: I18n.t('auth.syncItemHomeBase'),
-      [Keys.language]: I18n.t('auth.syncItemSettings'),
-      [Keys.activeProfile]: I18n.t('auth.syncItemSettings'),
-      [Keys.activeTab]: I18n.t('auth.syncItemSettings'),
-      [Keys.activeLocation]: I18n.t('auth.syncItemSettings'),
-      [Keys.dashboardSource]: I18n.t('auth.syncItemSettings'),
-      [Keys.distSource]: I18n.t('auth.syncItemSettings'),
-      [Keys.dipulOverlay]: I18n.t('auth.syncItemSettings')
+  buildSyncItems(entries = []) {
+    const byKey = new Map(entries.map(([key, value]) => [key, this.normaliseSyncValue(value)]));
+    const items = [];
+    const add = (labelKey, count) => {
+      if (!count) return;
+      items.push({ labelKey, count });
     };
-    return labels[key] || key.replace(/^drone_/, '').replace(/_/g, ' ');
+    const objectSize = (value) => value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.keys(value).length
+      : 0;
+
+    const locations = byKey.get(Keys.locations);
+    if (Array.isArray(locations)) {
+      add('auth.syncItemLocations', locations.length);
+      add('auth.syncItemLogbook', locations.reduce((sum, location) => sum + ((location.logbook || []).length), 0));
+    }
+
+    const profiles = byKey.get(Keys.profiles);
+    if (Array.isArray(profiles)) add('auth.syncItemProfiles', profiles.length);
+
+    const checklist = byKey.get(Keys.checklist);
+    if (Array.isArray(checklist)) {
+      add('auth.syncItemChecklist', checklist.length);
+      add('auth.syncItemDocuments', checklist.reduce((sum, item) => {
+        const attachments = item.attachments || (item.attachment ? [item.attachment] : []);
+        return sum + attachments.length;
+      }, 0));
+    }
+
+    add('auth.syncItemDroneChecklist', objectSize(byKey.get(Keys.droneChecklist)));
+    add('auth.syncItemWeatherCache', objectSize(byKey.get(Keys.weatherCache)) + objectSize(byKey.get(Keys.brightSkyCache)));
+    add('auth.syncItemSunCache', objectSize(byKey.get(Keys.sunCache)));
+    add('auth.syncItemHomeBase', byKey.has(Keys.homeBase) ? 1 : 0);
+
+    const settingKeys = [
+      Keys.language,
+      Keys.activeProfile,
+      Keys.activeTab,
+      Keys.activeLocation,
+      Keys.dashboardSource,
+      Keys.distSource,
+      Keys.dipulOverlay
+    ];
+    add('auth.syncItemSettings', settingKeys.filter(key => byKey.has(key)).length);
+
+    return items;
+  },
+
+  normaliseSyncValue(value) {
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return value;
+    }
   },
 
   isUserDataKey(key) {
@@ -395,8 +431,7 @@ export const CloudManager = {
     const accountBtn = document.getElementById('accountBtn');
     if (this.user) {
       const syncMeta = this.getSyncMeta();
-      const savedKeys = Array.from(new Set(syncMeta?.keys || []));
-      const savedLabels = Array.from(new Set(savedKeys.map(key => this.describeSyncKey(key))));
+      const savedItems = syncMeta?.items || [];
       if (statusEl) statusEl.classList.add('live');
       if (accountBtn) {
         accountBtn.classList.add('btn-active');
@@ -411,8 +446,10 @@ export const CloudManager = {
       if (accountMemberSince) accountMemberSince.textContent = this.formatAccountDate(this.user.created_at);
       if (accountLastLogin) accountLastLogin.textContent = this.formatAccountDate(this.user.last_sign_in_at);
       if (accountLastCloudSave) accountLastCloudSave.textContent = this.formatAccountDate(syncMeta?.savedAt);
-      if (accountSavedElementsCount) accountSavedElementsCount.textContent = syncMeta ? I18n.t('auth.savedElementsCount').replace('{count}', syncMeta.count ?? savedKeys.length) : I18n.t('auth.notAvailable');
-      if (accountSavedElementsList) accountSavedElementsList.textContent = savedLabels.length ? savedLabels.join(', ') : I18n.t('auth.noSavedElements');
+      if (accountSavedElementsCount) accountSavedElementsCount.textContent = syncMeta ? I18n.t('auth.savedElementsCount').replace('{count}', syncMeta.totalCount ?? 0) : I18n.t('auth.notAvailable');
+      if (accountSavedElementsList) accountSavedElementsList.textContent = savedItems.length
+        ? savedItems.map(item => I18n.t('auth.syncItemLine').replace('{label}', I18n.t(item.labelKey)).replace('{count}', item.count)).join(', ')
+        : I18n.t('auth.noSavedElements');
       if (modePill) {
         modePill.textContent = I18n.t('auth.syncModePill');
         modePill.classList.add('synced');
