@@ -939,6 +939,33 @@ const UI = {
       </div>
     `;
   },
+  renderDashboardAirspaceNotice(location, result) {
+    const severity = result?.severity || 'caution';
+    const features = result?.features || [];
+    const count = features.length;
+    const featureList = features.slice(0, 3).map(feature => `
+      <li>
+        <strong>${Util.escapeHtml(feature.name)}</strong>
+        <span>${Util.escapeHtml(feature.layerLabel)}</span>
+      </li>
+    `).join('');
+    const more = count > 3
+      ? `<span class="muted">${I18n.t('airspace.dashboardMore').replace('{count}', count - 3)}</span>`
+      : '';
+
+    return `
+      <div id="dashboardAirspaceNotice" class="dashboard-airspace-notice airspace-${severity}">
+        <div class="dashboard-airspace-head">
+          <strong>${I18n.t('airspace.dashboardHintTitle')}</strong>
+          <span class="badge ${severity} airspace-status-badge">${this.airspaceLabel(result)}${count ? ` &middot; ${count}` : ''}</span>
+        </div>
+        <p>${this.airspaceText(result)}</p>
+        ${featureList ? `<ul class="dashboard-airspace-zones">${featureList}</ul>${more}` : ''}
+        <p class="muted airspace-disclaimer">${I18n.t('airspace.dashboardDisclaimer')}</p>
+        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary btn-small" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
+      </div>
+    `;
+  },
   spotSuitabilityOptions() {
     return [
       { id: 'freestyle', label: I18n.t('spotStyle.freestyle') },
@@ -2972,10 +2999,14 @@ const App = {
               ${UI.renderSpotSuitabilityTags(location)}
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
               ${dashboardAirspaceActions}
+              <div id="dashboardAirspaceNotice" class="dashboard-airspace-notice airspace-loading mt-12">
+                <span class="metric-chip">${I18n.t('airspace.checking')}</span>
+              </div>
             </div>
           </div>
         `;
         this.updateDipulToggle();
+        this.renderDashboardAirspaceNotice(location);
 
         currentStats.innerHTML = `
           <div class="weather-row" style="margin-top: 20px;">
@@ -3420,6 +3451,22 @@ const App = {
       const currentEl = document.getElementById(`location-airspace-${location.id}`);
       if (currentEl) currentEl.innerHTML = UI.renderAirspaceBadge(result, location);
     }));
+  },
+
+  async renderDashboardAirspaceNotice(location) {
+    const el = document.getElementById('dashboardAirspaceNotice');
+    if (!el || !location) return;
+    try {
+      const result = await AirspaceService.check(location);
+      const currentLocation = await this.resolveDashboardLocation();
+      if (currentLocation?.id !== location.id) return;
+      const currentEl = document.getElementById('dashboardAirspaceNotice');
+      if (currentEl) currentEl.outerHTML = UI.renderDashboardAirspaceNotice(location, result);
+    } catch (error) {
+      console.warn('Dashboard airspace notice failed:', error);
+      const currentEl = document.getElementById('dashboardAirspaceNotice');
+      if (currentEl) currentEl.innerHTML = `<p>${I18n.t('airspace.errorText')}</p>`;
+    }
   },
 
   locationCountryText(location) {
