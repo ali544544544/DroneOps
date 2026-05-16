@@ -2957,6 +2957,7 @@ const App = {
           : '';
 
         currentInfo.innerHTML = `
+          <div class="badge ${score.status} dashboard-flight-score">${I18n.t(`status.${score.status}`)} · ${score.score}</div>
           <div class="score-hero">
             <div>
               ${UI.titleWithInfo(I18n.t('dashboard.current'), 'help.currentConditions')}
@@ -2976,7 +2977,6 @@ const App = {
               <strong style="font-size:1.5rem">${weather.data.current_weather.temperature} °C</strong>
               <span class="muted" style="margin-left:8px">${meta[I18n.lang]}</span>
             </div>
-            <div class="badge ${score.status}" style="margin-left:auto">${I18n.t(`status.${score.status}`)} · ${score.score}</div>
           </div>
           <div class="metric-grid">
             <div class="kpi"><span>${I18n.t('weather.wind')} 10m</span><strong>${dashWindMs} <small>m/s</small> ${dashWindDir}</strong></div>
