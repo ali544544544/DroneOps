@@ -17,6 +17,24 @@ export const Keys = {
   dipulOverlay: 'drone_dipul_overlay'
 };
 
+const LOCAL_MODIFIED_KEY = 'droneops_local_modified_at';
+
+function isUserDataKey(key) {
+  return Object.values(Keys).includes(key) || String(key).startsWith('drone_');
+}
+
+function recordLocalModified(key) {
+  if (!isUserDataKey(key)) return;
+  try {
+    const raw = localStorage.getItem(LOCAL_MODIFIED_KEY);
+    const meta = raw ? JSON.parse(raw) : {};
+    meta[key] = new Date().toISOString();
+    localStorage.setItem(LOCAL_MODIFIED_KEY, JSON.stringify(meta));
+  } catch (e) {
+    console.warn('Could not record local modification timestamp', e);
+  }
+}
+
 export const FALLBACK_PROFILES = [
   { id: 'p1', label: 'Nazgul5 (5")', style: 'freestyle', weight: 650, size: 5, maxWind: 45, critWind: 60, maxGusts: 55, critGusts: 70, color: '#40a0ff', rainTolerance: 'low' },
   { id: 'p2', label: 'Mini 3 Pro', style: 'sub250', weight: 249, size: 3, maxWind: 30, critWind: 45, maxGusts: 40, critGusts: 55, color: '#37e781', rainTolerance: 'none' }
@@ -89,9 +107,19 @@ export const Storage = {
   set(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
+      recordLocalModified(key);
       if (typeof CloudManager !== 'undefined' && CloudManager.push) {
         CloudManager.push(key, value);
       }
     } catch (e) { console.error('Storage Set Error:', e); }
+  },
+  modifiedAt(key) {
+    try {
+      const raw = localStorage.getItem(LOCAL_MODIFIED_KEY);
+      const meta = raw ? JSON.parse(raw) : {};
+      return meta[key] || null;
+    } catch (e) {
+      return null;
+    }
   }
 };

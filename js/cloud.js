@@ -173,6 +173,7 @@ export const CloudManager = {
     if (!localEntries.length) return;
     const remoteRows = await this.fetchUserRows([...localEntries.map(([key]) => key), Keys.syncTombstones]);
     const remoteByKey = new Map(remoteRows.map(row => [row.key, this.normaliseSyncValue(row.value)]));
+    const remoteUpdatedByKey = new Map(remoteRows.map(row => [row.key, row.updated_at]));
     const tombstones = this.mergeTombstones(
       Storage.get(Keys.syncTombstones, {}),
       remoteByKey.get(Keys.syncTombstones) || {}
@@ -184,7 +185,9 @@ export const CloudManager = {
     const rows = localEntries
       .filter(([key]) => this.isUserDataKey(key))
       .map(([key, value]) => {
-        const mergedValue = this.mergeValue(key, value, remoteByKey.get(key), tombstones);
+        const mergedValue = this.mergeValue(key, value, remoteByKey.get(key), tombstones, {
+          remoteUpdatedAt: remoteUpdatedByKey.get(key)
+        });
         this.writeLocalValue(key, mergedValue);
         return {
           user_id: this.user.id,
@@ -244,7 +247,9 @@ export const CloudManager = {
       if (!this.isUserDataKey(item.key)) return;
       const localValue = Storage.get(item.key);
       const remoteValue = this.normaliseSyncValue(item.value);
-      const mergedValue = this.mergeValue(item.key, localValue, remoteValue, tombstones);
+      const mergedValue = this.mergeValue(item.key, localValue, remoteValue, tombstones, {
+        remoteUpdatedAt: item.updated_at
+      });
       const remoteRaw = JSON.stringify(remoteValue);
       const mergedRaw = JSON.stringify(mergedValue);
       this.writeLocalValue(item.key, mergedValue);
@@ -269,7 +274,7 @@ export const CloudManager = {
     return entries.length;
   },
 
-  mergeValue(key, localValue, remoteValue, tombstones = {}) {
+  mergeValue(key, localValue, remoteValue, tombstones = {}, options = {}) {
     if (key === Keys.syncTombstones) {
       return this.mergeTombstones(localValue || {}, remoteValue || {});
     }
@@ -284,6 +289,13 @@ export const CloudManager = {
     }
     if (localValue === null || localValue === undefined) return remoteValue;
     if (remoteValue === null || remoteValue === undefined) return localValue;
+    return this.chooseNewerScalar(key, localValue, remoteValue, options.remoteUpdatedAt);
+  },
+
+  chooseNewerScalar(key, localValue, remoteValue, remoteUpdatedAt) {
+    const localTime = this.timestampMs(Storage.modifiedAt?.(key));
+    const remoteTime = this.timestampMs(remoteUpdatedAt);
+    if (remoteTime > localTime) return remoteValue;
     return localValue;
   },
 

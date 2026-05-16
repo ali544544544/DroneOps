@@ -1938,7 +1938,7 @@ const App = {
     document.getElementById('gpsAddBtn').addEventListener('click', () => this.addLocationFromGps());
     document.getElementById('pickerBackBtn').addEventListener('click', () => this.toggleMapPicker());
     UI.els.dashboardLocationSelect.addEventListener('change', async (e) => {
-      Storage.set(Keys.dashboardSource, e.target.value || 'gps');
+      Storage.set(Keys.dashboardSource, e.target.value || '');
       await this.renderDashboard(true);
     });
 
@@ -2805,9 +2805,13 @@ const App = {
       }
       return gps;
     }
-    if (source) return LocationManager.getById(source);
-    const locations = LocationManager.getAll();
-    return locations[0] || null;
+    if (source) {
+      const location = LocationManager.getById(source);
+      if (location) return location;
+      Storage.set(Keys.dashboardSource, '');
+      return null;
+    }
+    return null;
   },
 
   currentIndex(weatherData, targetTime = null) {
@@ -2862,11 +2866,7 @@ const App = {
   async renderDashboard(forceRefresh = false) {
     const location = await this.resolveDashboardLocation();
     
-    // Sync the dropdown UI with the resolved location
-    const currentSource = Storage.get(Keys.dashboardSource, '');
-    if (!currentSource && location) {
-      Storage.set(Keys.dashboardSource, location.id);
-    }
+    // Keep the dropdown aligned without auto-saving a fallback spot.
     UI.renderDashboardLocationSelect();
 
     if (!location) {
