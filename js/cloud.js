@@ -316,8 +316,6 @@ export const CloudManager = {
     }
 
     add('auth.syncItemDroneChecklist', objectSize(byKey.get(Keys.droneChecklist)));
-    add('auth.syncItemWeatherCache', objectSize(byKey.get(Keys.weatherCache)) + objectSize(byKey.get(Keys.brightSkyCache)));
-    add('auth.syncItemSunCache', objectSize(byKey.get(Keys.sunCache)));
     add('auth.syncItemHomeBase', byKey.has(Keys.homeBase) ? 1 : 0);
 
     const settingKeys = [
