@@ -674,6 +674,7 @@ const UI = {
     this.els = {
       profileSelect: document.getElementById('profileSelect'),
       liveClock: document.getElementById('liveClock'),
+      languageToggleBtn: document.getElementById('languageToggleBtn'),
       toastContainer: document.getElementById('toastContainer'),
       locationList: document.getElementById('locationList'),
       searchInput: document.getElementById('locationSearchInput'),
@@ -810,6 +811,16 @@ const UI = {
     });
     if (typeof CloudManager !== 'undefined' && CloudManager.updateUI) CloudManager.updateUI();
     if (this.els.searchInput) this.els.searchInput.placeholder = I18n.lang === 'de' ? 'Hamburg, DE' : 'Hamburg, DE';
+    this.updateLanguageToggle();
+  },
+  updateLanguageToggle() {
+    const btn = this.els.languageToggleBtn || document.getElementById('languageToggleBtn');
+    if (!btn) return;
+    const active = I18n.lang === 'en' ? 'EN' : 'DE';
+    const next = I18n.lang === 'en' ? 'DE' : 'EN';
+    btn.textContent = active;
+    btn.title = `${I18n.t('common.language')}: ${active}. ${next}`;
+    btn.setAttribute('aria-label', `${I18n.t('common.language')}: ${active}`);
   },
   updateStatusIndicator() {
     const el = this.els.dataStatusIndicator;
@@ -1847,13 +1858,9 @@ const App = {
       this.renderAfterAccountChange({ resetTab: true, forceRefresh: true });
     });
 
-    document.getElementById('langDe').addEventListener('click', async () => {
-      I18n.setLanguage('de');
-      this.flushAutosaveSoon();
-      await this.renderAll();
-    });
-    document.getElementById('langEn').addEventListener('click', async () => {
-      I18n.setLanguage('en');
+    UI.els.languageToggleBtn?.addEventListener('click', async () => {
+      I18n.setLanguage(I18n.lang === 'de' ? 'en' : 'de');
+      UI.updateLanguageToggle();
       this.flushAutosaveSoon();
       await this.renderAll();
     });
