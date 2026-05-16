@@ -2356,6 +2356,12 @@ a { color: inherit; text-decoration: none; }
   flex-wrap: wrap;
 }
 
+.detail-weather-summary {
+  margin: 0 0 var(--space-4);
+  color: var(--text);
+  font-weight: 800;
+}
+
 /* ── Neue Animationen ── */
 @keyframes float {
   0%, 100% { transform: translateY(0); }

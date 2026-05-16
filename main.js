@@ -4072,6 +4072,7 @@ const App = {
       });
       UI.els.detailWeatherPanel.innerHTML = `
         ${UI.titleWithInfo(I18n.t('detail.weather'), 'help.weatherData')}
+        <p class="detail-weather-summary">${meta.icon} ${meta[I18n.lang]}</p>
         <div class="metric-grid">
           <div class="kpi"><span>${I18n.t('weather.temp')}</span><strong>${weather.data.current_weather.temperature} °C</strong></div>
           <div class="kpi"><span>${I18n.t('weather.feels')}</span><strong>${weather.data.hourly.apparent_temperature[idx]} °C</strong></div>
@@ -4088,7 +4089,6 @@ const App = {
           <span class="muted">Wind 80m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_80m[idx])} m/s</strong>
           <span class="muted">120m</span><strong>${Util.kmhToMs(weather.data.hourly.windspeed_120m[idx])} m/s</strong>
         </div>
-        <p class="mt-12">${meta.icon} ${meta[I18n.lang]}</p>
       `;
 
       const nextCountdown = gh.isActiveNow
