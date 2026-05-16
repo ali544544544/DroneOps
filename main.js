@@ -941,17 +941,7 @@ const UI = {
   },
   renderDashboardAirspaceNotice(location, result) {
     const severity = result?.severity || 'caution';
-    const features = result?.features || [];
-    const count = features.length;
-    const featureList = features.slice(0, 3).map(feature => `
-      <li>
-        <strong>${Util.escapeHtml(feature.name)}</strong>
-        <span>${Util.escapeHtml(feature.layerLabel)}</span>
-      </li>
-    `).join('');
-    const more = count > 3
-      ? `<span class="muted">${I18n.t('airspace.dashboardMore').replace('{count}', count - 3)}</span>`
-      : '';
+    const count = result?.features?.length || 0;
 
     return `
       <div id="dashboardAirspaceNotice" class="dashboard-airspace-notice airspace-${severity}">
@@ -959,10 +949,8 @@ const UI = {
           <strong>${I18n.t('airspace.dashboardHintTitle')}</strong>
           <span class="badge ${severity} airspace-status-badge">${this.airspaceLabel(result)}${count ? ` &middot; ${count}` : ''}</span>
         </div>
-        <p>${this.airspaceText(result)}</p>
-        ${featureList ? `<ul class="dashboard-airspace-zones">${featureList}</ul>${more}` : ''}
+        <p>${count ? I18n.t('airspace.dashboardFound') : this.airspaceText(result)}</p>
         <p class="muted airspace-disclaimer">${I18n.t('airspace.dashboardDisclaimer')}</p>
-        ${AirspaceService.isOverlayAvailable(location) ? `<button class="btn btn-secondary btn-small" data-open-pin="${AirspaceService.mapUrl(location)}">${AirspaceService.openMapLabel(location)}</button>` : ''}
       </div>
     `;
   },

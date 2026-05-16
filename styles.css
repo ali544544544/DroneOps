@@ -1577,6 +1577,7 @@ a { color: inherit; text-decoration: none; }
 .dashboard-airspace-notice {
   display: grid;
   gap: 8px;
+  width: 100%;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 12px;
