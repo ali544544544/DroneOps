@@ -1592,34 +1592,12 @@ a { color: inherit; text-decoration: none; }
   flex-wrap: wrap;
 }
 
-.dashboard-airspace-zones {
-  display: flex;
+.dashboard-airspace-title {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
-  list-style: none;
-  margin: 0;
-  padding: 0;
 }
 
-.dashboard-airspace-zones li {
-  min-width: 0;
-  max-width: 100%;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.14);
-  border: 1px solid var(--border);
-}
-
-.dashboard-airspace-zones strong,
-.dashboard-airspace-zones span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 190px;
-}
-
-.dashboard-airspace-zones span,
 .dashboard-airspace-notice p {
   font-size: 0.78rem;
 }

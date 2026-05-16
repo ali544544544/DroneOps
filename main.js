@@ -942,15 +942,18 @@ const UI = {
   renderDashboardAirspaceNotice(location, result) {
     const severity = result?.severity || 'caution';
     const count = result?.features?.length || 0;
+    const disclaimer = Util.escapeHtml(I18n.t('airspace.dashboardDisclaimer'));
 
     return `
       <div id="dashboardAirspaceNotice" class="dashboard-airspace-notice airspace-${severity}">
         <div class="dashboard-airspace-head">
-          <strong>${I18n.t('airspace.dashboardHintTitle')}</strong>
+          <div class="dashboard-airspace-title">
+            <strong>${I18n.t('airspace.dashboardHintTitle')}</strong>
+            <button class="info-dot kpi-info-dot" type="button" data-tooltip="${disclaimer}" aria-label="${disclaimer}">i</button>
+          </div>
           <span class="badge ${severity} airspace-status-badge">${this.airspaceLabel(result)}${count ? ` &middot; ${count}` : ''}</span>
         </div>
         <p>${count ? I18n.t('airspace.dashboardFound') : this.airspaceText(result)}</p>
-        <p class="muted airspace-disclaimer">${I18n.t('airspace.dashboardDisclaimer')}</p>
       </div>
     `;
   },
@@ -2987,13 +2990,17 @@ const App = {
               ${UI.renderSpotSuitabilityTags(location)}
               <p class="muted">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}<span id="dashboardTravelTime"></span></p>
               ${dashboardAirspaceActions}
-              <div id="dashboardAirspaceNotice" class="dashboard-airspace-notice airspace-loading mt-12">
-                <span class="metric-chip">${I18n.t('airspace.checking')}</span>
-              </div>
             </div>
           </div>
         `;
         this.updateDipulToggle();
+        const existingNotice = document.getElementById('dashboardAirspaceNotice');
+        if (existingNotice) existingNotice.remove();
+        mapContainer.insertAdjacentHTML('beforebegin', `
+          <div id="dashboardAirspaceNotice" class="dashboard-airspace-notice airspace-loading">
+            <span class="metric-chip">${I18n.t('airspace.checking')}</span>
+          </div>
+        `);
         this.renderDashboardAirspaceNotice(location);
 
         currentStats.innerHTML = `
