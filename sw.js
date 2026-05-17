@@ -1,4 +1,4 @@
-const CACHE_NAME = 'droneops-v35';
+const CACHE_NAME = 'droneops-v36';
 const CORE_ASSETS = [
   './',
   './index.html',

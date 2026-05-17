@@ -1,11 +1,10 @@
 import { Keys, Storage } from './core.js';
 import { I18n } from './i18n.js';
 
-/* global supabase */
-
 const LOCAL_OWNER_KEY = 'droneops_cloud_user_id';
 const SYNC_META_KEY = 'droneops_cloud_sync_meta';
 const USER_DATA_PREFIX = 'drone_';
+const SUPABASE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 
 export const CloudManager = {
   user: null,
@@ -14,19 +13,49 @@ export const CloudManager = {
   flushTimer: null,
   flushPromise: null,
   flushDelay: 250,
+  libraryPromise: null,
+
+  loadSupabaseLibrary() {
+    if (window.supabase) return Promise.resolve(window.supabase);
+    if (this.libraryPromise) return this.libraryPromise;
+
+    this.libraryPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-supabase-js]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.supabase), { once: true });
+        existing.addEventListener('error', reject, { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = SUPABASE_SCRIPT_URL;
+      script.async = true;
+      script.dataset.supabaseJs = 'true';
+      script.onload = () => resolve(window.supabase);
+      script.onerror = () => reject(new Error('Supabase library failed to load'));
+      document.head.appendChild(script);
+    });
+
+    return this.libraryPromise;
+  },
+
+  async ensureClient() {
+    if (!window.supabase) {
+      await this.loadSupabaseLibrary();
+    }
+    if (!window.supabase) {
+      console.warn('Supabase library not loaded.');
+      return null;
+    }
+    if (!window.supabaseClient && typeof CONFIG !== 'undefined') {
+      window.supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+    }
+    this.client = window.supabaseClient || null;
+    return this.client;
+  },
 
   async init() {
-    if (typeof supabase === 'undefined') {
-      console.warn('Supabase library not loaded.');
-      return;
-    }
-    
-    // Initialize client if missing but CONFIG exists
-    if (!window.supabaseClient && typeof CONFIG !== 'undefined') {
-      window.supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
-    }
-
-    this.client = window.supabaseClient;
+    await this.ensureClient();
     
     if (this.client) {
       const { data: { session } } = await this.client.auth.getSession();
@@ -49,6 +78,7 @@ export const CloudManager = {
   },
 
   async login(email, password) {
+    if (!this.client) await this.ensureClient();
     if (!this.client) throw new Error('Cloud client not ready');
     const { data, error } = await this.client.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -76,6 +106,7 @@ export const CloudManager = {
   },
 
   async signup(email, password) {
+    if (!this.client) await this.ensureClient();
     if (!this.client) throw new Error('Cloud client not ready');
     const emailRedirectTo = ['http:', 'https:'].includes(window.location.protocol)
       ? window.location.href
@@ -563,12 +594,14 @@ export const CloudManager = {
   },
 
   async resetPassword(email) {
+    if (!this.client) await this.ensureClient();
     if (!this.client) throw new Error('Cloud client not ready');
     const { error } = await this.client.auth.resetPasswordForEmail(email);
     if (error) throw error;
   },
 
   async updatePassword(newPassword) {
+    if (!this.client) await this.ensureClient();
     if (!this.client) throw new Error('Cloud client not ready');
     const { data, error } = await this.client.auth.updateUser({ password: newPassword });
     if (error) throw error;
@@ -577,6 +610,7 @@ export const CloudManager = {
   },
 
   async requestAccountDeletion() {
+    if (!this.client) await this.ensureClient();
     if (!this.client || !this.user) throw new Error('Cloud client not ready');
     const requestedAt = new Date().toISOString();
     const { data, error } = await this.client.auth.updateUser({

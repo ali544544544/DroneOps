@@ -1684,14 +1684,6 @@ const App = {
 
       I18n.init(translations);
       HelpTooltip.init();
-      try {
-        if (typeof CloudManager !== 'undefined' && CloudManager.init) {
-          await CloudManager.init();
-          console.log('App: CloudManager initialized.');
-        }
-      } catch (e) {
-        console.error('App: CloudManager init failed:', e);
-      }
       I18n.loadStoredLanguage();
       ProfileManager.init(profiles);
       LocationManager.init();
@@ -1713,7 +1705,12 @@ const App = {
       const activeTab = Storage.get(Keys.activeTab, 'dashboard');
       console.log('App: Showing page:', activeTab);
       Router.showPage(activeTab);
-      await this.renderAll(true);
+      UI.renderChecklistFormOptions();
+      if (UI.els.droneColorContainer) {
+        UI.els.droneColorContainer.innerHTML = UI.renderColorPicker('#f5bc2b', 'global-drone');
+      }
+      await this.renderActivePage(true);
+      this.initCloudInBackground();
       this.ensureLocationCountries();
       console.log('App: Initial render complete.');
     } catch (error) {
@@ -1724,6 +1721,28 @@ const App = {
         <pre style="font-size:12px;opacity:0.7">${error.stack || ''}</pre>
         <button onclick="location.reload()">Neu laden</button>
       </main>`;
+    }
+  },
+
+  initCloudInBackground() {
+    if (typeof CloudManager === 'undefined' || !CloudManager.init) return;
+
+    const initCloud = async () => {
+      try {
+        await CloudManager.init();
+        console.log('App: CloudManager initialized.');
+        if (CloudManager.user) {
+          await this.renderAfterAccountChange({ resetTab: false, forceRefresh: false });
+        }
+      } catch (e) {
+        console.error('App: CloudManager init failed:', e);
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(initCloud, { timeout: 2000 });
+    } else {
+      window.setTimeout(initCloud, 0);
     }
   },
 
@@ -4684,10 +4703,10 @@ const App = {
     }
   },
 
-  async renderActivePage() {
+  async renderActivePage(forceRefresh = false) {
     this.saveOpenEditorsNow();
     const page = Storage.get(Keys.activeTab, 'dashboard');
-    if (page === 'dashboard') await this.renderDashboard();
+    if (page === 'dashboard') await this.renderDashboard(forceRefresh);
     if (page === 'locations') {
       await this.renderLocationsList();
       document.getElementById('locationsDetailView').classList.add('hidden');

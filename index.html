@@ -12,25 +12,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preload" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /></noscript>
   <link rel="manifest" href="./manifest.json" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', async () => {
         try {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          let unregistered = false;
-          for (let reg of registrations) {
-            await reg.unregister();
-            unregistered = true;
-          }
-          if (unregistered && !sessionStorage.getItem('sw_killed')) {
-            sessionStorage.setItem('sw_killed', 'true');
-            window.location.reload(true);
-            return;
-          }
           const reg = await navigator.serviceWorker.register('./sw.js');
           console.log('SW registered:', reg.scope);
         } catch (err) {
@@ -534,6 +523,6 @@
   </template>
 
   <script src="./config.js"></script>
-  <script type="module" src="./main.js?v=25"></script>
+  <script type="module" src="./main.js?v=26"></script>
 </body>
 </html>
