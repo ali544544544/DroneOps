@@ -1868,6 +1868,15 @@ const App = {
       this.saveOpenEditorsNow();
       this.flushAutosaveNow();
     };
+    const bind = (target, eventName, handler, options) => {
+      const el = typeof target === 'string' ? document.getElementById(target) : target;
+      if (!el) {
+        console.warn('App.bindEvents: missing element', target);
+        return null;
+      }
+      el.addEventListener(eventName, handler, options);
+      return el;
+    };
     window.addEventListener('pagehide', saveAndFlushOpenData);
     window.addEventListener('beforeunload', saveAndFlushOpenData);
     document.addEventListener('visibilitychange', () => {
@@ -1884,17 +1893,17 @@ const App = {
       await this.renderAll();
     });
 
-    UI.els.droneAddBtn.addEventListener('click', () => {
+    bind(UI.els.droneAddBtn, 'click', () => {
       this.editingDroneId = null;
       UI.els.droneForm.reset();
       UI.els.droneForm.classList.remove('hidden');
     });
 
-    UI.els.droneCancelBtn.addEventListener('click', () => {
+    bind(UI.els.droneCancelBtn, 'click', () => {
       UI.els.droneForm.classList.add('hidden');
     });
 
-    UI.els.droneForm.addEventListener('submit', async (e) => {
+    bind(UI.els.droneForm, 'submit', async (e) => {
       e.preventDefault();
       const data = {
         label: UI.els.droneName.value.trim(),
@@ -1921,7 +1930,7 @@ const App = {
       UI.renderDashboardLocationSelect();
     });
 
-    UI.els.droneSize.addEventListener('change', (e) => {
+    bind(UI.els.droneSize, 'change', (e) => {
       const size = parseFloat(e.target.value);
       const presets = {
         1.6: { wind: 12, gusts: 16 },
@@ -1940,7 +1949,7 @@ const App = {
       }
     });
 
-    UI.els.profileSelect.addEventListener('change', async (e) => {
+    bind(UI.els.profileSelect, 'change', async (e) => {
       ProfileManager.setActive(e.target.value);
       UI.toast(I18n.t('toast.profileChanged'));
       this.flushAutosaveSoon();
@@ -1960,10 +1969,10 @@ const App = {
       });
     });
 
-    UI.els.dashboardHomeSearchInput.addEventListener('input', (e) => doHomeBaseSearch(e.target.value));
-    document.getElementById('gpsAddBtn').addEventListener('click', () => this.addLocationFromGps());
-    document.getElementById('pickerBackBtn').addEventListener('click', () => this.toggleMapPicker());
-    UI.els.dashboardLocationSelect.addEventListener('change', async (e) => {
+    bind(UI.els.dashboardHomeSearchInput, 'input', (e) => doHomeBaseSearch(e.target.value));
+    bind('gpsAddBtn', 'click', () => this.addLocationFromGps());
+    bind('pickerBackBtn', 'click', () => this.toggleMapPicker());
+    bind(UI.els.dashboardLocationSelect, 'change', async (e) => {
       Storage.set(Keys.dashboardSource, e.target.value || '');
       await this.renderDashboard(true);
     });
@@ -2016,7 +2025,7 @@ const App = {
       }
     }, 500);
 
-    UI.els.searchInput.addEventListener('input', (e) => doSearch(e.target.value));
+    bind(UI.els.searchInput, 'input', (e) => doSearch(e.target.value));
 
     UI.renderLocationFilterOptions(this.locationFilters.suitability);
     const hideCountrySuggestions = () => {
@@ -2112,7 +2121,7 @@ const App = {
       }
     }, 500);
 
-    UI.els.dashboardHomeBtn.addEventListener('click', () => {
+    bind(UI.els.dashboardHomeBtn, 'click', () => {
       const current = Storage.get(Keys.distSource, 'gps');
       const homeBase = Storage.get(Keys.homeBase);
       
@@ -2131,16 +2140,16 @@ const App = {
       }
     });
 
-    document.getElementById('dashboardUseGpsBtn').addEventListener('click', () => {
+    bind('dashboardUseGpsBtn', 'click', () => {
       Storage.set(Keys.distSource, 'gps');
       this.setDashboardGps();
     });
 
-    document.getElementById('toggleLocationPickerBtn').addEventListener('click', () => {
+    bind('toggleLocationPickerBtn', 'click', () => {
       this.toggleMapPicker();
     });
 
-    document.getElementById('dashboardRefreshBtn').addEventListener('click', async () => {
+    bind('dashboardRefreshBtn', 'click', async () => {
       UI.toast(I18n.t('dashboard.refresh'));
       
       const source = Storage.get(Keys.dashboardSource, '');
@@ -2151,14 +2160,14 @@ const App = {
       await this.renderDashboard(true);
     });
 
-    document.getElementById('dashboardMapSelectBtn').addEventListener('click', () => {
+    bind('dashboardMapSelectBtn', 'click', () => {
       this.toggleDashboardMapPicker();
     });
 
     const pickerSearchInput = document.getElementById('pickerSearchInput');
     const pickerSuggestions = document.getElementById('pickerSearchSuggestions');
 
-    pickerSearchInput.addEventListener('input', Util.debounce(async (e) => {
+    bind(pickerSearchInput, 'input', Util.debounce(async (e) => {
       const q = e.target.value.trim();
       if (q.length < 3) {
         pickerSuggestions.classList.add('hidden');
@@ -2177,7 +2186,7 @@ const App = {
       } catch (err) { console.error('Picker search error', err); }
     }, 400));
 
-    pickerSuggestions.addEventListener('click', (e) => {
+    bind(pickerSuggestions, 'click', (e) => {
       const item = e.target.closest('.suggestion-item');
       if (item && this.pickerMap) {
         const lat = parseFloat(item.dataset.lat);
@@ -2190,7 +2199,8 @@ const App = {
       }
     });
 
-    document.getElementById('pickerSearchBtn').addEventListener('click', async () => {
+    bind('pickerSearchBtn', 'click', async () => {
+      if (!pickerSearchInput) return;
       const q = pickerSearchInput.value.trim();
       if (!q) return;
       try {
@@ -2205,11 +2215,11 @@ const App = {
       } catch (err) { console.error('Picker search error', err); }
     });
 
-    pickerSearchInput.addEventListener('keyup', (e) => {
-      if (e.key === 'Enter') document.getElementById('pickerSearchBtn').click();
+    bind(pickerSearchInput, 'keyup', (e) => {
+      if (e.key === 'Enter') document.getElementById('pickerSearchBtn')?.click();
     });
 
-    document.getElementById('detailBackBtn').addEventListener('click', async () => {
+    bind('detailBackBtn', 'click', async () => {
       this.saveOpenEditorsNow();
       this.flushAutosaveSoon();
       document.getElementById('locationsDetailView').classList.add('hidden');
@@ -2217,7 +2227,7 @@ const App = {
       await this.renderLocationsList();
     });
 
-    document.getElementById('checklistToggleAddBtn').addEventListener('click', () => {
+    bind('checklistToggleAddBtn', 'click', () => {
       this.editingChecklistId = null;
       document.getElementById('checklistForm').classList.toggle('hidden');
       document.getElementById('checklistName').value = '';
@@ -2227,12 +2237,12 @@ const App = {
       UI.els.checklistFile.value = '';
     });
 
-    document.getElementById('checklistCancelBtn').addEventListener('click', () => {
+    bind('checklistCancelBtn', 'click', () => {
       document.getElementById('checklistForm').classList.add('hidden');
       this.editingChecklistId = null;
     });
 
-    document.getElementById('checklistForm').addEventListener('submit', async (e) => {
+    bind('checklistForm', 'submit', async (e) => {
       e.preventDefault();
       const item = {
         name: document.getElementById('checklistName').value.trim(),
@@ -2269,7 +2279,7 @@ const App = {
       await this.renderChecklist();
     });
 
-    document.getElementById('checklistResetBtn').addEventListener('click', async () => {
+    bind('checklistResetBtn', 'click', async () => {
       if (confirm(I18n.t('confirm.resetChecklist'))) {
         ChecklistManager.resetAll();
         await this.renderChecklist();
@@ -2468,9 +2478,9 @@ const App = {
       document.getElementById('accountPanel').classList.toggle('hidden');
     };
 
-    document.getElementById('accountBtn').addEventListener('click', toggleAccountPanel);
+    bind('accountBtn', 'click', toggleAccountPanel);
 
-    document.getElementById('accountCloseBtn').addEventListener('click', () => {
+    bind('accountCloseBtn', 'click', () => {
       document.getElementById('accountPanel').classList.add('hidden');
     });
 
@@ -2595,7 +2605,7 @@ const App = {
     });
     updateAuthMode('login');
 
-    loginBtn.addEventListener('click', async () => {
+    bind(loginBtn, 'click', async () => {
       authSubmitted = true;
       if (!validateLoginForm({ showMessage: true })) return;
       const email = authEmailInput.value.trim();
@@ -2674,7 +2684,7 @@ const App = {
       });
     }
 
-    signupBtn.addEventListener('click', async () => {
+    bind(signupBtn, 'click', async () => {
       authSubmitted = true;
       if (!validateSignupForm({ showMessage: true })) return;
       const email = authEmailInput.value.trim();
@@ -2700,7 +2710,7 @@ const App = {
       }
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
+    bind('logoutBtn', 'click', async () => {
       await CloudManager.logout();
     });
 
@@ -2723,8 +2733,9 @@ const App = {
       });
     }
 
-    document.getElementById('syncNowBtn').addEventListener('click', async () => {
+    bind('syncNowBtn', 'click', async () => {
       const btn = document.getElementById('syncNowBtn');
+      if (!btn) return;
       const original = btn.textContent;
       btn.textContent = '⌛ Syncing...';
       btn.disabled = true;
@@ -2739,7 +2750,7 @@ const App = {
       }
     });
 
-    document.getElementById('resetPassBtn').addEventListener('click', () => {
+    bind('resetPassBtn', 'click', () => {
       updateAuthMode('reset');
       authEmailInput?.focus();
     });
