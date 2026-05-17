@@ -3384,17 +3384,20 @@ const App = {
     const listContent = document.getElementById('locationListContent');
     listContent.innerHTML = locations.map(location => `
       <article class="location-card" data-id="${location.id}">
-        <div>
+        <div class="location-card-main">
           ${this.renderLocationTitle(location)}
-          <div class="location-weather-top" id="location-weather-${location.id}">
-            <span class="metric-chip">…</span>
-          </div>
           <div class="location-meta">
             <span class="inline-pill">📍 ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}</span>
             <span class="inline-pill">🗓️ ${Util.formatDate(location.createdAt, I18n.locale)}</span>
           </div>
           ${UI.renderSpotSuitabilityTags(location)}
           <p class="muted">${I18n.t('list.lastVisit')}: ${UI.lastVisit(location)}</p>
+        </div>
+        <div class="location-card-weather" id="location-weather-${location.id}">
+          <strong>${I18n.t('list.liveWeather')}</strong>
+          <div class="location-weather-chips">
+            <span class="metric-chip">…</span>
+          </div>
         </div>
         <div id="location-golden-${location.id}">
           <span class="metric-chip">…</span>
